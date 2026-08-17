@@ -123,7 +123,7 @@ export const DIRECT_WRITE_PATTERNS = [
  * `insertAdjacentElement` sibling insert (see DIRECT_WRITE_PATTERNS).
  */
 export const LEGACY_DIRECT_CONTENT_WRITES = [
-  'src/components/AirlineIntelPanel.ts :: setTrustedHtml(this.content, …) x15',
+  'src/components/AirlineIntelPanel.ts :: setTrustedHtml(this.content, …) x8',
   'src/components/CountersPanel.ts :: this.content.appendChild(…) x1',
   'src/components/CountersPanel.ts :: this.content.innerHTML = … x1',
   'src/components/DeductionPanel.ts :: replaceChildren(this.content, …) x1',
@@ -138,7 +138,7 @@ export const LEGACY_DIRECT_CONTENT_WRITES = [
   'src/components/LatestBriefPanel.ts :: this.content.appendChild(…) x1',
   'src/components/LiveNewsPanel.ts :: setTrustedHtml(this.content, …) x5',
   'src/components/LiveNewsPanel.ts :: this.content.appendChild(…) x3',
-  'src/components/LiveWebcamsPanel.ts :: setTrustedHtml(this.content, …) x4',
+  'src/components/LiveWebcamsPanel.ts :: setTrustedHtml(this.content, …) x2',
   'src/components/LiveWebcamsPanel.ts :: this.content.appendChild(…) x3',
   'src/components/MonitorPanel.ts :: clearChildren(this.content) x1',
   'src/components/MonitorPanel.ts :: this.content.appendChild(…) x3',
