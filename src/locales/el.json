@@ -207,6 +207,31 @@
       "soybeans": "Soybeans",
       "barley": "Barley",
       "palmOil": "Palm oil"
+    },
+    "demographicsCapability": {
+      "title": "Demographics & Workforce",
+      "help": "Age structure, education pipeline, and industrial workforce capacity from UN WPP, UNESCO UIS and World Bank WDI, and ILOSTAT.",
+      "loading": "Loading demographics and workforce data…",
+      "unavailable": "Demographics and workforce data unavailable.",
+      "proLocked": "Upgrade to PRO for demographics and workforce data",
+      "notAvailable": "Not available",
+      "ageStructure": "Age structure",
+      "education": "Education pipeline",
+      "industrialWorkforce": "Industrial workforce",
+      "medianAge": "Median age",
+      "oldAgeDependency": "Old-age dependency",
+      "totalDependency": "Total dependency",
+      "workingAgePopulation": "Working-age population",
+      "workingAgeProjection": "Working-age population (+10 years)",
+      "tertiaryEnrollment": "Tertiary enrollment",
+      "stemGraduates": "STEM graduates",
+      "researchers": "Researchers",
+      "craftTrades": "Craft and trades workers",
+      "plantOperators": "Plant and machine operators",
+      "trainedIndustrialWorkforce": "Combined industrial workforce",
+      "manufacturingShare": "Manufacturing employment",
+      "source": "Sources: {{sources}}.",
+      "retained": "{{stage}} data retained from the last successful refresh."
     }
   },
   "header": {
@@ -338,6 +363,7 @@
     "securityAdvisories": "Προειδοποιήσεις Ασφαλείας",
     "orefSirens": "Israel Sirens",
     "telegramIntel": "Πληροφορίες Telegram",
+    "xIntel": "X News Accounts",
     "startups": "Startups & VC",
     "vcblogs": "Αναλύσεις & Άρθρα VC",
     "regionalStartups": "Παγκόσμια Νέα Startups",
@@ -478,7 +504,7 @@
         "outages": "Εναλλαγή διακοπών ίντερνετ",
         "tradeRoutes": "Εναλλαγή εμπορικών δρόμων",
         "canadaRoads": "Toggle Canada roads overlay",
-        "canadaAlerts": "Toggle Alberta Emergency Alert overlay"
+        "canadaAlerts": "Toggle Canada provincial emergency alerts overlay"
       },
       "view": {
         "dark": "Μετάβαση σε σκοτεινή λειτουργία",
@@ -1170,7 +1196,7 @@
         "ucdpEvents": "Συμβάντα UCDP",
         "displacementFlows": "Ροές Εκτοπισμού",
         "climateAnomalies": "Κλιματικές Ανωμαλίες",
-        "weatherAlerts": "Καιρικές προειδοποιήσεις ΗΠΑ και Καναδά (NWS, ECCC)",
+        "weatherAlerts": "Προειδοποιήσεις έντονων καιρικών φαινομένων (NWS, ECCC, WMO SWIC)",
         "strategicWaterways": "Στρατηγικές Υδάτινες Οδοί",
         "economicCenters": "Οικονομικά Κέντρα",
         "criticalMinerals": "Κρίσιμα Ορυκτά",
@@ -1192,7 +1218,7 @@
         "radiationSpike": "Αιχμή ραδιενέργειας",
         "radiationElevated": "Αυξημένη ραδιενέργεια",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (Alberta Emergency Alert)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
       },
       "tooltip": {
         "earthquake": "Σεισμός",
@@ -1253,7 +1279,7 @@
           "infraDatacenters": "Συστοιχίες υπολογιστών AI >=10.000 GPUs",
           "infraOutages": "Blackout διαδικτύου και διακοπές υπηρεσιών",
           "naturalEventsTech": "Σεισμοί, καταιγίδες, πυρκαγιές (μπορεί να επηρεάσουν κέντρα δεδομένων)",
-          "weatherAlerts": "Προειδοποιήσεις έντονων καιρικών φαινομένων στις ΗΠΑ και τον Καναδά (NWS, ECCC)",
+          "weatherAlerts": "Επίσημες προειδοποιήσεις έντονων καιρικών φαινομένων από εθνικές μετεωρολογικές υπηρεσίες (NWS, ECCC, WMO SWIC)",
           "economicCenters": "Χρηματιστήρια & κεντρικές τράπεζες",
           "countriesOverlay": "Επικαλύψεις ονομάτων χωρών",
           "financeExchanges": "Σημαντικά παγκόσμια χρηματιστήρια ανά βαθμίδα αγοράς",
@@ -1265,7 +1291,7 @@
           "financeOutages": "Διακοπές διαδικτύου που μπορούν να επηρεάσουν τις λειτουργίες αγοράς",
           "financeCyberThreats": "Γεγονότα ασφαλείας γύρω από χρηματοπιστωτικές υποδομές",
           "macroWaterways": "Στρατηγικά σημεία ελέγχου για ναυτιλία εμπορευμάτων",
-          "weatherAlertsMarket": "Έντονα καιρικά φαινόμενα στις ΗΠΑ και τον Καναδά με σημασία για τις αγορές (NWS, ECCC)",
+          "weatherAlertsMarket": "Επίσημες προειδοποιήσεις έντονων καιρικών φαινομένων με σημασία για τις αγορές (NWS, ECCC, WMO SWIC)",
           "naturalEventsMacro": "Σεισμοί, πυρκαγιές, πλημμύρες και άλλες φυσικές καταστροφές",
           "timeRecent": "Φιλτράρισμα χρονικών δεδομένων σε πρόσφατες ώρες",
           "timeExtended": "Εμφάνιση δεδομένων από την προηγούμενη εβδομάδα, μήνα ή όλα",
@@ -1300,7 +1326,7 @@
           "geoBoundaries": "Αποστρατικοποιημένες ζώνες, γραμμές εκεχειρίας και αμφισβητούμενα σύνορα",
           "ciiChoropleth": "Θερμικός χάρτης αστάθειας χωρών — χρωματισμός κατά CII (πράσινο=σταθερό, κόκκινο=κρίσιμο)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Alberta Emergency Alert public warnings (Atom feed from www.alberta.ca)"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
         },
         "notes": {
           "timeAffects": "Επηρεάζει: Σεισμούς, Καιρό, Διαμαρτυρίες, Διακοπές"
@@ -1672,7 +1698,9 @@
     "breakingNews": {
       "critical": "ΚΡΙΣΙΜΟ",
       "high": "ΥΨΗΛΟ",
-      "dismiss": "Απόρριψη"
+      "dismiss": "Απόρριψη",
+      "alertsRegion": "Breaking news alerts",
+      "viewPanel": "View related panel"
     },
     "intelligenceFindings": {
       "breakingAlerts": "Έκτακτες Ειδοποιήσεις",
@@ -1732,6 +1760,21 @@
       "viewSource": "Προβολή πηγής",
       "filterGeopolitics": "Γεωπολιτική",
       "filterCyber": "Κυβερνο"
+    },
+    "xIntel": {
+      "infoTooltip": "Curated public news-account posts from X. Official API only.",
+      "loading": "Connecting to X news-account relay...",
+      "empty": "No posts available",
+      "disabled": "X news-account relay not active",
+      "filterAll": "All",
+      "filterBreaking": "Breaking",
+      "filterConflict": "Conflict",
+      "filterOsint": "OSINT",
+      "filterMiddleeast": "Middle East",
+      "live": "LIVE",
+      "viewSource": "View Source",
+      "filterGeopolitics": "Geopolitics",
+      "filterCyber": "Cyber"
     },
     "investments": {
       "infoTooltip": "Βάση δεδομένων άμεσων ξένων επενδύσεων Σαουδικής Αραβίας και ΗΑΕ σε παγκόσμιες κρίσιμες υποδομές. Κάντε κλικ σε μια γραμμή για μετάβαση στην επένδυση στον χάρτη.",
@@ -1909,7 +1952,17 @@
       "topTargets": "Κορυφαίες Χώρες-Στόχοι"
     },
     "commodities": {
-      "infoTooltip": "<strong>Commodities</strong> Tradeable non-energy commodity tape focused on metals and materials. Energy prices live in Energy Complex; macro stress indicators live in Macro Stress."
+      "infoTooltip": "<strong>Commodities</strong> Tradeable non-energy commodity tape focused on metals and materials. Energy prices live in Energy Complex; macro stress indicators live in Macro Stress.",
+      "commodities": "Commodities",
+      "physicalPremiums": "Physical premium",
+      "physical": "Physical",
+      "paper": "Paper",
+      "premium": "Premium",
+      "asOf": "As of {{date}}",
+      "metals": {
+        "gold": "Gold",
+        "silver": "Silver"
+      }
     },
     "crypto": {
       "infoTooltip": "<strong>Crypto</strong> Live prices, 24h changes, and volume for major cryptocurrencies. Data sourced from CoinGecko."
@@ -2951,7 +3004,11 @@
       "heading": "ΠΟΡΕΙΑ",
       "hexCode": "HEX CODE",
       "squawk": "SQUAWK",
-      "attribution": "Πηγή: adsb.lol (ODbL) · OpenSky Network"
+      "attribution": "Πηγή: adsb.lol (ODbL) · OpenSky Network",
+      "climbRate": "ΡΥΘΜΟΣ ΑΝΟΔΟΥ",
+      "manufacturer": "ΚΑΤΑΣΚΕΥΑΣΤΗΣ",
+      "owner": "ΙΔΙΟΚΤΗΤΗΣ",
+      "builtYear": "ΕΤΟ ΚΑΤΑΣΚΕΥΗΣ"
     },
     "militaryVessel": {
       "aisDark": "AIS ΣΚΟΤΕΙΝΟ",
@@ -2996,7 +3053,8 @@
       "moreVessels": "+{{count}} ακόμη πλοία",
       "vesselsCount": "{{count}} ΠΛΟΙΑ",
       "vessels": "ΠΛΟΙΑ",
-      "trackedVessels": "ΠΑΡΑΚΟΛΟΥΘΟΥΜΕΝΑ ΠΛΟΙΑ"
+      "trackedVessels": "ΠΑΡΑΚΟΛΟΥΘΟΥΜΕΝΑ ΠΛΟΙΑ",
+      "showLess": "Εμφάνιση λιγότερων"
     },
     "naturalEvent": {
       "closed": "ΚΛΕΙΣΤΟ",
@@ -3262,7 +3320,8 @@
     "retry": "Επανάληψη",
     "refresh": "Ανανέωση",
     "all": "Όλα",
-    "cancel": "Ακύρωση"
+    "cancel": "Ακύρωση",
+    "dismiss": "Dismiss"
   },
   "preferences": {
     "display": "Οθόνη",
@@ -3284,7 +3343,9 @@
     "fontFamily": "Οικογένεια Γραμματοσειράς",
     "fontFamilyDesc": "Monospace για τεχνικό περιβάλλον, προεπιλογή συστήματος για ευκολότερη ανάγνωση.",
     "fontMono": "Monospace",
-    "fontSystem": "Προεπιλογή Συστήματος"
+    "fontSystem": "Προεπιλογή Συστήματος",
+    "panelFontScale": "Μέγεθος κειμένου",
+    "followGlobalFontScale": "Χρήση παγκόσμιας"
   },
   "contextMenu": {
     "openCountryBrief": "Άνοιγμα επισκόπησης χώρας",
@@ -3375,7 +3436,9 @@
       "orefSirens1": "Ειδοποιήσεις πυραύλων και ρακετών του Ισραήλ σε πραγματικό χρόνο",
       "orefSirens2": "Χαρτογραφία ζωνών σειρήνας με ταξινόμηση απειλών",
       "telegramIntel1": "Επιλεγμένα κανάλια OSINT του Telegram",
-      "telegramIntel2": "Ενημερώσεις συγκρούσεων και γεωπολιτικών ζητημάτων σε σχεδόν πραγματικό χρόνο"
+      "telegramIntel2": "Ενημερώσεις συγκρούσεων και γεωπολιτικών ζητημάτων σε σχεδόν πραγματικό χρόνο",
+      "xIntel1": "Curated public news accounts on X",
+      "xIntel2": "API-fresh posts with official permalinks"
     }
   },
   "auth": {

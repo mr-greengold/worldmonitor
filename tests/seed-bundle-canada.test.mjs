@@ -20,6 +20,11 @@ import { bundleDisableEnvVar, disabledMembersFromEnv } from '../scripts/_bundle-
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = readFileSync(join(root, 'scripts/seed-bundle-canada.mjs'), 'utf8');
 const RUNNER_SRC = readFileSync(join(root, 'scripts/_bundle-runner.mjs'), 'utf8');
+const TORONTO_TFS_SEEDER_SRC = readFileSync(join(root, 'scripts/seed-toronto-tfs.mjs'), 'utf8');
+const TORONTO_TPS_SEEDER_SRC = readFileSync(join(root, 'scripts/seed-toronto-tps.mjs'), 'utf8');
+const ACCEPTANCE_BASELINE = JSON.parse(
+  readFileSync(join(root, 'scripts/seed-freshness-baseline.json'), 'utf8'),
+);
 const sections = extractBundleSections(src);
 
 const MIN = 60_000;
@@ -31,15 +36,19 @@ function section(label) {
   return found;
 }
 
-test('declares exactly the six Canada members', () => {
+test('declares exactly the ten active Canada members', () => {
   assert.deepEqual(
     sections.map((s) => s.label).sort(),
     [
       'Alberta-Emergency-Alert',
+      'BC-Emergency-Info',
       'BC-Open511',
       'Provincial-511',
+      'SaskAlert',
       'TTC-Alerts',
       'Toronto-Roads',
+      'Toronto-TFS',
+      'Toronto-TPS',
       'VIA-Rail-Live',
     ],
     'a member added to the bundle without a decision here is a slot nobody agreed to',
@@ -55,8 +64,12 @@ test('per-member cadence is the declared one, not TTC\'s cron inherited', () => 
     ['Toronto-Roads', 2 * HOUR],
     ['BC-Open511', 30 * MIN],
     ['Alberta-Emergency-Alert', 15 * MIN],
+    ['BC-Emergency-Info', 15 * MIN],
+    ['SaskAlert', 15 * MIN],
     ['VIA-Rail-Live', 15 * MIN],
     ['TTC-Alerts', 5 * MIN],
+    ['Toronto-TFS', 5 * MIN],
+    ['Toronto-TPS', 15 * MIN],
   ];
   for (const [label, intervalMs] of expected) {
     assert.equal(
@@ -64,6 +77,48 @@ test('per-member cadence is the declared one, not TTC\'s cron inherited', () => 
       intervalMs,
       `${label} cadence changed — confirm the bandwidth math before accepting it`,
     );
+  }
+});
+
+test('Manitoba cutover acknowledgement reaches the first eligible Provincial-511 admission', () => {
+  const provincial = section('Provincial-511');
+  const intervalMs = resolveExpr(src, provincial.intervalMsExpr);
+  const freshnessGuard = /elapsed\s*<\s*section\.intervalMs\s*\*\s*(\d+(?:\.\d+)?)/.exec(RUNNER_SRC);
+  assert.ok(freshnessGuard, 'bundle runner must expose its interval freshness admission ratio');
+  const freshnessRatio = Number(freshnessGuard[1]);
+  assert.ok(freshnessRatio > 0 && freshnessRatio <= 1, 'freshness admission ratio must be in (0, 1]');
+
+  const service = JSON.parse(readFileSync(join(root, 'scripts/railway-services.json'), 'utf8'))
+    .find((row) => row.service === 'seed-bundle-canada');
+  assert.equal(service?.cronSchedule, '*/5 * * * *');
+  const cronIntervalMs = 5 * MIN;
+
+  // The ack itself is gone — manitobaRoads publishes and #6622 was pruned on
+  // 2026-08-20. The ARITHMETIC it encoded is not gone, and it is the part worth
+  // keeping: a cutover window for this member must clear the runner's
+  // 0.8-interval freshness gate, so it spans the */5 ticks the gate skips.
+  // Pinned unconditionally against the live interval, ratio and cron so it
+  // still fails when any of the three moves — a bare `if (ack)` guard here
+  // would be an assertion that can no longer run.
+  const firstEligibleDelayMs = Math.ceil((intervalMs * freshnessRatio) / cronIntervalMs) * cronIntervalMs;
+  assert.equal(
+    firstEligibleDelayMs,
+    15 * MIN,
+    'the first eligible Provincial-511 admission must still be three */5 ticks out',
+  );
+
+  // Directional: no ack is required now, but one added later must span exactly
+  // that window rather than expiring on the activation tick.
+  const manitoba = ACCEPTANCE_BASELINE.acknowledged.find((entry) => entry.name === 'manitobaRoads');
+  if (manitoba) {
+    const activatedAt = Date.parse(manitoba.cutover?.activatedAt);
+    const firstScheduledRunAt = Date.parse(manitoba.cutover?.firstScheduledRunAt);
+    assert.equal(
+      firstScheduledRunAt,
+      activatedAt + firstEligibleDelayMs,
+      'the cutover must include */5 ticks skipped by the runner\'s 0.8-interval freshness gate',
+    );
+    assert.equal(Date.parse(manitoba.expiresAt), firstScheduledRunAt);
   }
 });
 
@@ -77,12 +132,16 @@ test('seed-meta keys follow runSeed(domain, resource), not the canonical key', (
     'Provincial-511': ['seed-meta:infra:ontario-511', 'infra:ontario-511:v1'],
     'Toronto-Roads': ['seed-meta:infra:toronto-roads', 'infra:toronto-roads:v1'],
     'BC-Open511': ['seed-meta:infra:bc-open511', 'infra:bc-open511:v1'],
-    'Alberta-Emergency-Alert': ['seed-meta:alerts:alberta-aea', 'alerts:alberta-aea:v1'],
+    'Alberta-Emergency-Alert': ['seed-meta:alerts:alberta-aea', 'alerts:canada:alberta-aea:v1'],
+    'BC-Emergency-Info': ['seed-meta:alerts:bc-emergency-info', 'alerts:canada:bc-evacuation:v1'],
+    'SaskAlert': ['seed-meta:alerts:saskalert', 'alerts:canada:saskalert:v1'],
     'VIA-Rail-Live': ['seed-meta:transit:viarail-live', 'transit:viarail:live'],
     // The canonical key is transit:ttc:alerts:v1 but the resource is
     // 'ttc-alerts', so the meta key takes a HYPHEN. api/health.js watched
     // seed-meta:transit:ttc:alerts and would never have seen a publish.
     'TTC-Alerts': ['seed-meta:transit:ttc-alerts', 'transit:ttc:alerts:v1'],
+    'Toronto-TFS': ['seed-meta:safety:toronto-tfs', 'safety:toronto-tfs:v1'],
+    'Toronto-TPS': ['seed-meta:safety:toronto-tps', 'safety:toronto-tps:v1'],
   };
   // The shared parser does not expose these fields, so read them off the section
   // literal — anchored on the label so a key can never be matched against the
@@ -104,6 +163,68 @@ test('every member declares a timeout, and none can exceed the wall budget', () 
     assert.ok(Number.isFinite(timeoutMs) && timeoutMs > 0, `${s.label} must declare a timeoutMs`);
     assert.ok(timeoutMs < maxBundleMs, `${s.label} timeout ${timeoutMs} cannot fit the ${maxBundleMs}ms budget`);
   }
+});
+
+test('Toronto sources use provider freshness, bounded execution, and durable activation', () => {
+  const expected = [
+    {
+      label: 'Toronto-TFS',
+      seederSrc: TORONTO_TFS_SEEDER_SRC,
+      contentMeta: 'torontoTfsContentMeta',
+      maxContentAgeMin: 'TFS_MAX_STALE_MIN',
+      fetchPhaseTimeoutMs: 45_000,
+      parentTimeoutMs: 60_000,
+      activationKey: 'seed-activated:safety:toronto-tfs',
+      completionMetaKey: 'seed-completion:safety:toronto-tfs',
+    },
+    {
+      label: 'Toronto-TPS',
+      seederSrc: TORONTO_TPS_SEEDER_SRC,
+      contentMeta: 'torontoTpsContentMeta',
+      maxContentAgeMin: 'TPS_MAX_STALE_MIN',
+      fetchPhaseTimeoutMs: 90_000,
+      parentTimeoutMs: 105_000,
+      activationKey: 'seed-activated:safety:toronto-tps',
+      completionMetaKey: 'seed-completion:safety:toronto-tps',
+    },
+  ];
+
+  for (const contract of expected) {
+    assert.match(
+      contract.seederSrc,
+      new RegExp(`contentMeta:\\s*${contract.contentMeta}`),
+      `${contract.label} must derive freshness from the provider payload`,
+    );
+    assert.match(
+      contract.seederSrc,
+      new RegExp(`maxContentAgeMin:\\s*${contract.maxContentAgeMin}`),
+      `${contract.label} content age must use its declared source freshness budget`,
+    );
+
+    const fetchTimeout = /fetchPhaseTimeoutMs:\s*([\d_]+)/.exec(contract.seederSrc);
+    assert.ok(fetchTimeout, `${contract.label} must declare fetchPhaseTimeoutMs`);
+    const fetchPhaseTimeoutMs = Number(fetchTimeout[1].replaceAll('_', ''));
+    assert.equal(fetchPhaseTimeoutMs, contract.fetchPhaseTimeoutMs, `${contract.label} fetch deadline changed`);
+
+    const parentTimeoutMs = resolveExpr(src, section(contract.label).timeoutMsExpr);
+    assert.equal(parentTimeoutMs, contract.parentTimeoutMs, `${contract.label} parent deadline changed`);
+    assert.ok(
+      fetchPhaseTimeoutMs < parentTimeoutMs,
+      `${contract.label} fetch deadline must leave the bundle runner time to terminate cleanly`,
+    );
+    const sectionLine = src.split('\n').find((line) => line.includes(`label: '${contract.label}'`));
+    assert.match(
+      sectionLine,
+      new RegExp(`completionMetaKey: '${contract.completionMetaKey}'`),
+      `${contract.label} must attest that activation work completed after the canonical write`,
+    );
+    assert.match(contract.seederSrc, new RegExp(`afterPublish:\\s*mark${contract.label === 'Toronto-TFS' ? 'Tfs' : 'Tps'}Activated`));
+    assert.match(contract.seederSrc, new RegExp(contract.activationKey));
+  }
+
+  const acknowledged = new Set(ACCEPTANCE_BASELINE.acknowledged.map((entry) => entry.name));
+  assert.equal(acknowledged.has('torontoTfs'), false);
+  assert.equal(acknowledged.has('torontoTps'), false);
 });
 
 test('skips a member whose script is absent instead of failing the whole bundle', () => {
@@ -129,8 +250,11 @@ test('is registered as an active service now that it is provisioned', () => {
   assert.ok(Array.isArray(entry.watchPatterns) && entry.watchPatterns.length > 0);
   assert.deepEqual(
     entry.requiredEnv,
-    ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'],
-    'members publish through runSeed, which needs the Upstash REST pair',
+    ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN', 'MANITOBA_511_KEY', 'ALBERTA_511_KEY'],
+    'members publish through runSeed (Upstash REST pair); Manitoba and Alberta 511 each '
+    + 'need their Railway key. Alberta was keyless until 2026-08-19, when the vendor began '
+    + 'answering an unkeyed GET with HTTP 400 "Invalid Key" and the jurisdiction went stale '
+    + 'for 88 hours while the bundle still reported OK.',
   );
 });
 
@@ -223,7 +347,7 @@ test('every member’s TTL and health staleness budget cover its bundle interval
     checked += 1;
   }
 
-  assert.equal(checked, 6, 'all six members must be checked, or this guard is partly vacuous');
+  assert.equal(checked, 10, 'all ten active members must be checked, or this guard is partly vacuous');
 });
 
 describe('per-member kill switch (#6711)', () => {

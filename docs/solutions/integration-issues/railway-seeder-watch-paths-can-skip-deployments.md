@@ -152,6 +152,28 @@ same `gate` status branch protection requires.
 
 ## Solution
 
+### Keep operational status off deployable commits
+
+The Seed Freshness Monitor observes the newest gated `main` revision but writes
+its durable `ingestion/seed/*` projection to the fixed historical merge commit
+`b93afd05d0f4ea2c465e79fd064e87fc1f9fb2f3`. That commit introduced the
+transition publisher, is required to be an ancestor of the observed revision,
+and cannot become a future deployment candidate.
+
+This keeps the protection without recreating the lag source described above:
+a new or materially changed incident still fails one monitor run, the anchor
+keeps the source status non-green until live recovery, and unchanged polls
+append nothing. The first anchored run imports the newest trusted legacy
+projection from recent first-parent history, so already-active incidents move
+to the anchor without being reported as new failures. Because the acceptance
+context is written last, a later poll can also distinguish an empty anchor from
+a partial write, repair that write, and avoid reporting the same transition
+twice.
+
+Do not move this projection back to `main`, a gated ancestor selected for the
+probe, or any other commit Railway may be asked to deploy. GitHub commit status
+is deployment input in this repository, not only an observability surface.
+
 ### The audit: the registry contract, unchanged
 
 `scripts/railway-services.json` remains the repository-side contract. Each
@@ -416,6 +438,16 @@ an ingestion failure: the job monitors the newest gated ancestor in the
 window, and fails closed only when none exists. It deliberately does not run
 on an ingestion push because Railway may not have deployed or executed that
 revision yet.
+
+Its live health probe remains fail-closed on every actionable source problem.
+The scheduled workflow now projects that strict result into durable
+`ingestion/seed/<source>` statuses. A new or changed problem fails one run;
+unchanged later observations keep the source status red without manufacturing
+another incident, and live recovery posts success. Transport failures,
+malformed health evidence, and expired acknowledgements still fail directly.
+This distinction is operationally important: a red status means "still
+broken", while a newly failed workflow run means "new information needs
+attention".
 
 `Railway Native Deploy Health` is a separate six-hourly workflow and has no
 dependency on the Seed Freshness gate. The gate and deployment drift share an

@@ -358,7 +358,8 @@
           "Aggiornamento dati prioritario"
         ],
         "highlightFeatures": [
-          "Licenza personale"
+          "Licenza personale",
+          "1 utente nominato"
         ]
       },
       "api": {
@@ -383,7 +384,11 @@
           "Supporto dedicato",
           "Integrazioni personalizzate",
           "Garanzia SLA",
-          "Opzione on-premise"
+          "Opzione on-premise",
+          "Accordo di trattamento dei dati (DPA)",
+          "Fatturazione tramite ordine d'acquisto",
+          "SAML SSO, SCIM",
+          "Impostazioni personalizzate di sicurezza e privacy"
         ],
         "cta": "Contatta il Team Vendite"
       },
@@ -412,7 +417,8 @@
           "Supporto prioritario"
         ],
         "highlightFeatures": [
-          "Licenza commerciale inclusa"
+          "Licenza commerciale inclusa",
+          "1 utente nominato — non un accesso condiviso"
         ]
       }
     },
@@ -423,7 +429,7 @@
     "axisPersonal": "Personale",
     "axisPersonalNote": "uso individuale",
     "axisCommercial": "Commerciale",
-    "axisCommercialNote": "lavoro, team e prodotti"
+    "axisCommercialNote": "lavoro, clienti e prodotti"
   },
   "welcome": {
     "meta": {

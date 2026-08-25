@@ -28,6 +28,8 @@ export {
   hasReviewedSourceType,
   isStateAffiliatedSource,
 } from '../../shared/source-provenance';
+export { resolveTelegramSourceName } from '../../shared/telegram-channel-trust';
+export { computeCredibilityScore } from '../../shared/news-credibility.js';
 export type {
   PropagandaRisk,
   SourceProvenanceState,
@@ -195,6 +197,15 @@ export const FULL_FEEDS: Record<string, Feed[]> = {
       en: rss('https://www.rp.pl/rss_main'),
       pl: rss('https://www.rp.pl/rss_main'),
     } },
+    // Polish depth — catalog opt-in, locale-boosted for `pl`. Native RSS for
+    // PAP (`/rss.xml`) and Onet (`wiadomosci.onet.pl/rss/index.xml`) is dead;
+    // keep those on Google News. OKO.press still publishes a live native feed.
+    { name: 'PAP', url: rss('https://news.google.com/rss/search?q=site%3Apap.pl%20when%3A2d&hl=pl&gl=PL&ceid=PL:pl'), lang: 'pl' },
+    { name: 'Gazeta Wyborcza', url: rss('https://news.google.com/rss/search?q=site%3Awyborcza.pl%20when%3A2d&hl=pl&gl=PL&ceid=PL:pl'), lang: 'pl' },
+    { name: 'Polityka', url: rss('https://news.google.com/rss/search?q=site%3Apolityka.pl%20when%3A2d&hl=pl&gl=PL&ceid=PL:pl'), lang: 'pl' },
+    { name: 'Onet', url: rss('https://news.google.com/rss/search?q=site%3Awiadomosci.onet.pl%20when%3A2d&hl=pl&gl=PL&ceid=PL:pl'), lang: 'pl' },
+    { name: 'OKO.press', url: rss('https://oko.press/feed'), lang: 'pl' },
+    { name: 'TVP Info', url: rss('https://news.google.com/rss/search?q=site%3Atvp.info%20when%3A2d&hl=pl&gl=PL&ceid=PL:pl'), lang: 'pl' },
     // Hungarian (HU) — V4 / CEE coverage. Locale-gated for hu users only,
     // matching the Tagesschau (de) / ANSA (it) / NOS Nieuws (nl) / SVT (sv)
     // convention. `hu` is registered as a supported locale in src/services/i18n.ts.
@@ -225,6 +236,11 @@ export const FULL_FEEDS: Record<string, Feed[]> = {
     { name: 'in.gr', url: rss('https://www.in.gr/feed/'), lang: 'el' },
     { name: 'iefimerida', url: rss('https://www.iefimerida.gr/rss.xml'), lang: 'el' },
     { name: 'Proto Thema', url: rss('https://news.google.com/rss/search?q=site:protothema.gr+when:2d&hl=el&gl=GR&ceid=GR:el'), lang: 'el' },
+    { name: 'ERT', url: rss('https://news.google.com/rss/search?q=site:ert.gr+when:2d&hl=el&gl=GR&ceid=GR:el'), lang: 'el' },
+    { name: 'AMNA', url: rss('https://news.google.com/rss/search?q=site:amna.gr+when:2d&hl=el&gl=GR&ceid=GR:el'), lang: 'el' },
+    { name: 'Ta Nea', url: rss('https://www.tanea.gr/feed/'), lang: 'el' },
+    { name: 'Liberal GR', url: rss('https://news.google.com/rss/search?q=site:liberal.gr+when:2d&hl=el&gl=GR&ceid=GR:el'), lang: 'el' },
+    { name: 'CNN Greece', url: rss('https://news.google.com/rss/search?q=site:cnn.gr+when:2d&hl=el&gl=GR&ceid=GR:el'), lang: 'el' },
     // Baltic states — Eastern flank (#5952). English-language Baltic news
     // services (no lang tag) so EN digests can include them as flank sources.
     { name: 'ERR News', url: rss('https://news.err.ee/rss') },
@@ -316,6 +332,7 @@ export const FULL_FEEDS: Record<string, Feed[]> = {
     { name: 'WAFA English', url: rss('https://news.google.com/rss/search?q=site%3Aenglish.wafa.ps%20when%3A7d&hl=en-US&gl=US&ceid=US:en') },
     { name: 'Naharnet Lebanon', url: rss('https://www.naharnet.com/tags/lebanon/en/feed.atom') },
     { name: "L'Orient Today", url: rss('https://news.google.com/rss/search?q=site%3Alorientlejour.com%20Lebanon%20when%3A7d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Annahar', url: rss('https://news.google.com/rss/search?q=site%3Aannahar.com%2Flebanon%20when%3A7d&hl=ar&gl=LB&ceid=LB:ar'), lang: 'ar', strategicDefault: true },
     { name: 'Libya Herald', url: rss('https://libyaherald.com/rss.xml') },
     { name: 'Egypt Independent', url: rss('https://www.egyptindependent.com/feed/') },
     { name: 'Mada Masr', url: rss('https://news.google.com/rss/search?q=site%3Amadamasr.com%20when%3A30d&hl=en-US&gl=US&ceid=US:en') },
@@ -475,6 +492,7 @@ export const FULL_FEEDS: Record<string, Feed[]> = {
     { name: 'The Diplomat', url: rss('https://thediplomat.com/feed/') },
     { name: 'South China Morning Post', url: railwayRss('https://www.scmp.com/rss/91/feed/') },
     { name: 'Reuters Asia', url: rss('https://news.google.com/rss/search?q=site:reuters.com+(China+OR+Japan+OR+Taiwan+OR+Korea)+when:3d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Reuters India', url: rss('https://news.google.com/rss/search?q=site:reuters.com+India+when:3d&hl=en-US&gl=US&ceid=US:en') },
     { name: 'Xinhua', url: rss('https://news.google.com/rss/search?q=site:xinhuanet.com+OR+Xinhua+when:1d&hl=en-US&gl=US&ceid=US:en') },
     { name: 'Japan Today', url: rss('https://japantoday.com/feed/atom') },
     { name: 'Nikkei Asia', url: rss('https://news.google.com/rss/search?q=site:asia.nikkei.com+when:3d&hl=en-US&gl=US&ceid=US:en') },
@@ -527,6 +545,10 @@ export const FULL_FEEDS: Record<string, Feed[]> = {
     { name: 'Pajhwok Afghan News', url: rss('https://news.google.com/rss/search?q=site%3Apajhwok.com%20Afghanistan%20when%3A7d&hl=en-US&gl=US&ceid=US:en') },
     { name: 'The Daily Star', url: rss('https://news.google.com/rss/search?q=site%3Athedailystar.net%20when%3A14d&hl=en-US&gl=US&ceid=US:en') },
     { name: 'Dhaka Tribune', url: rss('https://news.google.com/rss/search?q=site%3Adhakatribune.com%20when%3A14d&hl=en-US&gl=US&ceid=US:en') },
+    // New opt-in feeds stay at the end of the category. The free source cap
+    // consumes declaration order, so inserting earlier can evict an existing
+    // source from persisted free-user selections.
+    { name: 'Times of India', url: rss('https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms'), lang: 'en' },
   ],
   energy: [
     { name: 'Oil & Gas', url: rss('https://news.google.com/rss/search?q=(oil+price+OR+OPEC+OR+"natural+gas"+OR+pipeline+OR+LNG)+when:2d&hl=en-US&gl=US&ceid=US:en') },
@@ -1288,6 +1310,7 @@ export const CRISIS_FLOOR_EN_DEFAULT_SOURCES = [
 
 /** Non-English sources approved as global strategic floor defaults. */
 export const CRISIS_FLOOR_STRATEGIC_DEFAULT_SOURCES = [
+  'Annahar',
   'Studio Tamani',
   'leFaso.net',
   'ActuNiger',
@@ -1564,7 +1587,7 @@ export const DEFAULT_ENABLED_SOURCES: Record<string, string[]> = {
     'Daily Nation', 'The Guardian Post',
   ],
   latam: ['BBC Latin America', 'Reuters LatAm', 'InSight Crime', 'Mexico News Daily', 'Clarín', 'Primicias', 'Infobae Americas', 'El Universo', 'HaitiLibre English', 'Caracas Chronicles', 'Havana Times'],
-asia: ['BBC Asia', 'The Diplomat', 'South China Morning Post', 'Reuters Asia', 'Nikkei Asia', 'CNA', 'Asia News', 'The Hindu',
+  asia: ['BBC Asia', 'The Diplomat', 'South China Morning Post', 'Reuters Asia', 'Reuters India', 'Nikkei Asia', 'CNA', 'Asia News', 'The Hindu',
     ...CENTRAL_ASIA_EN_DEFAULT_SOURCES,
     ...INDO_PACIFIC_EN_DEFAULT_SOURCES,
     'Amu TV', 'The Daily Star',

@@ -67,28 +67,23 @@ describe('rootless Mintlify route canonicalization', () => {
     }
   });
 
-  it('defers SPA-reserved first segments that also appear in the docs map', () => {
+  it('defers Vercel-owned first segments that also appear in the docs map', () => {
+    // #6575: the SPA catch-all lookahead this used to parse is gone. Pin the
+    // product-owned roots from getRootlessDocsDestination's allowlist instead
+    // of reconstructing them from a deleted rewrite.
+    const vercelOwnedDocPaths = ['/about', '/changelog', '/contact', '/pricing', '/privacy', '/sandbox', '/support', '/terms'];
+    assert.ok(ROOTLESS_DOC_REDIRECTS.has('/sandbox'), 'docs still publishes sandbox; owned-path must keep deferring it');
+
     const catchAll = vercelConfig.rewrites.find((rewrite) => (
       rewrite.destination === '/dashboard.html' && rewrite.source.includes('(?!')
     ));
-    assert.ok(catchAll, 'expected the SPA catch-all rewrite');
-    const lookaheadStart = catchAll.source.indexOf('(?!');
-    const lookaheadEnd = catchAll.source.lastIndexOf(').*)');
-    assert.ok(lookaheadStart >= 0 && lookaheadEnd > lookaheadStart, 'expected a negative-lookahead catch-all');
-    const reservedRoots = catchAll.source
-      .slice(lookaheadStart + 3, lookaheadEnd)
-      .split('|')
-      .filter((token) => /^[a-z][a-z0-9-]*$/.test(token))
-      .map((token) => `/${token}`);
+    assert.equal(catchAll, undefined, 'dashboard catch-all rewrite must stay removed (#6575)');
 
-    assert.ok(reservedRoots.includes('/sandbox'), 'SPA catch-all must still reserve sandbox');
-    assert.ok(ROOTLESS_DOC_REDIRECTS.has('/sandbox'), 'docs still publishes sandbox; owned-path must keep deferring it');
-
-    for (const path of reservedRoots.filter((root) => ROOTLESS_DOC_REDIRECTS.has(root))) {
+    for (const path of vercelOwnedDocPaths.filter((root) => ROOTLESS_DOC_REDIRECTS.has(root))) {
       assert.equal(
         getRootlessDocsDestination(path),
         null,
-        `${path} is reserved by the SPA catch-all and must not 308 to /docs`
+        `${path} is Vercel-owned and must not 308 to /docs`
       );
     }
   });
@@ -110,8 +105,8 @@ describe('rootless Mintlify route canonicalization', () => {
     }
   });
 
-  it('does not intercept product routes, unknown routes, or non-read methods', () => {
-    for (const path of ['/pricing', '/changelog', '/country-intel', '/sandbox', '/sandbox/', '/sandbox/index.json']) {
+  it('does not intercept product routes or non-read methods', () => {
+    for (const path of ['/pricing', '/changelog', '/sandbox', '/sandbox/', '/sandbox/index.json']) {
       assert.equal(
         middleware(new Request(`https://www.worldmonitor.app${path}`, {
           headers: { host: 'www.worldmonitor.app', 'user-agent': 'Googlebot' },
@@ -127,6 +122,15 @@ describe('rootless Mintlify route canonicalization', () => {
       })),
       undefined
     );
+  });
+
+  it('lets the agent-friendly 404 handle unknown extensionless routes', () => {
+    const response = middleware(new Request('https://www.worldmonitor.app/country-intel', {
+      headers: { host: 'www.worldmonitor.app', 'user-agent': 'Googlebot' },
+    }));
+    assert.ok(response instanceof Response, '/country-intel is not a product route and must 404');
+    assert.equal(response.status, 404);
+    assert.match(response.headers.get('content-type') ?? '', /text\/markdown/);
   });
 
   it('matches future extensionless docs routes without intercepting static assets', () => {

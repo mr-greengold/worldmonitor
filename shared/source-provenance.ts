@@ -1,6 +1,11 @@
 // Canonical source provenance registry shared by the browser UI and MCP tools.
 // Keep this module runtime-neutral so it remains safe in both runtimes.
 import { CONFIGURED_SOURCE_PROVENANCE_DECLARATIONS } from './source-provenance-declarations';
+import { X_ACCOUNT_SOURCE_PROPAGANDA_RISK, X_ACCOUNT_SOURCE_TYPES } from './x-account-trust';
+import {
+  TELEGRAM_SOURCE_PROPAGANDA_RISK,
+  TELEGRAM_SOURCE_TYPES,
+} from './telegram-channel-trust';
 
 // 'unknown' = not yet reviewed (default for unlisted sources — never invent a type)
 // 'other' remains available as an explicit classification when needed.
@@ -66,10 +71,18 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   'Digi24': 'mainstream', 'HotNews': 'mainstream', 'G4Media': 'mainstream',
   // Bulgarian (BG) — Black Sea flank (#5952)
   'Dnevnik': 'mainstream',
+  // Greek (EL) — locale-boosted; Kathimerini is the EN strategic default
+  'Kathimerini': 'mainstream', 'Naftemporiki': 'mainstream', 'in.gr': 'mainstream',
+  'iefimerida': 'mainstream', 'Proto Thema': 'mainstream',
+  'ERT': 'mainstream', 'AMNA': 'wire',
+  'Ta Nea': 'mainstream', 'Liberal GR': 'mainstream', 'CNN Greece': 'mainstream',
   // Baltic states — Eastern flank (#5952)
   'ERR News': 'mainstream', 'LRT English': 'mainstream', 'LSM English': 'mainstream',
   // Turkey EN path (#5952)
   'Daily Sabah': 'mainstream',
+  // Polish (PL) depth — catalog opt-in, locale-boosted
+  'PAP': 'wire', 'Gazeta Wyborcza': 'mainstream', 'Polityka': 'mainstream',
+  'Onet': 'mainstream', 'OKO.press': 'intel', 'TVP Info': 'mainstream',
   // Czech (CS) — V4 balance (#5952)
   'Seznam Zprávy': 'mainstream',
   // Hindi (HI)
@@ -161,7 +174,7 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   '+972 Magazine': 'mainstream', 'WAFA English': 'gov',
   'HaitiLibre English': 'mainstream', 'AyiboPost': 'mainstream',
   'Amu TV': 'mainstream', 'Pajhwok Afghan News': 'wire',
-  'Naharnet Lebanon': 'mainstream', "L'Orient Today": 'mainstream',
+  'Naharnet Lebanon': 'mainstream', "L'Orient Today": 'mainstream', 'Annahar': 'mainstream',
   'Studio Tamani': 'mainstream', 'leFaso.net': 'mainstream',
   'ActuNiger': 'mainstream', 'Aïr Info': 'mainstream',
   'Caracas Chronicles': 'mainstream', 'Efecto Cocuyo': 'mainstream',
@@ -169,8 +182,15 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   'Libya Herald': 'mainstream', 'Egypt Independent': 'mainstream',
   'Mada Masr': 'mainstream', 'The Daily Star': 'mainstream',
   'Dhaka Tribune': 'mainstream', 'Daily Nation': 'mainstream',
+  'Times of India': 'mainstream',
   'The Guardian Post': 'mainstream', 'Tchadinfos': 'mainstream',
   'Alwihda Info': 'mainstream', 'Radio Ndeke Luka': 'mainstream',
+
+  // Telegram channels (#6600). Additive keys keyed by channel display label.
+  ...TELEGRAM_SOURCE_TYPES,
+
+  // Curated X news-account overlay (#6654). Additive to Telegram.
+  ...X_ACCOUNT_SOURCE_TYPES,
 };
 
 export function getSourceType(sourceName: string): SourceType {
@@ -300,6 +320,8 @@ export const SOURCE_PROPAGANDA_RISK: Record<string, SourceRiskProfile> = {
   'EuroNews': { risk: 'low', note: 'European public broadcaster consortium', knownBiases: ['Pro-EU'] },
   'Le Monde': { risk: 'low', note: 'French newspaper of record' },
   'DW News': { risk: 'medium', stateAffiliated: 'Germany', note: 'German state-funded, editorially independent' },
+  'ERT': { risk: 'medium', stateAffiliated: 'Greece', note: 'Greek public broadcaster' },
+  'AMNA': { risk: 'medium', stateAffiliated: 'Greece', note: 'Greek national news agency' },
   'Voice of America': { risk: 'medium', stateAffiliated: 'USA', note: 'US government-funded' },
   'Kyiv Independent': { risk: 'medium', knownBiases: ['Pro-Ukraine'], note: 'Ukrainian English-language primary on Russia-Ukraine war (#5950 balance: dedicated UA voice)' },
   // Ukraine depth pack (#5951) — local institutions + frontline assessment
@@ -342,6 +364,13 @@ export const SOURCE_PROPAGANDA_RISK: Record<string, SourceRiskProfile> = {
   'Pajhwok Afghan News': { risk: 'medium', note: 'Independent Kabul-based news agency operating under domestic restrictions' },
   'Naharnet Lebanon': { risk: 'low', note: 'Independent Lebanese digital outlet' },
   "L'Orient Today": { risk: 'low', note: 'Independent English-language Lebanese newsroom' },
+  'Annahar': { risk: 'low', note: 'Independent Lebanese Arabic-language political newspaper' },
+  'PAP': { risk: 'medium', stateAffiliated: 'Poland', note: 'Polish national news agency (Polska Agencja Prasowa); state-owned wire' },
+  'Gazeta Wyborcza': { risk: 'low', note: 'Independent Polish daily newspaper published by Agora' },
+  'Polityka': { risk: 'low', note: 'Independent Polish weekly news magazine' },
+  'Onet': { risk: 'low', note: 'Polish commercial news portal published by Ringier Axel Springer Polska' },
+  'OKO.press': { risk: 'low', note: 'Independent Polish investigative and fact-checking outlet' },
+  'TVP Info': { risk: 'medium', stateAffiliated: 'Poland', note: 'Polish public-service news channel; state-funded broadcaster' },
   'Studio Tamani': { risk: 'low', note: 'Mali newsroom operated by Fondation Hirondelle; Journalism Trust Initiative certified' },
   'leFaso.net': { risk: 'low', note: 'Independent Burkina Faso digital newsroom' },
   'ActuNiger': { risk: 'medium', note: 'Niger-focused independent newsroom' },
@@ -409,6 +438,7 @@ export const SOURCE_PROPAGANDA_RISK: Record<string, SourceRiskProfile> = {
   'BBC Middle East': { risk: 'low', note: 'Public broadcaster, editorial independence charter' },
   'Guardian World': { risk: 'low', knownBiases: ['Center-left'], note: 'Scott Trust ownership, no shareholders' },
   'Financial Times': { risk: 'low', note: 'Business focus, Nikkei-owned' },
+  'Times of India': { risk: 'low', note: 'Major Indian national newspaper with an established editorial newsroom' },
   'Fox Business': { risk: 'low', note: 'Commercial U.S. business-news publisher' },
   'Business Insider': { risk: 'low', note: 'Commercial business-news publisher with editorial standards' },
   'Wired': { risk: 'low', note: 'Technology publication with editorial standards' },
@@ -432,6 +462,12 @@ export const SOURCE_PROPAGANDA_RISK: Record<string, SourceRiskProfile> = {
   'RFE/RL Central Asia': { risk: 'medium', stateAffiliated: 'USA', note: 'US government-funded Central Asia desk (Radio Free Europe)' },
   'The Astana Times': { risk: 'medium', stateAffiliated: 'Kazakhstan', note: 'Kazakhstan government-funded English-language news' },
   'The Times of Central Asia': { risk: 'medium', note: 'Independent English-language Central Asia news outlet' },
+
+  // Telegram channels (#6600). Additive keys keyed by channel display label.
+  ...TELEGRAM_SOURCE_PROPAGANDA_RISK,
+
+  // Curated X news-account overlay (#6654). Additive to Telegram.
+  ...X_ACCOUNT_SOURCE_PROPAGANDA_RISK,
 };
 
 export function getSourcePropagandaRisk(sourceName: string): SourceRiskProfile {

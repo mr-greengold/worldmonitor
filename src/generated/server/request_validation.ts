@@ -2,7 +2,7 @@
 // Source: proto/worldmonitor/**/*.proto buf.validate annotations.
 
 export const GENERATED_PROTO_VALIDATION_RULE_COUNT = 525;
-export const GENERATED_REQUEST_METHOD_COUNT = 156;
+export const GENERATED_REQUEST_METHOD_COUNT = 160;
 
 export const GENERATED_REQUEST_TYPES = {
   "analyzeStock": "worldmonitor.market.v1.AnalyzeStockRequest",
@@ -36,6 +36,7 @@ export const GENERATED_REQUEST_TYPES = {
   "getCountryRisk": "worldmonitor.intelligence.v1.GetCountryRiskRequest",
   "getCountryStockIndex": "worldmonitor.market.v1.GetCountryStockIndexRequest",
   "getDefenseIndustrialBase": "worldmonitor.military.v1.GetDefenseIndustrialBaseRequest",
+  "getDemographicsCapability": "worldmonitor.resilience.v1.GetDemographicsCapabilityRequest",
   "getDisplacementSummary": "worldmonitor.displacement.v1.GetDisplacementSummaryRequest",
   "getEconomicCalendar": "worldmonitor.economic.v1.GetEconomicCalendarRequest",
   "getEnergyCapacity": "worldmonitor.economic.v1.GetEnergyCapacityRequest",
@@ -55,6 +56,7 @@ export const GENERATED_REQUEST_TYPES = {
   "getIntelTimeline": "worldmonitor.intelligence.v1.GetIntelTimelineRequest",
   "getMineralProduction": "worldmonitor.supply_chain.v1.GetMineralProductionRequest",
   "getMultiSectorCostShock": "worldmonitor.supply_chain.v1.GetMultiSectorCostShockRequest",
+  "getPhysicalPremiums": "worldmonitor.market.v1.GetPhysicalPremiumsRequest",
   "getPipelineDetail": "worldmonitor.supply_chain.v1.GetPipelineDetailRequest",
   "getPizzintStatus": "worldmonitor.intelligence.v1.GetPizzintStatusRequest",
   "getPopulationExposure": "worldmonitor.displacement.v1.GetPopulationExposureRequest",
@@ -77,6 +79,7 @@ export const GENERATED_REQUEST_TYPES = {
   "getTariffTrends": "worldmonitor.trade.v1.GetTariffTrendsRequest",
   "getTemporalBaseline": "worldmonitor.infrastructure.v1.GetTemporalBaselineRequest",
   "getTheaterPosture": "worldmonitor.military.v1.GetTheaterPostureRequest",
+  "getTorontoSafety": "worldmonitor.safety.v1.GetTorontoSafetyRequest",
   "getTradeBarriers": "worldmonitor.trade.v1.GetTradeBarriersRequest",
   "getTradeFlows": "worldmonitor.trade.v1.GetTradeFlowsRequest",
   "getTradeRestrictions": "worldmonitor.trade.v1.GetTradeRestrictionsRequest",
@@ -141,6 +144,7 @@ export const GENERATED_REQUEST_TYPES = {
   "listUnrestEvents": "worldmonitor.unrest.v1.ListUnrestEventsRequest",
   "listWebcams": "worldmonitor.webcam.v1.ListWebcamsRequest",
   "listWorldBankIndicators": "worldmonitor.economic.v1.ListWorldBankIndicatorsRequest",
+  "listXFeed": "worldmonitor.intelligence.v1.ListXFeedRequest",
   "lookupSanctionEntity": "worldmonitor.sanctions.v1.LookupSanctionEntityRequest",
   "recordBaselineSnapshot": "worldmonitor.infrastructure.v1.RecordBaselineSnapshotRequest",
   "registerInterest": "worldmonitor.leads.v1.RegisterInterestRequest",
@@ -986,6 +990,9 @@ export const GENERATED_MESSAGE_RULES = {
   "worldmonitor.intelligence.v1.ListTelegramFeedRequest": {
     "fields": {}
   },
+  "worldmonitor.intelligence.v1.ListXFeedRequest": {
+    "fields": {}
+  },
   "worldmonitor.intelligence.v1.SearchGdeltDocumentsRequest": {
     "fields": {
       "query": {
@@ -1135,6 +1142,9 @@ export const GENERATED_MESSAGE_RULES = {
       }
     }
   },
+  "worldmonitor.market.v1.GetPhysicalPremiumsRequest": {
+    "fields": {}
+  },
   "worldmonitor.market.v1.GetSectorSummaryRequest": {
     "fields": {}
   },
@@ -1194,7 +1204,7 @@ export const GENERATED_MESSAGE_RULES = {
       "icao24": {
         "kind": "string",
         "required": true,
-        "stringMinLen": 1
+        "stringPattern": "^[0-9a-fA-F]{6}$"
       }
     }
   },
@@ -1282,10 +1292,16 @@ export const GENERATED_MESSAGE_RULES = {
   "worldmonitor.research.v1.ListTrendingReposRequest": {
     "fields": {}
   },
+  "worldmonitor.resilience.v1.GetDemographicsCapabilityRequest": {
+    "fields": {}
+  },
   "worldmonitor.resilience.v1.GetFoodStocksRequest": {
     "fields": {}
   },
   "worldmonitor.resilience.v1.GetResilienceScoreRequest": {
+    "fields": {}
+  },
+  "worldmonitor.safety.v1.GetTorontoSafetyRequest": {
     "fields": {}
   },
   "worldmonitor.sanctions.v1.ListSanctionsPressureRequest": {

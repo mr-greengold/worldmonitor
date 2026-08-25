@@ -43,6 +43,55 @@ function scheduledGateStep() {
   return step;
 }
 
+function runPublisherWithoutActivation(acceptanceOutcome) {
+  const tempDir = mkdtempSync(join(repoRoot, '.tmp-seed-freshness-publisher-'));
+  try {
+    const publisher = stepNamed('Publish ingestion operational transitions');
+    return spawnSync('bash', ['-e', '-c', publisher.run], {
+      cwd: tempDir,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        SEED_ACCEPTANCE_OUTCOME: acceptanceOutcome,
+        SEED_ACCEPTANCE_SHA: HEAD_SHA,
+      },
+    });
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function runPublisherFromLegacyRevision() {
+  const tempDir = mkdtempSync(join(repoRoot, '.tmp-seed-freshness-legacy-publisher-'));
+  const scriptsDir = join(tempDir, 'scripts');
+  const argsLog = join(tempDir, 'publisher-args.json');
+  const reportPath = join(tempDir, 'seed-freshness-observation.json');
+  try {
+    mkdirSync(scriptsDir);
+    writeFileSync(join(scriptsDir, 'update-seed-health-statuses.mjs'), [
+      "import { writeFileSync } from 'node:fs';",
+      'writeFileSync(process.env.ARGS_LOG, JSON.stringify(process.argv.slice(2)));',
+      '',
+    ].join('\n'));
+    const publisher = stepNamed('Publish ingestion operational transitions');
+    const result = spawnSync('bash', ['-e', '-c', publisher.run], {
+      cwd: tempDir,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        ARGS_LOG: argsLog,
+        RUNNER_TEMP: tempDir,
+        SEED_ACCEPTANCE_OUTCOME: 'success',
+        SEED_ACCEPTANCE_SHA: HEAD_SHA,
+        SEED_STATUS_SHA: 'b93afd05d0f4ea2c465e79fd064e87fc1f9fb2f3',
+      },
+    });
+    return { result, args: JSON.parse(readFileSync(argsLog, 'utf8')), reportPath };
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 const HEAD_SHA = '0123456789abcdef';
 // Frozen so the age bound is a boundary, not a race against the wall clock:
 // `date` is faked below and every ancestor age is expressed against this.
@@ -273,8 +322,49 @@ describe('seed freshness workflow control plane', () => {
     // audit above it — one red step silently switched off data-freshness
     // monitoring for the whole fleet.
     assert.equal(acceptance.if, GATE_GUARD, 'acceptance must stay behind the fail-closed gate and nothing else');
+    assert.equal(acceptance.id, 'acceptance');
     assert.match(GATE_GUARD, /steps\.gate\.conclusion != 'failure'/);
-    assert.equal(acceptance['continue-on-error'], undefined);
+    assert.equal(acceptance['continue-on-error'], true, 'health incidents are classified by the status publisher');
+    assert.match(acceptance.run, /--json-output "\$RUNNER_TEMP\/seed-freshness-observation\.json"/);
+
+    const publisher = stepNamed('Publish ingestion operational transitions');
+    assert.equal(publisher.if, GATE_GUARD);
+    assert.equal(publisher['continue-on-error'], undefined);
+    assert.equal(publisher.env.GH_TOKEN, '${{ github.token }}');
+    assert.equal(publisher.env.SEED_ACCEPTANCE_SHA, '${{ steps.gate.outputs.sha || github.sha }}');
+    assert.equal(publisher.env.SEED_ACCEPTANCE_OUTCOME, '${{ steps.acceptance.outcome }}');
+    assert.equal(publisher.env.SEED_STATUS_SHA, 'b93afd05d0f4ea2c465e79fd064e87fc1f9fb2f3');
+    assert.equal(publisher.env.SEED_STATUS_WRITER_LOGIN, 'github-actions[bot]');
+    assert.match(publisher.run, /update-seed-health-statuses\.mjs/);
+    assert.match(publisher.run, /if \[ ! -f scripts\/update-seed-health-statuses\.mjs \]/);
+    assert.match(publisher.run, /not active on gated revision/);
+    assert.match(publisher.run, /--sha "\$SEED_ACCEPTANCE_SHA"/);
+    assert.match(publisher.run, /status_args=\(\)/);
+    assert.match(publisher.run, /grep -q -- "'status-sha':"/);
+    assert.match(publisher.run, /status_args=\(--status-sha "\$SEED_STATUS_SHA"\)/);
+    assert.match(publisher.run, /"\$\{status_args\[@\]\}"/);
+    assert.match(publisher.run, /--report "\$RUNNER_TEMP\/seed-freshness-observation\.json"/);
+    assertBashSyntax(publisher.run);
+    assert.equal(workflow.permissions.statuses, 'write');
+  });
+
+  it('fails closed when a strict probe fails before the transition publisher is active', () => {
+    const failure = runPublisherWithoutActivation('failure');
+    assert.notEqual(failure.status, 0, 'a failed strict probe must not finish green without its publisher');
+    assert.match(`${failure.stdout}\n${failure.stderr}`, /acceptance failed.*no transition publisher is available/i);
+
+    const success = runPublisherWithoutActivation('success');
+    assert.equal(success.status, 0, success.stderr);
+    assert.match(success.stdout, /waiting for a gated activation revision/);
+  });
+
+  it('keeps the pre-anchor publisher compatible during the first gated-revision race', () => {
+    const legacy = runPublisherFromLegacyRevision();
+    assert.equal(legacy.result.status, 0, legacy.result.stderr);
+    assert.deepEqual(legacy.args, [
+      '--sha', HEAD_SHA,
+      '--report', legacy.reportPath,
+    ]);
   });
 
   it('checks out the resolved revision before the ingestion probe', () => {
@@ -284,7 +374,10 @@ describe('seed freshness workflow control plane', () => {
     const acceptanceIndex = monitorSteps.findIndex(
       (step) => step.name === 'Check ingestion operational acceptance',
     );
-    assert.ok(gateIndex < checkoutIndex && checkoutIndex < acceptanceIndex);
+    const publisherIndex = monitorSteps.findIndex(
+      (step) => step.name === 'Publish ingestion operational transitions',
+    );
+    assert.ok(gateIndex < checkoutIndex && checkoutIndex < acceptanceIndex && acceptanceIndex < publisherIndex);
     assert.equal(checkout.if, "${{ steps.gate.outputs.sha != '' && steps.gate.outputs.sha != github.sha }}");
     assert.equal(checkout.env.GATED_SHA, '${{ steps.gate.outputs.sha }}');
     assert.match(checkout.run, /git checkout --detach "\$GATED_SHA"/);
@@ -306,7 +399,7 @@ describe('seed freshness workflow control plane', () => {
     assert.equal(checkout.with?.filter, 'blob:none');
     assert.deepEqual(
       workflow.concurrency,
-      { group: 'seed-freshness-monitor', 'cancel-in-progress': true },
+      { group: 'seed-freshness-monitor', 'cancel-in-progress': false },
     );
     assert.equal(workflow.on.schedule[0].cron, '*/15 * * * *');
     assert.doesNotMatch(

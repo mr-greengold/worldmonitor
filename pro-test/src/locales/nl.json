@@ -358,7 +358,8 @@
           "Prioriteitsgegevensvernieuwing"
         ],
         "highlightFeatures": [
-          "Persoonlijke licentie"
+          "Persoonlijke licentie",
+          "1 benoemde gebruiker"
         ]
       },
       "api": {
@@ -383,7 +384,11 @@
           "Speciale ondersteuning",
           "Aangepaste integraties",
           "SLA-garantie",
-          "On-premise optie"
+          "On-premise optie",
+          "Data Processing Agreement (DPA)",
+          "Factuurbetaling per inkooporder",
+          "SAML SSO, SCIM",
+          "Aangepaste beveiligings- en privacyinstellingen"
         ],
         "cta": "Contact Verkoop"
       },
@@ -412,7 +417,8 @@
           "Prioriteitsondersteuning"
         ],
         "highlightFeatures": [
-          "Commerciële licentie inbegrepen"
+          "Commerciële licentie inbegrepen",
+          "1 benoemde gebruiker — geen gedeelde login"
         ]
       }
     },
@@ -423,7 +429,7 @@
     "axisPersonal": "Persoonlijk",
     "axisPersonalNote": "individueel gebruik",
     "axisCommercial": "Commercieel",
-    "axisCommercialNote": "werk, teams & producten"
+    "axisCommercialNote": "werk, klanten & producten"
   },
   "welcome": {
     "meta": {

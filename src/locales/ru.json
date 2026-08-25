@@ -211,6 +211,31 @@
       "soybeans": "Soybeans",
       "barley": "Barley",
       "palmOil": "Palm oil"
+    },
+    "demographicsCapability": {
+      "title": "Demographics & Workforce",
+      "help": "Age structure, education pipeline, and industrial workforce capacity from UN WPP, UNESCO UIS and World Bank WDI, and ILOSTAT.",
+      "loading": "Loading demographics and workforce data…",
+      "unavailable": "Demographics and workforce data unavailable.",
+      "proLocked": "Upgrade to PRO for demographics and workforce data",
+      "notAvailable": "Not available",
+      "ageStructure": "Age structure",
+      "education": "Education pipeline",
+      "industrialWorkforce": "Industrial workforce",
+      "medianAge": "Median age",
+      "oldAgeDependency": "Old-age dependency",
+      "totalDependency": "Total dependency",
+      "workingAgePopulation": "Working-age population",
+      "workingAgeProjection": "Working-age population (+10 years)",
+      "tertiaryEnrollment": "Tertiary enrollment",
+      "stemGraduates": "STEM graduates",
+      "researchers": "Researchers",
+      "craftTrades": "Craft and trades workers",
+      "plantOperators": "Plant and machine operators",
+      "trainedIndustrialWorkforce": "Combined industrial workforce",
+      "manufacturingShare": "Manufacturing employment",
+      "source": "Sources: {{sources}}.",
+      "retained": "{{stage}} data retained from the last successful refresh."
     }
   },
   "header": {
@@ -342,6 +367,7 @@
     "securityAdvisories": "Предупреждения безопасности",
     "orefSirens": "Israel Sirens",
     "telegramIntel": "Разведка Telegram",
+    "xIntel": "X News Accounts",
     "startups": "Стартапы и венчурный капитал",
     "vcblogs": "Аналитика и эссе венчурных фондов",
     "regionalStartups": "Мировые новости стартапов",
@@ -482,7 +508,7 @@
         "outages": "Переключить интернет-отключения",
         "tradeRoutes": "Переключить торговые маршруты",
         "canadaRoads": "Toggle Canada roads overlay",
-        "canadaAlerts": "Toggle Alberta Emergency Alert overlay"
+        "canadaAlerts": "Toggle Canada provincial emergency alerts overlay"
       },
       "view": {
         "dark": "Переключить на тёмную тему",
@@ -1174,7 +1200,7 @@
         "ucdpEvents": "События UCDP",
         "displacementFlows": "Потоки перемещённых лиц",
         "climateAnomalies": "Климатические аномалии",
-        "weatherAlerts": "Метеопредупреждения в США и Канаде (NWS, ECCC)",
+        "weatherAlerts": "Предупреждения об опасной погоде (NWS, ECCC, WMO SWIC)",
         "strategicWaterways": "Стратегические водные пути",
         "economicCenters": "Экономические центры",
         "criticalMinerals": "Критически важные минералы",
@@ -1196,7 +1222,7 @@
         "radiationSpike": "Всплеск радиации",
         "radiationElevated": "Повышенный уровень радиации",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (Alberta Emergency Alert)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
       },
       "tooltip": {
         "earthquake": "Землетрясение",
@@ -1257,7 +1283,7 @@
           "infraDatacenters": "Кластеры ИИ-вычислений >=10 000 GPU",
           "infraOutages": "Блэкауты интернета и сбои сервисов",
           "naturalEventsTech": "Землетрясения, штормы, пожары (могут затронуть дата-центры)",
-          "weatherAlerts": "Предупреждения об опасной погоде в США и Канаде (NWS, ECCC)",
+          "weatherAlerts": "Официальные предупреждения об опасной погоде национальных метеорологических служб (NWS, ECCC, WMO SWIC)",
           "economicCenters": "Фондовые биржи и центральные банки",
           "countriesOverlay": "Наложение названий стран",
           "financeExchanges": "Крупные мировые биржи по рыночному уровню",
@@ -1269,7 +1295,7 @@
           "financeOutages": "Сбои интернета, способные повлиять на торговые операции",
           "financeCyberThreats": "Инциденты безопасности вокруг финансовой инфраструктуры",
           "macroWaterways": "Стратегические узкие места для транспортировки сырья",
-          "weatherAlertsMarket": "Опасные погодные явления в США и Канаде, влияющие на рынки (NWS, ECCC)",
+          "weatherAlertsMarket": "Официальные предупреждения об опасной погоде, важные для рынков (NWS, ECCC, WMO SWIC)",
           "naturalEventsMacro": "Землетрясения, пожары, наводнения и другие стихийные бедствия",
           "timeRecent": "Фильтрация данных по времени за последние часы",
           "timeExtended": "Данные за прошлую неделю, месяц или за всё время",
@@ -1304,7 +1330,7 @@
           "geoBoundaries": "Демилитаризованные зоны, линии прекращения огня и спорные границы",
           "ciiChoropleth": "Тепловая карта индекса нестабильности стран — цвета по CII (зелёный=стабильно, красный=критично)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Alberta Emergency Alert public warnings (Atom feed from www.alberta.ca)"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
         },
         "notes": {
           "timeAffects": "Влияет на: Землетрясения, Погода, Протесты, Сбои"
@@ -1678,7 +1704,9 @@
     "breakingNews": {
       "critical": "СРОЧНО",
       "high": "ВАЖНО",
-      "dismiss": "Скрыть"
+      "dismiss": "Скрыть",
+      "alertsRegion": "Breaking news alerts",
+      "viewPanel": "View related panel"
     },
     "intelligenceFindings": {
       "breakingAlerts": "Срочные оповещения",
@@ -1738,6 +1766,21 @@
       "viewSource": "Посмотреть источник",
       "filterGeopolitics": "Геополитика",
       "filterCyber": "Кибер"
+    },
+    "xIntel": {
+      "infoTooltip": "Curated public news-account posts from X. Official API only.",
+      "loading": "Connecting to X news-account relay...",
+      "empty": "No posts available",
+      "disabled": "X news-account relay not active",
+      "filterAll": "All",
+      "filterBreaking": "Breaking",
+      "filterConflict": "Conflict",
+      "filterOsint": "OSINT",
+      "filterMiddleeast": "Middle East",
+      "live": "LIVE",
+      "viewSource": "View Source",
+      "filterGeopolitics": "Geopolitics",
+      "filterCyber": "Cyber"
     },
     "investments": {
       "infoTooltip": "База данных прямых иностранных инвестиций Саудовской Аравии и ОАЭ в мировую критическую инфраструктуру. Нажмите на строку для перехода к инвестиции на карте.",
@@ -1915,7 +1958,17 @@
       "topTargets": "Страны-мишени"
     },
     "commodities": {
-      "infoTooltip": "<strong>Commodities</strong> Tradeable non-energy commodity tape focused on metals and materials. Energy prices live in Energy Complex; macro stress indicators live in Macro Stress."
+      "infoTooltip": "<strong>Commodities</strong> Tradeable non-energy commodity tape focused on metals and materials. Energy prices live in Energy Complex; macro stress indicators live in Macro Stress.",
+      "commodities": "Commodities",
+      "physicalPremiums": "Physical premium",
+      "physical": "Physical",
+      "paper": "Paper",
+      "premium": "Premium",
+      "asOf": "As of {{date}}",
+      "metals": {
+        "gold": "Gold",
+        "silver": "Silver"
+      }
     },
     "crypto": {
       "infoTooltip": "<strong>Crypto</strong> Live prices, 24h changes, and volume for major cryptocurrencies. Data sourced from CoinGecko."
@@ -2987,7 +3040,11 @@
       "heading": "КУРС",
       "hexCode": "HEX-КОД",
       "squawk": "СКВОК",
-      "attribution": "Источник: adsb.lol (ODbL) · OpenSky Network"
+      "attribution": "Источник: adsb.lol (ODbL) · OpenSky Network",
+      "climbRate": "СКОРОСТЬ НАБОРА ВЫСОТЫ",
+      "manufacturer": "ПРОИЗВОДИТЕЛЬ",
+      "owner": "ВЛАДЕЛЕЦ",
+      "builtYear": "ГОД ВЫПУСКА"
     },
     "militaryVessel": {
       "aisDark": "AIS ВЫКЛЮЧЕН",
@@ -3032,7 +3089,8 @@
       "moreVessels": "+{{count}} ещё кораблей",
       "vesselsCount": "{{count}} КОРАБЛЕЙ",
       "vessels": "КОРАБЛИ",
-      "trackedVessels": "ОТСЛЕЖИВАЕМЫЕ КОРАБЛИ"
+      "trackedVessels": "ОТСЛЕЖИВАЕМЫЕ КОРАБЛИ",
+      "showLess": "Показать меньше"
     },
     "naturalEvent": {
       "closed": "ЗАВЕРШЕНО",
@@ -3298,7 +3356,8 @@
     "retry": "Retry",
     "refresh": "Refresh",
     "all": "Все",
-    "cancel": "Отмена"
+    "cancel": "Отмена",
+    "dismiss": "Dismiss"
   },
   "preferences": {
     "display": "Отображение",
@@ -3320,7 +3379,9 @@
     "fontFamily": "Шрифт",
     "fontFamilyDesc": "Моноширинный для технического вида, системный по умолчанию для удобства чтения.",
     "fontMono": "Моноширинный",
-    "fontSystem": "Системный шрифт"
+    "fontSystem": "Системный шрифт",
+    "panelFontScale": "Размер текста",
+    "followGlobalFontScale": "Использовать глобальный размер"
   },
   "contextMenu": {
     "openCountryBrief": "Открыть обзор страны",
@@ -3411,7 +3472,9 @@
       "orefSirens1": "Оповещения об израильских ракетах и снарядах в реальном времени",
       "orefSirens2": "Зонирование сирен с классификацией угроз",
       "telegramIntel1": "Избранные каналы Telegram OSINT",
-      "telegramIntel2": "Обновления по конфликтам и геополитике в режиме реального времени"
+      "telegramIntel2": "Обновления по конфликтам и геополитике в режиме реального времени",
+      "xIntel1": "Curated public news accounts on X",
+      "xIntel2": "API-fresh posts with official permalinks"
     }
   },
   "auth": {

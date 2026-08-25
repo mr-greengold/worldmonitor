@@ -5,7 +5,15 @@ import {
   normalizeChinaMacroPreflight,
   validateChinaMacroAvailabilityBindings,
 } from '../../../shared/china-macro-normalization';
-import { getSourceProvenanceState } from '../../../shared/source-provenance';
+import {
+  getSourceProvenanceState,
+  type PropagandaRisk,
+} from '../../../shared/source-provenance';
+import {
+  CREDIBILITY_HIGH_RISK_CAP,
+  computeCredibilityScore,
+} from '../../../shared/news-credibility.js';
+import { getSourceTier } from '../../../server/_shared/source-tiers';
 import { hasRedistributableProviderAttribution } from '../../../shared/provider-redistribution';
 import { CII_RISK_SCORE_CACHE_KEYS } from '../../_cii-risk-cache-keys.js';
 // @ts-expect-error — generated Edge-safe JS mirror; authored types live in shared/bootstrap-tier-keys.d.ts
@@ -59,6 +67,10 @@ const IRAN_EVENTS_ENABLED = (process.env.IRAN_EVENTS_ENABLED ?? 'false').toLower
 const CONFLICT_EVENTS_OUTPUT_BUDGET_BYTES = 128 * 1024;
 const CONFLICT_EVENTS_DATA_BUDGET_BYTES = CONFLICT_EVENTS_OUTPUT_BUDGET_BYTES - 1024;
 const CONFLICT_EVENT_LISTS = ['ucdp-events', 'iran-events', 'events'] as const;
+const PHYSICAL_PREMIUM_SYMBOL_ALIASES: Record<string, string[]> = {
+  gold: ['gold', 'xau', 'gc=f'],
+  silver: ['silver', 'xag', 'si=f'],
+};
 
 function fitConflictEventsToBudget(data: Record<string, unknown>): void {
   const lists = CONFLICT_EVENT_LISTS.flatMap((label) => {
@@ -149,15 +161,40 @@ function summarizeConflictEvents(data: Record<string, unknown>): Record<string, 
   return summary;
 }
 
+function normalizeStoredCredibilityScore(
+  value: unknown,
+  propagandaRisk: PropagandaRisk,
+): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) {
+    return null;
+  }
+  const score = Math.round(value);
+  return propagandaRisk === 'high'
+    ? Math.min(score, CREDIBILITY_HIGH_RISK_CAP)
+    : score;
+}
+
 function addNewsSourceProvenance(value: unknown): unknown {
   if (!Array.isArray(value)) return value;
   return value.map((story) => {
     if (!story || typeof story !== 'object' || Array.isArray(story)) return story;
     const record = story as Record<string, unknown>;
     const sourceName = typeof record.primarySource === 'string' ? record.primarySource.trim() : '';
+    const provenance = getSourceProvenanceState(sourceName);
+    const servedScore = normalizeStoredCredibilityScore(record.credibilityScore, provenance.risk);
+    const corroboration = Number(
+      record.uniqueSourceCount ?? record.corroborationSourceCount ?? 1,
+    );
     return {
       ...record,
-      sourceProvenance: getSourceProvenanceState(sourceName),
+      sourceProvenance: provenance,
+      credibilityScore: servedScore !== null
+        ? servedScore
+        : computeCredibilityScore({
+          sourceTier: getSourceTier(sourceName),
+          propagandaRisk: provenance.risk,
+          independentCorroborationCount: Number.isFinite(corroboration) ? corroboration : 1,
+        }),
     };
   });
 }
@@ -268,6 +305,98 @@ export function applySectorValuationFreshness(
 
 export const CACHE_TOOLS: ToolDef[] = [
   {
+    name: 'get_toronto_reported_occurrences',
+    _outputBudgetBytes: 65536,
+    description: 'Bounded Toronto Police Service Major Crime Indicators rows. Retrospective reported occurrences only; coordinates are approximate and this is not live dispatch.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        division: { type: 'string', description: 'Case-insensitive TPS division filter.' },
+        neighbourhood: { type: 'string', description: 'Case-insensitive neighbourhood filter.' },
+        offence: { type: 'string', description: 'Case-insensitive offence filter.' },
+        limit: { type: 'number', description: 'Maximum rows to return, from 1 to 100 (default 50).' },
+      },
+      required: [],
+    },
+    outputSchema: cacheEnvelope({
+      reported_occurrences: {
+        type: ['object', 'null'],
+        properties: {
+          semantic: { type: 'string', enum: ['reported_occurrence'] },
+          source: { type: 'string', enum: ['tps-mci'] },
+          attribution: { type: 'string' },
+          fetchedAt: { type: 'string' },
+          newestContentAt: { type: ['number', 'null'] },
+          records: { type: 'array', maxItems: 100, items: { type: 'object' } },
+        },
+      },
+    }),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _postFilter: (data, params) => {
+      const division = argStr(params.division);
+      const neighbourhood = argStr(params.neighbourhood);
+      const offence = argStr(params.offence);
+      narrowNested(data, 'reported_occurrences', 'records', (row) => (
+        (!division || ciIncludes(row.division, division))
+        && (!neighbourhood || ciIncludes(row.neighbourhood158, neighbourhood))
+        && (!offence || ciIncludes(row.offence, offence))
+      ));
+      const requested = argNum(params.limit);
+      capNested(data, 'reported_occurrences', 'records', Math.min(Math.max(requested ?? 50, 1), 100));
+      return data;
+    },
+    _cacheKeys: ['safety:toronto:tps-mci:v1'],
+    _cacheLabels: { 'safety:toronto:tps-mci:v1': 'reported_occurrences' },
+    _freshnessChecks: [{ key: 'seed-meta:safety:tps-mci', maxStaleMin: 20160 }],
+    _apiPaths: ['GET /api/safety/v1/get-toronto-safety'],
+  },
+  {
+    name: 'get_toronto_calls_attended',
+    _outputBudgetBytes: 65536,
+    description: 'Bounded Toronto Police Service Calls for Service Attended annual aggregates. These are neighbourhood and division counts, not incident points.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        year: { type: 'number', description: 'Exact event year.' },
+        division: { type: 'string', description: 'Case-insensitive original or final TPS division filter.' },
+        neighbourhood: { type: 'string', description: 'Case-insensitive neighbourhood filter.' },
+        limit: { type: 'number', description: 'Maximum rows to return, from 1 to 100 (default 50).' },
+      },
+      required: [],
+    },
+    outputSchema: cacheEnvelope({
+      annual_aggregates: {
+        type: ['object', 'null'],
+        properties: {
+          semantic: { type: 'string', enum: ['annual_aggregate'] },
+          source: { type: 'string', enum: ['tps-calls-attended'] },
+          attribution: { type: 'string' },
+          fetchedAt: { type: 'string' },
+          newestContentYear: { type: ['number', 'null'] },
+          records: { type: 'array', maxItems: 100, items: { type: 'object' } },
+        },
+      },
+    }),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _postFilter: (data, params) => {
+      const year = argNum(params.year);
+      const division = argStr(params.division);
+      const neighbourhood = argStr(params.neighbourhood);
+      narrowNested(data, 'annual_aggregates', 'records', (row) => (
+        (year == null || row.eventYear === year)
+        && (!division || ciIncludes(row.divisionOriginal, division) || ciIncludes(row.divisionFinal, division))
+        && (!neighbourhood || ciIncludes(row.neighbourhood158, neighbourhood))
+      ));
+      const requested = argNum(params.limit);
+      capNested(data, 'annual_aggregates', 'records', Math.min(Math.max(requested ?? 50, 1), 100));
+      return data;
+    },
+    _cacheKeys: ['safety:toronto:tps-calls-attended:v1'],
+    _cacheLabels: { 'safety:toronto:tps-calls-attended:v1': 'annual_aggregates' },
+    _freshnessChecks: [{ key: 'seed-meta:safety:tps-calls-attended', maxStaleMin: 20160 }],
+    _apiPaths: ['GET /api/safety/v1/get-toronto-safety'],
+  },
+  {
     // Intentionally fixed-universe, unlike the ListMarketQuotes RPC: this reads
     // and filters the seeded bootstrap snapshot and never gap-fetches an
     // unseeded ticker through a provider (#6305). An arbitrary equity the
@@ -276,14 +405,14 @@ export const CACHE_TOOLS: ToolDef[] = [
     // docs/finance-data.mdx § Client parity.
     name: 'get_market_data',
     _outputBudgetBytes: 131072,
-    description: 'Real-time equity quotes, commodity prices (including gold futures GC=F), crypto prices, forex FX rates (USD/EUR, USD/JPY etc.), sector performance and valuation coverage, ETF flows, and Gulf market quotes from WorldMonitor\'s curated bootstrap cache. Covers the curated symbol universe only — it filters that snapshot rather than looking up arbitrary tickers.',
+    description: 'Real-time equity quotes, commodity prices (including SGE physical-vs-COMEX gold and silver premiums), crypto prices, forex FX rates, sector performance and valuation coverage, ETF flows, and Gulf market quotes from WorldMonitor\'s curated bootstrap cache. Covers the curated symbol universe only — it filters that snapshot rather than looking up arbitrary tickers.',
     inputSchema: {
       type: 'object',
       properties: {
         symbols: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Tickers to keep, e.g. ["AAPL","GC=F","BTC"]. Case-insensitive; matches equity/commodity/crypto/gulf quotes, sector ETFs, and ETF-flow tickers. Omit for the full snapshot.',
+          description: 'Tickers to keep, e.g. ["AAPL","GC=F","BTC"]. Case-insensitive; matches equity/commodity/crypto/gulf quotes, physical-premium aliases (gold/XAU/GC=F, silver/XAG/SI=F), sector ETFs, and ETF-flow tickers. Omit for the full snapshot.',
         },
         asset_class: {
           type: 'array',
@@ -308,6 +437,26 @@ export const CACHE_TOOLS: ToolDef[] = [
         type: ['object', 'null'],
         properties: {
           quotes: { type: 'array', items: { type: 'object', properties: { symbol: { type: 'string' }, price: { type: 'number' }, changePercent: { type: 'number' } } } },
+        },
+      },
+      'physical-premium': {
+        type: ['object', 'null'],
+        properties: {
+          premiums: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                metal: { type: 'string', enum: ['gold', 'silver'] },
+                physical: { type: 'object', properties: { price: { type: 'number' }, currency: { type: 'string' }, unit: { type: 'string' }, source: { type: 'string' }, asOf: { type: 'string' } } },
+                paper: { type: 'object', properties: { price: { type: 'number' }, source: { type: 'string' }, asOf: { type: 'string' } } },
+                premiumUsdPerOz: { type: 'number' },
+                premiumPct: { type: 'number' },
+                computedAt: { type: 'string' },
+              },
+            },
+          },
+          fx: { type: 'object', properties: { pair: { type: 'string' }, rate: { type: 'number' }, source: { type: 'string' }, asOf: { type: 'string' } } },
         },
       },
       crypto: {
@@ -418,6 +567,13 @@ export const CACHE_TOOLS: ToolDef[] = [
         for (const label of ['stocks-bootstrap', 'commodities-bootstrap', 'crypto', 'gulf-quotes']) {
           narrowNested(data, label, 'quotes', (q) => matchesCode(q.symbol, symbols));
         }
+        narrowNested(data, 'physical-premium', 'premiums', (premium) => {
+          const aliases = typeof premium.metal === 'string'
+            ? PHYSICAL_PREMIUM_SYMBOL_ALIASES[premium.metal]
+            : undefined;
+          if (!aliases) return false;
+          return aliases.some((alias) => matchesCode(alias, symbols));
+        });
         narrowNested(data, 'sectors', 'sectors', (s) => matchesCode(s.symbol, symbols));
         const sectorData = data.sectors;
         if (sectorData && typeof sectorData === 'object' && !Array.isArray(sectorData)) {
@@ -540,14 +696,15 @@ export const CACHE_TOOLS: ToolDef[] = [
       }
       capNested(data, 'sectors', 'sectors', limit);
       capNested(data, 'etf-flows', 'etfs', limit);
+      capNested(data, 'physical-premium', 'premiums', limit);
       applySectorValuationFreshness(data);
       const cls = argStrList(params.asset_class);
       if (cls.length > 0) {
-        const map: Record<string, string> = {
-          equity: 'stocks-bootstrap', commodity: 'commodities-bootstrap', crypto: 'crypto',
-          sectors: 'sectors', etf: 'etf-flows', gulf: 'gulf-quotes', sentiment: 'fear-greed',
+        const map: Record<string, string[]> = {
+          equity: ['stocks-bootstrap'], commodity: ['commodities-bootstrap', 'physical-premium'], crypto: ['crypto'],
+          sectors: ['sectors'], etf: ['etf-flows'], gulf: ['gulf-quotes'], sentiment: ['fear-greed'],
         };
-        return selectDatasets(data, compact(cls.map((c) => map[c])));
+        return selectDatasets(data, cls.flatMap((assetClass) => map[assetClass] ?? []));
       }
       return data;
     },
@@ -557,12 +714,17 @@ export const CACHE_TOOLS: ToolDef[] = [
     _cacheKeys: [
       'market:stocks-bootstrap:v1',
       'market:commodities-bootstrap:v1',
+      'market:physical-premium:v1',
       'market:crypto:v1',
       'market:sectors:v2',
       'market:etf-flows:v1',
       'market:gulf-quotes:v1',
       'market:fear-greed:v1',
     ],
+    // Do not add the new physical-premium seed-meta yet. evaluateFreshness ORs
+    // every check into one tool-wide flag, so its deployment-order miss would
+    // mark unrelated equity, crypto, FX, and commodity responses stale until
+    // the first Railway publish. /api/health owns this key meanwhile.
     _freshnessChecks: [...MARKET_FRESHNESS_CHECKS],
     // NOTE: `GET /api/market/v1/get-gold-intelligence` is NOT covered here.
     // The audit-time cross-reference matched on the single `market:commodities-bootstrap:v1`
@@ -572,6 +734,7 @@ export const CACHE_TOOLS: ToolDef[] = [
     // tests/mcp-api-parity.test.mjs until a future commodities-expansion tool bundles those.
     _apiPaths: [
       "GET /api/market/v1/get-fear-greed-index",
+      "GET /api/market/v1/get-physical-premiums",
       "GET /api/market/v1/get-sector-summary",
       "GET /api/market/v1/list-commodity-quotes",
       "GET /api/market/v1/list-crypto-quotes",
@@ -754,7 +917,7 @@ export const CACHE_TOOLS: ToolDef[] = [
     name: 'get_news_intelligence',
     _uiResourceUri: NEWS_INTELLIGENCE_UI_URI,
     _outputBudgetBytes: 131072,
-    description: 'AI-classified geopolitical threat news summaries, GDELT intelligence signals, cross-source signals, and security advisories from WorldMonitor\'s intelligence layer. Each top story carries full corroboration metadata — uniqueSourceCount, corroborationSourceCount, entityCorroboration, sourceTier, the contributing outlet names, and every clustered headline.',
+    description: 'AI-classified geopolitical threat news summaries, GDELT intelligence signals, cross-source signals, and security advisories from WorldMonitor\'s intelligence layer. Each top story carries full corroboration metadata — uniqueSourceCount, corroborationSourceCount, entityCorroboration, sourceTier, the contributing outlet names, every clustered headline, and credibilityScore (0-100 source reliability, distinct from importance).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -779,6 +942,7 @@ export const CACHE_TOOLS: ToolDef[] = [
           topStories: { type: 'array', items: { type: 'object', properties: {
             primaryTitle: { type: 'string' }, primarySource: { type: 'string' }, primaryLink: { type: 'string' },
             pubDate: { type: 'string' }, sourceCount: { type: 'number' }, importanceScore: { type: 'number' },
+            credibilityScore: { type: 'number', description: '0-100 source-reliability score, distinct from importanceScore. Built from source tier, propaganda risk, and independent corroboration. State-controlled media is capped at 40.' },
             // Corroboration and clustering fields the seeder already writes
             // into every news:insights:v1 topStories entry (see the object
             // built in scripts/seed-insights.mjs). This is a cache tool: the
@@ -2239,7 +2403,7 @@ export const CACHE_TOOLS: ToolDef[] = [
         key: 'seed-meta:supply_chain:portwatch-ports',
         maxStaleMin: 2160, // 12h cron; 36h = 3× interval
         minRecordCount: 174,
-        requireContentFreshness: { countries: ['CN', 'HK'], budgetMinutes: 2 * 72 * 60 },
+        requireContentFreshness: { countries: ['CN', 'HK'], budgetMinutes: 10 * 24 * 60 },
         contentFreshnessActivationKey: PORTWATCH_CONTENT_FRESHNESS_ACTIVATION_KEY,
       },
       { key: 'seed-meta:energy:chokepoint-baselines',      maxStaleMin: 60 * 24 * 400 },  // ~400d static registry

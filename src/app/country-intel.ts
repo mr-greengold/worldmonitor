@@ -282,7 +282,16 @@ export class CountryIntelManager implements AppModule {
     await this.openCountryBriefByCode(geo.code, geo.country);
   }
 
-  async openCountryBriefByCode(code: string, country: string, opts?: { maximize?: boolean }): Promise<void> {
+  async openCountryBriefByCode(
+    code: string,
+    country: string,
+    opts?: {
+      maximize?: boolean;
+      trackAnalytics?: boolean;
+      /** Acknowledges that the requested country page is visibly presented. */
+      onPresented?: () => void;
+    },
+  ): Promise<void> {
     const token = ++this.briefRequestToken;
     let pageShown = false;
     let showedLoading = false;
@@ -297,7 +306,7 @@ export class CountryIntelManager implements AppModule {
         showedLoading = true;
       }
       this.ctx.map?.setRenderPaused(true);
-      trackCountryBriefOpened(code);
+      if (opts?.trackAnalytics !== false) trackCountryBriefOpened(code);
 
       const canonicalName = TIER1_COUNTRIES[code] || CountryIntelManager.resolveCountryName(code);
       if (canonicalName !== code) country = canonicalName;
@@ -311,6 +320,15 @@ export class CountryIntelManager implements AppModule {
 
       page.show(country, code, score, signals);
       pageShown = true;
+      // Agent selection needs to acknowledge the visible UI transition, not
+      // wait for the slower background intelligence/LLM enrichment below.
+      // Keep the callback observational so a consumer cannot break the human
+      // country-open path by throwing from its acknowledgement handler.
+      try {
+        opts?.onPresented?.();
+      } catch {
+        // The page is already visible; enrichment should continue normally.
+      }
       const updateChinaSummary = (data: ChinaCountrySummaryData): void => {
         if (!isChina || token !== this.briefRequestToken || this.ctx.countryBriefPage?.getCode()?.toUpperCase() !== 'CN') return;
         this.ctx.countryBriefPage.updateChinaCountrySummary?.(data);
@@ -390,7 +408,7 @@ export class CountryIntelManager implements AppModule {
       page.updateEconomicIndicators?.(this.buildEconomicIndicators(code, score, null));
 
       const marketClient = new MarketServiceClient(getRpcBaseUrl(), { fetch: (...args: Parameters<typeof globalThis.fetch>) => globalThis.fetch(...args) });
-      const stockPromise = marketClient.getCountryStockIndex({ countryCode: code })
+      const stockPromise = marketClient.getCountryStockIndex({ countryCode: code.toUpperCase() })
         .then((resp) => ({
           available: resp.available,
           code: resp.code,
@@ -478,7 +496,7 @@ export class CountryIntelManager implements AppModule {
             this.ctx.countryBriefPage.updateDefenseIndustrialBase?.(null);
           }
         });
-      intelClient.getCountryFacts({ countryCode: code })
+      intelClient.getCountryFacts({ countryCode: code.toUpperCase() })
         .then((facts) => {
           if (this.ctx.countryBriefPage?.getCode() !== code) return;
           this.ctx.countryBriefPage.updateCountryFacts?.({
@@ -503,7 +521,7 @@ export class CountryIntelManager implements AppModule {
           });
         });
 
-      intelClient.getCountryEnergyProfile({ countryCode: code })
+      intelClient.getCountryEnergyProfile({ countryCode: code.toUpperCase() })
         .then((profile) => {
           if (this.ctx.countryBriefPage?.getCode() !== code) return;
           this.ctx.countryBriefPage.updateEnergyProfile?.({
@@ -592,7 +610,7 @@ export class CountryIntelManager implements AppModule {
           });
         });
 
-      intelClient.getCountryPortActivity({ countryCode: code })
+      intelClient.getCountryPortActivity({ countryCode: code.toUpperCase() })
         .then((activity) => {
           if (this.ctx.countryBriefPage?.getCode() !== code) return;
           this.ctx.countryBriefPage.updateMaritimeActivity?.({
@@ -856,7 +874,7 @@ export class CountryIntelManager implements AppModule {
       if (this.ctx.countryBriefPage?.getCode() === code) this.ctx.countryBriefPage.updateNationalDebt?.(null);
     });
 
-    intelClientPro.getCountryRisk({ countryCode: code }).then(resp => {
+    intelClientPro.getCountryRisk({ countryCode: code.toUpperCase() }).then(resp => {
       if (this.ctx.countryBriefPage?.getCode() !== code) return;
       this.ctx.countryBriefPage.updateSanctionsPressure?.(resp.sanctionsCount > 0 ? {
         entryCount: resp.sanctionsCount,

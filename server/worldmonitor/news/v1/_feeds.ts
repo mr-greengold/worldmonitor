@@ -184,7 +184,24 @@ export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
       // language and protected from client-side source filtering.
       { name: 'Hurriyet', url: 'https://www.hurriyet.com.tr/rss/anasayfa', lang: 'tr', strategicDefault: true },
       { name: 'Polsat News', url: 'https://www.polsatnews.pl/rss/wszystkie.xml', lang: 'pl', strategicDefault: true },
+      // Polish depth — catalog opt-in, locale-boosted for `pl`. PAP/Onet native
+      // RSS is gone; OKO.press still has a live publisher feed.
+      { name: 'PAP', url: gnLocale('site:pap.pl when:2d', 'pl', 'PL', 'PL:pl'), lang: 'pl' },
+      { name: 'Gazeta Wyborcza', url: gnLocale('site:wyborcza.pl when:2d', 'pl', 'PL', 'PL:pl'), lang: 'pl' },
+      { name: 'Polityka', url: gnLocale('site:polityka.pl when:2d', 'pl', 'PL', 'PL:pl'), lang: 'pl' },
+      { name: 'Onet', url: gnLocale('site:wiadomosci.onet.pl when:2d', 'pl', 'PL', 'PL:pl'), lang: 'pl' },
+      { name: 'OKO.press', url: 'https://oko.press/feed', lang: 'pl' },
+      { name: 'TVP Info', url: gnLocale('site:tvp.info when:2d', 'pl', 'PL', 'PL:pl'), lang: 'pl' },
       { name: 'Kathimerini', url: gnLocale('site:kathimerini.gr when:2d', 'el', 'GR', 'GR:el'), lang: 'el', strategicDefault: true },
+      { name: 'Naftemporiki', url: 'https://www.naftemporiki.gr/feed/', lang: 'el' },
+      { name: 'in.gr', url: 'https://www.in.gr/feed/', lang: 'el' },
+      { name: 'iefimerida', url: 'https://www.iefimerida.gr/rss.xml', lang: 'el' },
+      { name: 'Proto Thema', url: gnLocale('site:protothema.gr when:2d', 'el', 'GR', 'GR:el'), lang: 'el' },
+      { name: 'ERT', url: gnLocale('site:ert.gr when:2d', 'el', 'GR', 'GR:el'), lang: 'el' },
+      { name: 'AMNA', url: gnLocale('site:amna.gr when:2d', 'el', 'GR', 'GR:el'), lang: 'el' },
+      { name: 'Ta Nea', url: 'https://www.tanea.gr/feed/', lang: 'el' },
+      { name: 'Liberal GR', url: gnLocale('site:liberal.gr when:2d', 'el', 'GR', 'GR:el'), lang: 'el' },
+      { name: 'CNN Greece', url: gnLocale('site:cnn.gr when:2d', 'el', 'GR', 'GR:el'), lang: 'el' },
     ],
     middleeast: [
       { name: 'BBC Middle East', url: 'https://feeds.bbci.co.uk/news/world/middle_east/rss.xml' },
@@ -210,6 +227,7 @@ export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
       { name: 'WAFA English', url: gn('site:english.wafa.ps when:7d') },
       { name: 'Naharnet Lebanon', url: 'https://www.naharnet.com/tags/lebanon/en/feed.atom' },
       { name: "L'Orient Today", url: gn('site:lorientlejour.com Lebanon when:7d') },
+      { name: 'Annahar', url: gnLocale('site:annahar.com/lebanon when:7d', 'ar', 'LB', 'LB:ar'), lang: 'ar', strategicDefault: true },
       { name: 'Libya Herald', url: 'https://libyaherald.com/rss.xml' },
       { name: 'Egypt Independent', url: 'https://www.egyptindependent.com/feed/' },
       { name: 'Mada Masr', url: gn('site:madamasr.com when:30d') },
@@ -339,6 +357,7 @@ export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
       { name: 'The Diplomat', url: 'https://thediplomat.com/feed/' },
       // Theater coverage preset (#5956) - Indo-Pacific sources.
       { name: 'Reuters Asia', url: gn('site:reuters.com (China OR Japan OR Taiwan OR Korea) when:3d') },
+      { name: 'Reuters India', url: gn('site:reuters.com India when:3d') },
       { name: 'Japan Today', url: 'https://japantoday.com/feed/atom' },
       { name: 'Nikkei Asia', url: gn('site:asia.nikkei.com when:3d') },
       { name: 'CNA', url: 'https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml' },
@@ -383,6 +402,7 @@ export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
       { name: 'Pajhwok Afghan News', url: gn('site:pajhwok.com Afghanistan when:7d') },
       { name: 'The Daily Star', url: gn('site:thedailystar.net when:14d') },
       { name: 'Dhaka Tribune', url: gn('site:dhakatribune.com when:14d') },
+      { name: 'Times of India', url: 'https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms', lang: 'en' },
     ],
     energy: [
       { name: 'Oil & Gas', url: gn('(oil price OR OPEC OR "natural gas" OR pipeline OR LNG) when:2d') },
@@ -433,7 +453,7 @@ export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
       { name: 'Y Combinator Blog', url: 'https://www.ycombinator.com/blog/rss/' },
       { name: 'a16z Blog', url: 'https://www.a16z.news/feed' },
       { name: 'First Round Review', url: 'https://review.firstround.com/articles/rss' },
-      { name: 'Sequoia Blog', url: 'https://www.sequoiacap.com/feed/' },
+      { name: 'Sequoia Blog', url: gn('site:sequoiacap.com when:7d') },
       { name: 'Stratechery', url: 'https://stratechery.com/feed/' },
     ],
     regionalStartups: [

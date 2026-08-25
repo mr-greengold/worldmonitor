@@ -358,7 +358,8 @@
           "Prioritäts-Datenaktualisierung"
         ],
         "highlightFeatures": [
-          "Persönliche Lizenz"
+          "Persönliche Lizenz",
+          "1 benannter Benutzer"
         ]
       },
       "api": {
@@ -383,7 +384,11 @@
           "Dedizierter Support",
           "Custom-Integrationen",
           "SLA-Garantie",
-          "On-Premise-Option"
+          "On-Premise-Option",
+          "Datenverarbeitungsvereinbarung (DPA)",
+          "Rechnungsstellung per Bestellung",
+          "SAML SSO, SCIM",
+          "Benutzerdefinierte Sicherheits- und Datenschutzeinstellungen"
         ],
         "cta": "Kontakt zum Vertrieb"
       },
@@ -412,7 +417,8 @@
           "Prioritäts-Support"
         ],
         "highlightFeatures": [
-          "Kommerziell Lizenz enthalten"
+          "Kommerziell Lizenz enthalten",
+          "1 benannter Benutzer – keine gemeinsame Anmeldung"
         ]
       }
     },
@@ -423,7 +429,7 @@
     "axisPersonal": "Persönlich",
     "axisPersonalNote": "Individuelle Nutzung",
     "axisCommercial": "Kommerziell",
-    "axisCommercialNote": "Arbeit, Teams & Produkte"
+    "axisCommercialNote": "Arbeit, Kunden & Produkte"
   },
   "welcome": {
     "meta": {

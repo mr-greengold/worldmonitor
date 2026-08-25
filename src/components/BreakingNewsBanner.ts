@@ -3,7 +3,9 @@ import { getAlertSettings } from '@/services/breaking-news-alerts';
 import { getSourcePanelId } from '@/config/feeds';
 import { t } from '@/services/i18n';
 import { isMobileDevice } from '@/utils';
+import { rawHtml, trustedHtml } from '@/utils/dom-utils';
 import { sanitizeUrl } from '@/utils/sanitize';
+import { renderPrimarySourceProvenance } from './news/source-provenance';
 
 const MAX_ALERTS = 3;
 const CRITICAL_DISMISS_MS = 60_000;
@@ -36,6 +38,11 @@ export class BreakingNewsBanner {
   constructor() {
     this.container = document.createElement('div');
     this.container.className = 'breaking-news-container';
+    // Live region must exist in the tree before alerts are injected, or the
+    // injected content is never announced (same subtlety as PanelTabBar).
+    this.container.setAttribute('role', 'log');
+    this.container.setAttribute('aria-live', 'assertive');
+    this.container.setAttribute('aria-label', t('components.breakingNews.alertsRegion'));
     // Desktop: fixed body-level overlay. Mobile: join the app flex column
     // below the header (same slot as the critical posture banner, which
     // stays above when both are present) so alerts push content down
@@ -232,6 +239,7 @@ export class BreakingNewsBanner {
     const iconSpan = document.createElement('span');
     iconSpan.className = 'breaking-alert-icon';
     iconSpan.textContent = icon;
+    iconSpan.setAttribute('aria-hidden', 'true');
 
     const content = document.createElement('div');
     content.className = 'breaking-alert-content';
@@ -260,7 +268,23 @@ export class BreakingNewsBanner {
 
     const metaSpan = document.createElement('span');
     metaSpan.className = 'breaking-alert-meta';
-    metaSpan.textContent = `${alert.source} · ${timeAgo}`;
+
+    const provenance = document.createElement('span');
+    provenance.className = 'breaking-alert-provenance';
+    const { riskBadge, tierBadge } = renderPrimarySourceProvenance(alert.source);
+    this.appendProvenanceBadge(provenance, tierBadge, 'breaking-news banner source tier badge');
+    const sourceName = document.createElement('span');
+    sourceName.className = 'breaking-alert-source';
+    sourceName.textContent = alert.source;
+    provenance.appendChild(sourceName);
+    this.appendProvenanceBadge(provenance, riskBadge, 'breaking-news banner source propaganda badge');
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'breaking-alert-time';
+    timeSpan.textContent = `· ${timeAgo}`;
+
+    metaSpan.appendChild(provenance);
+    metaSpan.appendChild(timeSpan);
 
     content.appendChild(levelSpan);
     content.appendChild(headlineElement);
@@ -268,14 +292,29 @@ export class BreakingNewsBanner {
 
     const dismissBtn = document.createElement('button');
     dismissBtn.className = 'breaking-alert-dismiss';
+    dismissBtn.type = 'button';
     dismissBtn.textContent = '×';
     dismissBtn.title = t('components.breakingNews.dismiss');
+    dismissBtn.setAttribute('aria-label', t('components.breakingNews.dismiss'));
+
+    const viewPanelBtn = document.createElement('button');
+    viewPanelBtn.className = 'breaking-alert-view-panel';
+    viewPanelBtn.type = 'button';
+    viewPanelBtn.textContent = '→';
+    viewPanelBtn.title = t('components.breakingNews.viewPanel');
+    viewPanelBtn.setAttribute('aria-label', t('components.breakingNews.viewPanel'));
 
     el.appendChild(iconSpan);
     el.appendChild(content);
+    el.appendChild(viewPanelBtn);
     el.appendChild(dismissBtn);
 
     return el;
+  }
+
+  private appendProvenanceBadge(parent: HTMLElement, html: string, reason: string): void {
+    if (!html) return;
+    parent.appendChild(rawHtml(trustedHtml(html, reason)));
   }
 
   private formatTimeAgo(date: Date): string {

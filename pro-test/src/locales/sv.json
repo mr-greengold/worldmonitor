@@ -358,7 +358,8 @@
           "Prioriterad datauppdatering"
         ],
         "highlightFeatures": [
-          "Personlig licens"
+          "Personlig licens",
+          "1 namngiven användare"
         ]
       },
       "api": {
@@ -383,7 +384,11 @@
           "Dedikerad support",
           "Anpassade integreringar",
           "SLA-garanti",
-          "On-premise-alternativ"
+          "On-premise-alternativ",
+          "Databehandlingsavtal (DPA)",
+          "Faktureringsviainköpsorder",
+          "SAML SSO, SCIM",
+          "Anpassade säkerhet- och sekretessinställningar"
         ],
         "cta": "Kontakta försäljning"
       },
@@ -412,7 +417,8 @@
           "Prioriterad support"
         ],
         "highlightFeatures": [
-          "Kommersiell licens inkluderad"
+          "Kommersiell licens inkluderad",
+          "1 namngiven användare — inte en delad inloggning"
         ]
       }
     },
@@ -423,7 +429,7 @@
     "axisPersonal": "Personlig",
     "axisPersonalNote": "individuell användning",
     "axisCommercial": "Kommersiell",
-    "axisCommercialNote": "arbete, team & produkter"
+    "axisCommercialNote": "arbete, klienter och produkter"
   },
   "welcome": {
     "meta": {

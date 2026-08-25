@@ -15,7 +15,18 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { writeResearchSection } from './build-research-reports.mjs';
+import {
+  USE_CASE_PAGES,
+  USE_CASES_CONTENT_VERSION,
+  writeUseCasesSection,
+} from './build-use-cases.mjs';
 import { buildSourceCatalog, renderSourcesIndex } from './crawlable-sources-page.mjs';
+import {
+  attachCoverageToCatalog,
+  FEED_DECLARATION_FILES,
+  loadSourceGeography,
+  scanNamedFeedDeclarations,
+} from './source-catalog-identity.mjs';
 import {
   activeSourceAttributionEntries,
   scanUpstreamHosts,
@@ -42,13 +53,19 @@ const SOURCE_ATTRIBUTION_MANIFEST_PATH = 'shared/source-attribution-manifest.jso
 const SOURCE_PAGE_RENDERER_PATH = 'scripts/crawlable-sources-page.mjs';
 const SOURCE_ORIGIN_PATH = 'scripts/source-origin.mjs';
 const SHARED_PAGE_TEMPLATE_PATH = 'scripts/build-crawlable-corpus.mjs';
+export const SOURCE_CATALOG_LASTMOD_PATHS = Object.freeze([
+  'scripts/source-catalog-identity.mjs',
+  'shared/source-geography.json',
+  'shared/publisher-families.js',
+  ...FEED_DECLARATION_FILES,
+]);
 // Last substantive change to the shared HTML template/content language. Data
 // families take the later of this version and their own committed source date,
 // so template changes are reflected without pretending every deploy is fresh.
 export const CORPUS_GENERATOR_CONTENT_VERSION = '2026-08-12';
 const COUNTRY_PAGE_CONTENT_VERSION = '2026-07-28';
 const CHOKEPOINT_PAGE_CONTENT_VERSION = '2026-07-28';
-const SOURCES_PAGE_CONTENT_VERSION = '2026-08-16';
+const SOURCES_PAGE_CONTENT_VERSION = '2026-08-20';
 const DATASET_SCHEMA_CONTENT_VERSION = '2026-08-05';
 const DATASET_LICENSE = {
   '@type': 'CreativeWork',
@@ -185,6 +202,7 @@ export const GENERATED_DIRS = [
   'reference/changelog',
   'research',
   'sources',
+  'use-cases',
 ];
 
 const MONTHS = [
@@ -225,6 +243,7 @@ export function sourcePageLastmod({
   manifestLastmod,
   rendererLastmod,
   originLastmod,
+  catalogInputLastmods = [],
   sharedTemplateLastmod,
   generatorContentVersion = CORPUS_GENERATOR_CONTENT_VERSION,
   pageContentVersion = SOURCES_PAGE_CONTENT_VERSION,
@@ -233,6 +252,7 @@ export function sourcePageLastmod({
     manifestLastmod,
     rendererLastmod,
     originLastmod,
+    ...catalogInputLastmods,
     sharedTemplateLastmod,
     generatorContentVersion,
     pageContentVersion,
@@ -834,6 +854,11 @@ export async function loadCorpusData({ rootDir = DEFAULT_ROOT } = {}) {
     CORPUS_GENERATOR_CONTENT_VERSION,
     DATASET_SCHEMA_CONTENT_VERSION,
   );
+  const useCasesLastmod = laterDate(
+    USE_CASES_CONTENT_VERSION,
+    CORPUS_GENERATOR_CONTENT_VERSION,
+    gitFileLastmod(rootDir, 'scripts/build-use-cases.mjs'),
+  );
   const attributionManifest = readJson(rootDir, SOURCE_ATTRIBUTION_MANIFEST_PATH);
   // Production generators share the validated attribution predicate and stats.
   // Tests retain a separate raw-manifest oracle so a mutation here cannot make
@@ -841,7 +866,13 @@ export async function loadCorpusData({ rootDir = DEFAULT_ROOT } = {}) {
   const sourceInventory = scanUpstreamHosts(rootDir);
   const sourceStats = sourceAttributionStats(sourceInventory, attributionManifest);
   const activeSourceEntries = activeSourceAttributionEntries(attributionManifest);
-  const sourceCatalog = buildSourceCatalog(activeSourceEntries);
+  const sourceCatalog = attachCoverageToCatalog(
+    buildSourceCatalog(activeSourceEntries, {
+      logicalProviders: attributionManifest.logicalProviders || [],
+    }),
+    scanNamedFeedDeclarations(rootDir),
+    loadSourceGeography(rootDir),
+  );
   if (sourceCatalog.length !== sourceStats.providerCount) {
     throw new Error('Source catalog provider count drifted from the attribution manifest');
   }
@@ -849,6 +880,7 @@ export async function loadCorpusData({ rootDir = DEFAULT_ROOT } = {}) {
     manifestLastmod: gitFileLastmod(rootDir, SOURCE_ATTRIBUTION_MANIFEST_PATH),
     rendererLastmod: gitFileLastmod(rootDir, SOURCE_PAGE_RENDERER_PATH),
     originLastmod: gitFileLastmod(rootDir, SOURCE_ORIGIN_PATH),
+    catalogInputLastmods: SOURCE_CATALOG_LASTMOD_PATHS.map((path) => gitFileLastmod(rootDir, path)),
     sharedTemplateLastmod: gitFileLastmod(rootDir, SHARED_PAGE_TEMPLATE_PATH),
   });
 
@@ -865,9 +897,11 @@ export async function loadCorpusData({ rootDir = DEFAULT_ROOT } = {}) {
       countryBboxes: COUNTRY_BBOXES_PATH,
       crisisRegistry: CRISIS_REGISTRY_PATH,
       researchReports: RESEARCH_REPORTS_INDEX_PATH,
+      useCases: 'scripts/build-use-cases.mjs',
       sourceAttributionManifest: SOURCE_ATTRIBUTION_MANIFEST_PATH,
       sourcePageRenderer: SOURCE_PAGE_RENDERER_PATH,
       sourceOrigin: SOURCE_ORIGIN_PATH,
+      sourceCatalogInputs: [...SOURCE_CATALOG_LASTMOD_PATHS],
       sharedPageTemplate: SHARED_PAGE_TEMPLATE_PATH,
     },
     lastmod: {
@@ -877,6 +911,7 @@ export async function loadCorpusData({ rootDir = DEFAULT_ROOT } = {}) {
       tools: toolsLastmod,
       crises: crisesLastmod,
       research: researchLastmod,
+      useCases: useCasesLastmod,
       sources: sourcesLastmod,
     },
     sourceStats,
@@ -935,6 +970,7 @@ function pageDocument({
         <a href="/crises/">Crises</a>
         <a href="/tools/">Live tools</a>
         <a href="/research/">Research</a>
+        <a href="/use-cases/">Use cases</a>
         <a href="/reference/changelog/">Changelog</a>
         <a href="/blog/glossary/">Glossary</a>`;
   const renderedFooter = footerBody || 'World Monitor reference corpus. Crawlable pages use committed snapshots; live API results are labelled separately.';
@@ -1057,6 +1093,7 @@ function renderCountriesIndex({ countries, baseUrl, capturedAt, lastmod }) {
   const body = `      <p class="eyebrow">Country corpus</p>
       <h1>Country risk and resilience</h1>
       <p class="lede">${escapeHtml(description)}</p>
+      <p>For the evergreen monitoring procedure that uses these pages as evidence, see <a href="/use-cases/monitor-country-risk/">Monitor country risk</a>.</p>
       <div class="grid">
 ${countries.map((country) => `        <a class="card" href="/countries/${country.slug}/"><strong>${escapeHtml(country.name)}</strong><br><span>${country.rank == null ? 'Low-confidence listing' : `Rank ${country.rank}`} &middot; ${escapeHtml(country.code)}</span></a>`).join('\n')}
       </div>
@@ -1753,6 +1790,11 @@ function buildManifest({ data, baseUrl, changelogPageCount }) {
         index: '/research/',
         routes: researchRoutes,
       },
+      useCases: {
+        count: USE_CASE_PAGES.length,
+        index: '/use-cases/',
+        routes: USE_CASE_PAGES.map((page) => page.path),
+      },
       sources: {
         count: 1,
         index: '/sources/',
@@ -1852,6 +1894,13 @@ export async function buildCorpus({
     data,
     outDir,
     baseUrl,
+    tpl: { escapeHtml, absoluteUrl, breadcrumbLd, withUtmSource, pageDocument },
+  });
+
+  writeUseCasesSection({
+    outDir,
+    baseUrl,
+    lastmod: data.lastmod.useCases,
     tpl: { escapeHtml, absoluteUrl, breadcrumbLd, withUtmSource, pageDocument },
   });
 

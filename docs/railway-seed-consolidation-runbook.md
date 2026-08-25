@@ -536,6 +536,32 @@ Its one `monitor` job checks ingestion operational acceptance through
 configuration, classify deployment history, or imply that a merge reached a
 container.
 
+The probe is strict on every run, but the workflow conclusion is
+transition-based. `scripts/update-seed-health-statuses.mjs` publishes one
+durable `ingestion/seed/<source>` status on the historical operational anchor
+`b93afd05d0f4ea2c465e79fd064e87fc1f9fb2f3`. The exact gated revision remains
+the revision being observed, but it does not receive source-health statuses.
+This separation prevents a continuing data incident from making Railway read
+an unrelated deployable commit as a failed check suite.
+A new failure, a changed failure class, an expired acknowledgement, a probe
+transport error, or a malformed observation fails the workflow. The same
+unchanged incident remains red on the anchor, appends no new status, and does
+not create another generic failed run. This preserves the alarm while
+separating "still broken" from "broke again".
+
+Recovery is not inferred from a merge, image build, or elapsed time. The
+publisher posts success only after the live compact-health observation stops
+reporting that source. The first run after this status lifecycle is activated
+imports the newest trusted legacy projection before it initializes the anchor,
+so an incident that already exists does not become a false new alert. Later
+exact repeats are quiet. The publisher also proves that the anchor is an
+ancestor of the monitored revision before it writes any status.
+
+The acceptance context is the completion marker and is always written last. If
+GitHub accepts only part of a projection, the next poll overlays those trusted
+partial statuses on the last complete projection, repairs the anchor, and does
+not report an already-written source transition again.
+
 Read the separate six-hourly `Railway Native Deploy Health` workflow for
 production source, build, trigger, and deployment conclusions. A red Seed
 Freshness run says the ingestion observation failed or could not be authorized.
@@ -543,14 +569,17 @@ A red Railway Native Deploy Health run says the fleet configuration or
 deployment evidence failed. Neither workflow hides or gates the other's
 conclusion.
 
-`monitor` fails on
-every actionable problem, including `SEED_ERROR`, `STALE_SEED`,
-`STALE_CONTENT`, and degraded composed coverage. Statuses that explicitly end
-in `_ON_DEMAND` remain informational. It deliberately does not run on an
-ingestion push because Railway may not have deployed or executed that revision
-yet. This is the operational acceptance gate for the "merged and green, but
-production data is still unhealthy or running under stale deployment
-controls" gap.
+The probe classifies every actionable problem, including `SEED_ERROR`,
+`STALE_SEED`, `STALE_CONTENT`, and degraded composed coverage. Statuses that
+explicitly end in `_ON_DEMAND` remain informational. It deliberately does not
+run on an ingestion push because Railway may not have deployed or executed
+that revision yet. This is the operational acceptance gate for the "merged and
+green, but production data is still unhealthy" gap. A workflow failure means
+new operational information or an unreadable control plane; the durable source
+statuses on the operational anchor remain the current incident inventory
+between transitions. A genuinely new or changed incident can still fail one
+scheduled run; persistent incident state cannot be copied onto later main
+commits.
 
 #### Deploy-drift check
 
@@ -958,8 +987,8 @@ All new services share these settings:
 | **Watch paths** | `scripts/**`, `shared/**` |
 | **Replaces** | 4 services (including the retired defense-patents producer) |
 | **Net savings** | 3 slots |
-| **Members** | Arms Suppliers (10d), Defense Industrial Base (10d), Submarine Cables (weekly), Defense Patents (weekly), Chokepoint Baselines (400d, runs rarely), Military Bases (30d, runs rarely), Mineral Production (60d, runs rarely) |
-| **Wall-time budget** | `maxBundleMs: 570_000` in `scripts/seed-bundle-static-ref.mjs`. The daily tick exists so this budget can defer lower-priority members rather than starve them; a member's own `timeoutMs` is a per-member cap inside that total, not an independent budget. |
+| **Members** | Defense Industrial Base (10d), Submarine Cables (weekly), Defense Patents (weekly), Chokepoint Baselines (400d, runs rarely), Demographics Capability (20d) |
+| **Wall-time budget** | `maxBundleMs: 570_000` in `scripts/seed-bundle-static-ref.mjs`. The five members reserve 545s in total, including the runner's 10s kill grace for each member (110 + 100 + 190 + 70 + 75). The runner starts every freshness gate concurrently; its heartbeat plus the slowest three-read gate have 20s of bounded preflight, leaving 5s for process overhead. Therefore **every due member is admissible on every tick**. Do not add another member without moving or reducing measured work; that would restore the starvation the split removed. |
 | **Required variable** | `USPTO_API_KEY=${{shared.USPTO_API_KEY}}` |
 
 Defense Patents is an intentional data-series migration, not a continuation of
@@ -983,6 +1012,62 @@ retries the portal instead of treating the partial pass as complete.
 Strict health-probe registration is a staged follow-up after the first Railway
 run publishes both seed-meta keys; the follow-up must cite real Railway
 pre-seed evidence under the health-probe cutover contract.
+
+Demographics Capability publishes `demographics:capability:v1` from three
+independently settled stages: UN WPP age structure, UNESCO UIS indicators via
+World Bank WDI, and ILOSTAT industrial workforce data. A failed stage retains
+only its prior section and its original fetch timestamp. The 20-day eligibility
+window keeps the 30-day data TTL alive while the observation-year content clock
+detects old source material.
+
+### Bundle 3 heavy: seed-bundle-static-ref-heavy (live, #6806)
+
+Arms-Suppliers (460s worst case) and Military-Bases (410s) cannot share a 570s
+tick — Railway kills a cron container at 10 minutes, so that ceiling is not
+negotiable. They CAN share a bundle: the runner defers whichever loses the tick
+to the next daily fire, and at 10-day and 30-day cadences a one-day deferral
+costs nothing. One service carries all three heavy members instead of three
+1-section services, because Railway caps a project at 100 and the fleet is at 82.
+
+| Setting | Value |
+|---|---|
+| **Service name** | `seed-bundle-static-ref-heavy` |
+| **Start command** | `node scripts/seed-bundle-static-ref-heavy.mjs` |
+| **Cron schedule** | `0 4 * * *` (daily 04:00 UTC, staggered off leftover's 03:00) |
+| **Lifecycle** | active — service `6285c37b-1327-46f1-bfd0-7454612764fb`, provisioned 2026-08-19, first tick published `bundle:heartbeat:static-ref-heavy` at 2026-08-20T04:01:04Z |
+| **Members** | Mineral-Production (180s / 60d), Arms-Suppliers (370s / 14d), Military-Bases (400s / 30d) |
+| **Wall-time budget** | `maxBundleMs: 570_000` |
+| **Required variable** | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `CLOUDFLARE_R2_ACCOUNT_ID` and one of `CLOUDFLARE_R2_TOKEN` / `CLOUDFLARE_API_TOKEN`. `USPTO_API_KEY` stays on leftover. The R2 pair is NOT optional here: `scripts/data/military-bases-final.json` is gitignored and the service has no volume, so without it Military-Bases falls back to the published version and exits non-zero once that is past its 30-day interval (#6845). |
+| **Heartbeat** | `bundle:heartbeat:static-ref-heavy` |
+
+**The lead slot rotates by day and that is load-bearing.** A member that never
+publishes never stops being due, so a fixed order hands it the first slot every
+single tick. That is not hypothetical: Arms-Suppliers has never written
+`seed-meta:military:arms-suppliers-complete`, and on 2026-08-18 it took 371s of
+leftover's budget, leaving 177s against Mineral-Production's 190s reservation —
+deferring it by 13 seconds on the tick its acknowledgement expired. The bundle
+rotates `dayIndex % 3` (days since epoch, not `getUTCDay()`, which stutters
+across the week boundary and would give one member two consecutive lead days),
+so each member leads every third tick and a permanently failing member can
+consume at most one lead slot in three. `seed-bundle-macro.mjs` uses the same
+device for the same reason.
+
+Start commands in this table keep the `scripts/` prefix so they match the other
+bundle rows and the registry-coverage grep. Railway's actual start command is
+`node seed-bundle-static-ref-heavy.mjs` because `deployMode:
+nixpacks-root-scripts` sets `rootDirectory` to `scripts/`. It was cloned from
+`seed-bundle-static-ref` and carries its own service id
+`6285c37b-1327-46f1-bfd0-7454612764fb`, not leftover's
+`4dd3934d-e5f7-4af8-b34b-c1796226800b`. The 04:00 stagger is intentional — a
+400s job at 03:00 would contend Redis / R2 / upstreams with leftover.
+
+Provisioning a repository-backed service is only half the job: it must also be
+enrolled in `scripts/railway-native-autodeploy-fleet.json` and lose its
+`lifecycle: planned` row, or `Railway Native Deploy Health` fails closed with
+`unexpected repository service(s)` and stops checking the whole fleet. Set
+`source.checkSuites` to `false` at the same time — a clone inherits Railway's
+`true` default, and wait-for-CI reads the head commit's entire check suite, so
+any red check anywhere strands this service's builds.
 
 ### Bundle 4: seed-bundle-resilience
 

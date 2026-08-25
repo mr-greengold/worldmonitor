@@ -26,6 +26,7 @@ import {
   resolveBootstrapRegistry,
 } from './_bootstrap-tier-keys.js';
 import { compactWildfireDashboardPayload } from './_wildfire-dashboard.js';
+import { CANADA_ALERTS_CUTOVER_FALLBACK_KEYS } from './_canada-alerts-cutover.js';
 import {
   BOOTSTRAP_R2_PROBE_CEILING_MS,
   readBootstrapTierObject,
@@ -44,6 +45,43 @@ const { cacheKeys: BOOTSTRAP_CACHE_KEYS } = resolveBootstrapRegistry({
 const SLOW_KEYS = new Set(bootstrapTierKeyNames('slow', { iranEventsEnabled: IRAN_EVENTS_ENABLED }));
 const FAST_KEYS = new Set(bootstrapTierKeyNames('fast', { iranEventsEnabled: IRAN_EVENTS_ENABLED }));
 const ON_DEMAND_KEYS = new Set(bootstrapTierKeyNames('on-demand', { iranEventsEnabled: IRAN_EVENTS_ENABLED }));
+
+// Temporary #6659 cutover fallback. Keep the new multi-province aggregate
+// authoritative, but let bootstrap clients use the Alberta sibling first and
+// the abandoned legacy key second until alerts:canada:v1 has been published
+// in every environment.
+// R4 (#6654) fields that must never appear in a bootstrap-tier payload.
+// `text` is the X post body: the first-party panel may render it (via
+// /api/x-feed), but alerts, MCP, and embed/OEM partners get derived facts plus
+// a permalink only. `pollState` is seed-internal cursor state.
+// Kept in sync with stripXFeedRestrictedFields in scripts/publish-bootstrap-tiers.mjs.
+export function stripXFeedRestrictedFields(value) {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) return value;
+  const { pollState: _pollState, ...rest } = value;
+  if (!Array.isArray(rest.items)) return rest;
+  return {
+    ...rest,
+    items: rest.items.map((item) => {
+      if (item == null || typeof item !== 'object' || Array.isArray(item)) return item;
+      const { text: _text, ...itemRest } = item;
+      return itemRest;
+    }),
+  };
+}
+
+function bootstrapRedisReadKeys(keys) {
+  if (!keys.includes(BOOTSTRAP_CACHE_KEYS.canadaAlerts)) return keys;
+  const extra = CANADA_ALERTS_CUTOVER_FALLBACK_KEYS.filter((key) => !keys.includes(key));
+  return extra.length > 0 ? [...keys, ...extra] : keys;
+}
+
+function canadaAlertsCutoverFallbackValue(cached) {
+  for (const key of CANADA_ALERTS_CUTOVER_FALLBACK_KEYS) {
+    const fallback = cached.get(key);
+    if (fallback !== undefined) return fallback;
+  }
+  return undefined;
+}
 
 // No public/s-maxage: CF (in front of api.worldmonitor.app) ignores Vary: Origin and would
 // pin ACAO: worldmonitor.app on cached responses, breaking CORS for preview deployments.
@@ -68,6 +106,18 @@ const TIER_CDN_CACHE = {
 // budget guarantees the shield outlives a complete seed cycle.
 // tests/bootstrap-on-demand-cache-budget.test.mts enforces the ceiling.
 const ON_DEMAND_CACHE_PROFILES = {
+  // Correlation cards publish every 5 minutes and have a 30-minute health
+  // budget. The conservative complete CDN window is 11m.
+  correlationCards: {
+    browser: 'max-age=60, stale-while-revalidate=60, stale-if-error=300',
+    cdn: 'public, s-maxage=300, stale-while-revalidate=60, stale-if-error=300',
+  },
+  // Hourly publisher, 90-minute health budget. The conservative full CDN
+  // serving window is 80m, so one failed refresh cannot be hidden past health.
+  forecasts: {
+    browser: 'max-age=300, stale-while-revalidate=300, stale-if-error=1800',
+    cdn: 'public, s-maxage=3600, stale-while-revalidate=300, stale-if-error=900',
+  },
   // Seeded every 15 minutes. Keep the caller-invariant public URL from
   // outliving a complete seed interval; per-group stale/unavailable states
   // remain part of the payload contract.
@@ -88,6 +138,10 @@ const ON_DEMAND_CACHE_PROFILES = {
     browser: 'max-age=60, stale-while-revalidate=120, stale-if-error=900',
     cdn: 'public, s-maxage=900, stale-while-revalidate=120, stale-if-error=900',
   },
+  manitobaRoads: {
+    browser: 'max-age=60, stale-while-revalidate=120, stale-if-error=900',
+    cdn: 'public, s-maxage=900, stale-while-revalidate=120, stale-if-error=900',
+  },
   // seed-bundle-canada member interval 30min, 90min health budget. The default
   // 2h shield outlived the budget by half an hour (#6667).
   bcOpen511: {
@@ -99,6 +153,12 @@ const ON_DEMAND_CACHE_PROFILES = {
   marketCorrelationSeries: {
     browser: 'max-age=60, stale-while-revalidate=120, stale-if-error=900',
     cdn: 'public, s-maxage=900, stale-while-revalidate=120, stale-if-error=900',
+  },
+  // seed-aviation aggregate, 90min health budget. Default 2h on-demand
+  // shield would outlive the budget after #7046 moved this key off FAST.
+  flightDelays: {
+    browser: 'max-age=60, stale-while-revalidate=120, stale-if-error=1800',
+    cdn: 'public, s-maxage=1800, stale-while-revalidate=300, stale-if-error=1800',
   },
 };
 
@@ -462,6 +522,13 @@ function isSharedCacheableBootstrapKind(authKind) {
   return authKind === 'public-weather' || authKind === 'public-tier' || authKind === 'public-on-demand';
 }
 
+function getPublicBootstrapHeaders() {
+  return {
+    ...getPublicCorsHeaders(),
+    'Timing-Allow-Origin': '*',
+  };
+}
+
 // `tier` is the requested tier, or null for a single-key read. The on-demand
 // default lives here rather than at the call site so there is ONE resolution
 // path: a test that re-derived "on-demand falls back to slow" would be checking
@@ -485,7 +552,7 @@ function successCacheHeaders(requestedTier, authKind, cors, onDemandKey = null) 
   // pin an echoed ACAO onto a cached response. Safe because isDisallowedOrigin()
   // already rejected unauthorized origins at the handler entry (this is exactly
   // the contract getPublicCorsHeaders documents).
-  const publicCors = getPublicCorsHeaders();
+  const publicCors = getPublicBootstrapHeaders();
   if (!isSharedCacheableBootstrapKind(authKind)) {
     return {
       ...publicCors,
@@ -544,7 +611,10 @@ export default async function handler(req, ctx) {
 
   let cached;
   try {
-    cached = await getCachedJsonBatch(keys, measureR2Shadow ? tier : null);
+    cached = await getCachedJsonBatch(
+      bootstrapRedisReadKeys(keys),
+      measureR2Shadow ? tier : null,
+    );
   } catch {
     const isPublic = isPublicBootstrapKind(auth.kind);
     if (isPublic) {
@@ -555,7 +625,7 @@ export default async function handler(req, ctx) {
         { error: 'Bootstrap service temporarily unavailable' },
         503,
         {
-          ...getPublicCorsHeaders(),
+          ...getPublicBootstrapHeaders(),
           'Cache-Control': 'no-store',
           'Retry-After': '5',
         },
@@ -576,13 +646,26 @@ export default async function handler(req, ctx) {
   const data = {};
   const missing = [];
   for (let i = 0; i < names.length; i++) {
-    const val = cached.get(keys[i]);
+    const val = keys[i] === BOOTSTRAP_CACHE_KEYS.canadaAlerts
+      && !cached.has(BOOTSTRAP_CACHE_KEYS.canadaAlerts)
+      ? canadaAlertsCutoverFallbackValue(cached)
+      : cached.get(keys[i]);
     if (val !== undefined) {
       let responseValue = val;
       // Strip seed-internal metadata not intended for API clients
       if (names[i] === 'forecasts' && val != null && 'enrichmentMeta' in val) {
         const { enrichmentMeta: _stripped, ...rest } = val;
         responseValue = rest;
+      }
+      // R4 (#6654): X post bodies must never leave the first-party path.
+      // `?tier=slow&public=1` is unauthenticated, ACAO:*, and CDN-cacheable for
+      // 2h, so anything here reaches embed/OEM and server-to-server callers —
+      // exactly the audience R4 excludes. `xFeed` is deliberately NOT registered
+      // in BOOTSTRAP_CACHE_KEYS (same as `telegramFeed`); this strip is the
+      // regression guard if it is ever re-added. Post text is served only by
+      // /api/x-feed. Mirrored in scripts/publish-bootstrap-tiers.mjs.
+      if (names[i] === 'xFeed' && val != null && typeof val === 'object' && !Array.isArray(val)) {
+        responseValue = stripXFeedRestrictedFields(val);
       }
       if (names[i] === 'wildfires') responseValue = compactWildfireBootstrapPayload(responseValue);
       data[names[i]] = responseValue;
@@ -608,7 +691,7 @@ export default async function handler(req, ctx) {
   // (#6784): health probes Redis, so nothing pages, and the client stamps the
   // empty hit as a fresh read.
   const cacheHeaders = onDemandKey && missing.includes(onDemandKey)
-    ? { ...getPublicCorsHeaders(), 'Cache-Control': 'no-store' }
+    ? { ...getPublicBootstrapHeaders(), 'Cache-Control': 'no-store' }
     : successCacheHeaders(tier, auth.kind, cors, onDemandKey);
   const response = jsonResponse(
     { data, missing },

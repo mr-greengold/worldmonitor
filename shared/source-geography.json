@@ -200,6 +200,24 @@
   "Rzeczpospolita": [
     "PL"
   ],
+  "PAP": [
+    "PL"
+  ],
+  "Gazeta Wyborcza": [
+    "PL"
+  ],
+  "Polityka": [
+    "PL"
+  ],
+  "Onet": [
+    "PL"
+  ],
+  "OKO.press": [
+    "PL"
+  ],
+  "TVP Info": [
+    "PL"
+  ],
   "BBC Russian": [
     "RU"
   ],
@@ -329,6 +347,9 @@
     "IQ"
   ],
   "Reuters Asia": [],
+  "Reuters India": [
+    "IN"
+  ],
   "The Diplomat": [],
   "South China Morning Post": [
     "CN"
@@ -358,6 +379,9 @@
     "KR"
   ],
   "The Hindu": [
+    "IN"
+  ],
+  "Times of India": [
     "IN"
   ],
   "Indian Express": [
@@ -555,6 +579,9 @@
     "LB"
   ],
   "L'Orient Today": [
+    "LB"
+  ],
+  "Annahar": [
     "LB"
   ],
   "Studio Tamani": [

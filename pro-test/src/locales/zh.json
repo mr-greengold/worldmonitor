@@ -358,7 +358,8 @@
           "优先数据刷新\t"
         ],
         "highlightFeatures": [
-          "个人许可证\t"
+          "个人许可证\t",
+          "1 个指定用户"
         ]
       },
       "api": {
@@ -383,7 +384,11 @@
           "专属支持",
           "自定义集成",
           "SLA 保证",
-          "本地部署选项"
+          "本地部署选项",
+          "数据处理协议 (DPA)",
+          "采购订单计费",
+          "SAML SSO、SCIM",
+          "自定义安全和隐私设置"
         ],
         "cta": "联系销售"
       },
@@ -412,7 +417,8 @@
           "优先支持\t"
         ],
         "highlightFeatures": [
-          "包含商业许可证\t"
+          "包含商业许可证\t",
+          "1 个指定用户 — 不是共享登录"
         ]
       }
     },
@@ -423,7 +429,7 @@
     "axisPersonal": "个人\t",
     "axisPersonalNote": "个人使用\t",
     "axisCommercial": "商业\t",
-    "axisCommercialNote": "工作、团队和产品\t"
+    "axisCommercialNote": "工作、客户与产品"
   },
   "welcome": {
     "meta": {

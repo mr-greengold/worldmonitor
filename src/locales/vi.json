@@ -165,9 +165,7 @@
       "energyMix": "Cơ cấu nguồn điện",
       "coal": "than đá",
       "noMajorDisruptions": "Không có gián đoạn lớn nào được báo cáo",
-      "activeDisruptions_one": "{{count}} gián đoạn đang hoạt động",
       "activeDisruptions_other": "{{count}} gián đoạn đang hoạt động",
-      "activeSignals_one": "{{count}} tín hiệu đang hoạt động",
       "activeSignals_other": "{{count}} tín hiệu đang hoạt động",
       "aviationSource": "Giám sát hàng không",
       "hazardSource": "Tín hiệu tình báo quốc gia",
@@ -207,6 +205,31 @@
       "soybeans": "Soybeans",
       "barley": "Barley",
       "palmOil": "Palm oil"
+    },
+    "demographicsCapability": {
+      "title": "Demographics & Workforce",
+      "help": "Age structure, education pipeline, and industrial workforce capacity from UN WPP, UNESCO UIS and World Bank WDI, and ILOSTAT.",
+      "loading": "Loading demographics and workforce data…",
+      "unavailable": "Demographics and workforce data unavailable.",
+      "proLocked": "Upgrade to PRO for demographics and workforce data",
+      "notAvailable": "Not available",
+      "ageStructure": "Age structure",
+      "education": "Education pipeline",
+      "industrialWorkforce": "Industrial workforce",
+      "medianAge": "Median age",
+      "oldAgeDependency": "Old-age dependency",
+      "totalDependency": "Total dependency",
+      "workingAgePopulation": "Working-age population",
+      "workingAgeProjection": "Working-age population (+10 years)",
+      "tertiaryEnrollment": "Tertiary enrollment",
+      "stemGraduates": "STEM graduates",
+      "researchers": "Researchers",
+      "craftTrades": "Craft and trades workers",
+      "plantOperators": "Plant and machine operators",
+      "trainedIndustrialWorkforce": "Combined industrial workforce",
+      "manufacturingShare": "Manufacturing employment",
+      "source": "Sources: {{sources}}.",
+      "retained": "{{stage}} data retained from the last successful refresh."
     }
   },
   "header": {
@@ -338,6 +361,7 @@
     "securityAdvisories": "Cảnh báo An ninh",
     "orefSirens": "Cảnh báo Israel",
     "telegramIntel": "Tình báo Telegram",
+    "xIntel": "X News Accounts",
     "startups": "Khởi nghiệp & Đầu tư mạo hiểm",
     "vcblogs": "Nhận định & Bài viết VC",
     "regionalStartups": "Tin Khởi nghiệp Toàn cầu",
@@ -478,7 +502,7 @@
         "outages": "Bật/tắt gián đoạn internet",
         "tradeRoutes": "Bật/tắt tuyến thương mại",
         "canadaRoads": "Toggle Canada roads overlay",
-        "canadaAlerts": "Toggle Alberta Emergency Alert overlay"
+        "canadaAlerts": "Toggle Canada provincial emergency alerts overlay"
       },
       "view": {
         "dark": "Chuyển sang chế độ tối",
@@ -1170,7 +1194,7 @@
         "ucdpEvents": "Sự kiện UCDP",
         "displacementFlows": "Dòng Di dời",
         "climateAnomalies": "Bất thường Khí hậu",
-        "weatherAlerts": "Cảnh báo thời tiết tại Hoa Kỳ và Canada (NWS, ECCC)",
+        "weatherAlerts": "Cảnh báo thời tiết nghiêm trọng (NWS, ECCC, WMO SWIC)",
         "strategicWaterways": "Đường thủy Chiến lược",
         "economicCenters": "Trung tâm Kinh tế",
         "criticalMinerals": "Khoáng sản Chiến lược",
@@ -1192,7 +1216,7 @@
         "radiationSpike": "Đột tăng bức xạ",
         "radiationElevated": "Bức xạ tăng cao",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (Alberta Emergency Alert)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
       },
       "tooltip": {
         "earthquake": "Động đất",
@@ -1253,7 +1277,7 @@
           "infraDatacenters": "Cụm tính toán AI >=10.000 GPU",
           "infraOutages": "Mất kết nối internet và gián đoạn dịch vụ",
           "naturalEventsTech": "Động đất, bão, cháy (có thể ảnh hưởng trung tâm dữ liệu)",
-          "weatherAlerts": "Cảnh báo thời tiết nghiêm trọng tại Hoa Kỳ và Canada (NWS, ECCC)",
+          "weatherAlerts": "Cảnh báo thời tiết nghiêm trọng chính thức từ các cơ quan khí tượng quốc gia (NWS, ECCC, WMO SWIC)",
           "economicCenters": "Sàn chứng khoán & ngân hàng trung ương",
           "countriesOverlay": "Lớp phủ tên quốc gia",
           "financeExchanges": "Sàn giao dịch toàn cầu lớn theo cấp thị trường",
@@ -1265,7 +1289,7 @@
           "financeOutages": "Gián đoạn internet có thể ảnh hưởng hoạt động thị trường",
           "financeCyberThreats": "Sự kiện an ninh quanh hạ tầng tài chính",
           "macroWaterways": "Điểm nghẽn chiến lược cho vận chuyển hàng hóa",
-          "weatherAlertsMarket": "Sự kiện thời tiết nghiêm trọng tại Hoa Kỳ và Canada liên quan đến thị trường (NWS, ECCC)",
+          "weatherAlertsMarket": "Cảnh báo thời tiết nghiêm trọng chính thức có liên quan đến thị trường (NWS, ECCC, WMO SWIC)",
           "naturalEventsMacro": "Động đất, cháy, lũ lụt và thiên tai khác",
           "timeRecent": "Lọc dữ liệu theo thời gian gần đây",
           "timeExtended": "Hiển thị dữ liệu tuần qua, tháng qua hoặc tất cả",
@@ -1300,7 +1324,7 @@
           "geoBoundaries": "Khu phi quân sự, đường ngừng bắn và ranh giới tranh chấp",
           "ciiChoropleth": "Bản đồ nhiệt Chỉ số Bất ổn Quốc gia — tô màu quốc gia theo điểm CII (xanh=ổn định, đỏ=nghiêm trọng)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Alberta Emergency Alert public warnings (Atom feed from www.alberta.ca)"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
         },
         "notes": {
           "timeAffects": "Ảnh hưởng: Động đất, Thời tiết, Biểu tình, Gián đoạn"
@@ -1378,7 +1402,6 @@
       "clusters": "Cụm dữ liệu",
       "alertsLabel": "Cảnh báo",
       "alert": "CẢNH BÁO",
-      "sources_one": "{{count}} nguồn",
       "sources_other": "{{count}} nguồn",
       "briefTech": "TÓM TẮT CÔNG NGHỆ",
       "briefCommodity": "TÓM TẮT HÀNG HÓA",
@@ -1672,7 +1695,9 @@
     "breakingNews": {
       "critical": "NGHIÊM TRỌNG",
       "high": "CAO",
-      "dismiss": "Bỏ qua"
+      "dismiss": "Bỏ qua",
+      "alertsRegion": "Breaking news alerts",
+      "viewPanel": "View related panel"
     },
     "intelligenceFindings": {
       "breakingAlerts": "Cảnh báo Khẩn cấp",
@@ -1732,6 +1757,21 @@
       "viewSource": "Xem nguồn",
       "filterGeopolitics": "Địa chính trị",
       "filterCyber": "Mạng"
+    },
+    "xIntel": {
+      "infoTooltip": "Curated public news-account posts from X. Official API only.",
+      "loading": "Connecting to X news-account relay...",
+      "empty": "No posts available",
+      "disabled": "X news-account relay not active",
+      "filterAll": "All",
+      "filterBreaking": "Breaking",
+      "filterConflict": "Conflict",
+      "filterOsint": "OSINT",
+      "filterMiddleeast": "Middle East",
+      "live": "LIVE",
+      "viewSource": "View Source",
+      "filterGeopolitics": "Geopolitics",
+      "filterCyber": "Cyber"
     },
     "investments": {
       "infoTooltip": "Cơ sở dữ liệu đầu tư trực tiếp nước ngoài của Ả Rập Saudi và UAE vào hạ tầng quan trọng toàn cầu. Nhấp vào hàng để bay đến vị trí đầu tư trên bản đồ.",
@@ -1909,7 +1949,17 @@
       "topTargets": "Các quốc gia đích hàng đầu"
     },
     "commodities": {
-      "infoTooltip": "<strong>Hàng hóa</strong> Bảng giá hàng hóa phi năng lượng có thể giao dịch, tập trung vào kim loại và vật liệu. Giá năng lượng nằm ở Phức hợp Năng lượng; chỉ số áp lực vĩ mô nằm ở Áp lực Vĩ mô."
+      "infoTooltip": "<strong>Hàng hóa</strong> Bảng giá hàng hóa phi năng lượng có thể giao dịch, tập trung vào kim loại và vật liệu. Giá năng lượng nằm ở Phức hợp Năng lượng; chỉ số áp lực vĩ mô nằm ở Áp lực Vĩ mô.",
+      "commodities": "Commodities",
+      "physicalPremiums": "Physical premium",
+      "physical": "Physical",
+      "paper": "Paper",
+      "premium": "Premium",
+      "asOf": "As of {{date}}",
+      "metals": {
+        "gold": "Gold",
+        "silver": "Silver"
+      }
     },
     "crypto": {
       "infoTooltip": "<strong>Tiền số</strong> Giá trực tiếp, biến động 24h và khối lượng các tiền số chính. Dữ liệu từ CoinGecko."
@@ -1983,17 +2033,12 @@
       },
       "time": {
         "justNow": "vừa xong",
-        "hoursAgo_one": "{{count}}h trước",
         "hoursAgo_other": "{{count}}h trước",
-        "daysAgo_one": "{{count}}d trước",
         "daysAgo_other": "{{count}}d trước"
       },
       "filters": {
-        "alert_one": "{{count}} Cảnh báo",
         "alert_other": "{{count}} Cảnh báo",
-        "warning_one": "{{count}} Cảnh cáo",
         "warning_other": "{{count}} Cảnh cáo",
-        "watch_one": "{{count}} Theo dõi",
         "watch_other": "{{count}} Theo dõi"
       },
       "errors": {
@@ -2156,7 +2201,6 @@
       "rationale": "Lý do:",
       "driver": "Động lực:",
       "appliesToNext": "Áp dụng cho lần tạo lại AI tiếp theo",
-      "signals_one": "{{count}} tín hiệu",
       "signals_other": "{{count}} tín hiệu",
       "disclaimer": "Tín hiệu giao dịch do AI tạo ra cho mục đích thông tin. Không phải lời khuyên đầu tư. Luôn tự nghiên cứu của riêng bạn.",
       "unavailable": "Ý nghĩa thị trường AI được tạo sau mỗi lần chạy dự báo. Vui lòng kiểm tra lại sớm."
@@ -2387,7 +2431,6 @@
         "new": "mới",
         "sema": "sema-ca"
       },
-      "designations_one": "{{count}} chỉ định",
       "designations_other": "{{count}} chỉ định",
       "fallbacks": {
         "unattributed": "Không xác định",
@@ -2425,9 +2468,7 @@
         "updated": "Cập nhật {{time}}"
       },
       "observed": {
-        "hoursAgo_one": "{{count}}h trước",
         "hoursAgo_other": "{{count}}h trước",
-        "daysAgo_one": "{{count}}d trước",
         "daysAgo_other": "{{count}}d trước"
       },
       "confidence": {
@@ -2457,7 +2498,6 @@
     "correlation": {
       "loading": "Đang chờ dữ liệu...",
       "empty": "Không phát hiện sự hội tụ hoạt động",
-      "signals_one": "{{count}} tín hiệu",
       "signals_other": "{{count}} tín hiệu",
       "analyzing": "Đang phân tích...",
       "viewOnMap": "Xem trên bản đồ"
@@ -2484,16 +2524,11 @@
         "industrial": "công nghiệp",
         "strategic": "chiến lược"
       },
-      "observations_one": "{{count}} obs",
       "observations_other": "{{count}} obs",
-      "sources_one": "{{count}} nguồn",
       "sources_other": "{{count}} nguồn",
       "age": {
-        "minutesAgo_one": "{{count}}m trước",
         "minutesAgo_other": "{{count}}m trước",
-        "hoursAgo_one": "{{count}}h trước",
         "hoursAgo_other": "{{count}}h trước",
-        "daysAgo_one": "{{count}}d trước",
         "daysAgo_other": "{{count}}d trước"
       }
     },
@@ -2951,7 +2986,11 @@
       "heading": "HƯỚNG BAY",
       "hexCode": "MÃ HEX",
       "squawk": "SQUAWK",
-      "attribution": "Nguồn: adsb.lol (ODbL) · OpenSky Network"
+      "attribution": "Nguồn: adsb.lol (ODbL) · OpenSky Network",
+      "climbRate": "TỐC ĐỘ LÊN",
+      "manufacturer": "NHÀ SẢN XUẤT",
+      "owner": "CHỦ SỬ DỤNG",
+      "builtYear": "NĂM SẢN XUẤT"
     },
     "militaryVessel": {
       "aisDark": "MẤT TÍN HIỆU AIS",
@@ -2996,7 +3035,8 @@
       "moreVessels": "+{{count}} tàu khác",
       "vesselsCount": "{{count}} TÀU",
       "vessels": "TÀU",
-      "trackedVessels": "TÀU ĐƯỢC THEO DÕI"
+      "trackedVessels": "TÀU ĐƯỢC THEO DÕI",
+      "showLess": "Hiển thị ít hơn"
     },
     "naturalEvent": {
       "closed": "ĐÃ KẾT THÚC",
@@ -3262,7 +3302,8 @@
     "retry": "Thử lại",
     "refresh": "Làm mới",
     "all": "Tất cả",
-    "cancel": "Hủy"
+    "cancel": "Hủy",
+    "dismiss": "Dismiss"
   },
   "preferences": {
     "display": "Hiển thị",
@@ -3284,7 +3325,9 @@
     "fontFamily": "Họ phông chữ",
     "fontFamilyDesc": "Monospace cho giao diện kỹ thuật, phông chữ hệ thống mặc định để dễ đọc hơn.",
     "fontMono": "Monospace",
-    "fontSystem": "Phông chữ hệ thống"
+    "fontSystem": "Phông chữ hệ thống",
+    "panelFontScale": "Kích thước chữ",
+    "followGlobalFontScale": "Sử dụng cài đặt toàn cục"
   },
   "contextMenu": {
     "openCountryBrief": "Mở tổng quan quốc gia",
@@ -3375,7 +3418,9 @@
       "orefSirens1": "Cảnh báo tên lửa và rocket Israel theo thời gian thực",
       "orefSirens2": "Lập bản đồ vùng còi với phân loại mối đe dọa",
       "telegramIntel1": "Các kênh OSINT Telegram được chọn lọc",
-      "telegramIntel2": "Các cập nhật xung đột và địa chính trị gần thời gian thực"
+      "telegramIntel2": "Các cập nhật xung đột và địa chính trị gần thời gian thực",
+      "xIntel1": "Curated public news accounts on X",
+      "xIntel2": "API-fresh posts with official permalinks"
     }
   },
   "auth": {

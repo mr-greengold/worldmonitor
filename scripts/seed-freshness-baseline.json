@@ -10,7 +10,7 @@
     "A temporary rollout entry may add an entry-level `expiresAt` bounded to the first",
     "scheduled cron window. At or after that instant, its live problem blocks even when",
     "the root expiresAt is later. A health-probe cutover requires either a completed",
-    "Railway-side pre-seed or this owner-bound, expiring acknowledgement.",
+    "Railway-side pre-seed, a one-way durable activation marker, or this owner-bound, expiring acknowledgement.",
     "",
     "Entries are matched on name:status exactly. A source that recovers is reported as",
     "'recovered' on the next run (prune it); a source that fails with a DIFFERENT status",
@@ -23,18 +23,5 @@
     "block in api/health.js exists to prevent."
   ],
   "expiresAt": "2026-08-27",
-  "acknowledged": [
-    {
-      "name": "mineralProduction",
-      "status": "EMPTY",
-      "issue": 6439,
-      "reason": "USGS/BGS mineral-production probe has never published. Root cause found in #6799: seed-bundle-static-ref admits a section only when its DECLARED worst case fits the budget left on the tick, and Arms-Suppliers burned 390s of the 570s budget before failing gracefully, so this section was deferred on every tick and never ran. The concurrency fix (#6807) brings Arms-Suppliers to ~277s, which leaves room for this 190s reservation. Re-anchored to the first 03:00 UTC tick after that deploy; EMPTY after it is a real problem.",
-      "expiresAt": "2026-08-18T03:00:00.000Z",
-      "cutover": {
-        "probeKey": "seed-meta:supply-chain:mineral-production",
-        "activatedAt": "2026-08-17T04:00:00.000Z",
-        "firstScheduledRunAt": "2026-08-18T03:00:00.000Z"
-      }
-    }
-  ]
+  "acknowledged": []
 }

@@ -1,4 +1,5 @@
 import { describe, it } from 'node:test';
+import { guardProBuiltOutput, shouldSkipProBuiltOutput } from './_lib/pro-built-output.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -22,6 +23,7 @@ const productFacts = JSON.parse(readFileSync(join(ROOT, 'public/product-facts.js
 // discovery artifacts it summarizes, and the query-gated rewrite must fire
 // BEFORE the / → welcome rewrite or the marketing page wins.
 describe('agent-mode view (/?mode=agent)', () => {
+  guardProBuiltOutput();
   it('agent-view.json carries the machine-readable essentials', () => {
     assert.equal(view.kind, 'agent-view');
     for (const key of ['product', 'url', 'description', 'endpoints', 'authentication', 'rateLimits', 'documentation', 'capabilities', 'discovery']) {
@@ -65,17 +67,42 @@ describe('agent-mode view (/?mode=agent)', () => {
     }
   });
 
-  it('the marketing homepage points at the agent view via link rel=alternate', () => {
-    // Hand-synced pair: the pro-test source and the committed build artifact
-    // must both carry the pointer (the pre-push gate rebuilds and compares).
-    const linkTag =
-      '<link rel="alternate" type="application/json" href="https://www.worldmonitor.app/?mode=agent"';
+  it('the marketing homepage advertises its machine-readable alternate views', { skip: shouldSkipProBuiltOutput() }, () => {
+    // Source/build pair: public/pro/welcome.html is produced by
+    // `npm run build:pro` rather than committed (#6898), so this asserts the
+    // pointer survives the prerender rather than that two committed files agree.
+    const alternateLinks = [
+      ['application/json', 'https://www.worldmonitor.app/?mode=agent'],
+      ['text/plain', '/llms.txt'],
+      ['text/markdown', '/index.md'],
+    ];
     for (const path of ['pro-test/welcome.html', 'public/pro/welcome.html']) {
-      assert.ok(
-        readFileSync(join(ROOT, path), 'utf-8').includes(linkTag),
-        `${path} must advertise the agent-mode view via <link rel="alternate">`,
-      );
+      const html = readFileSync(join(ROOT, path), 'utf-8');
+      for (const [type, href] of alternateLinks) {
+        assert.ok(
+          html.includes(`<link rel="alternate" type="${type}" href="${href}"`),
+          `${path} must advertise ${href} via <link rel="alternate">`,
+        );
+      }
     }
+  });
+
+  it('the homepage markdown mirror gives agents useful follow-on context', () => {
+    const markdown = readFileSync(join(ROOT, 'public/home.md'), 'utf-8');
+    const wordCount = markdown.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0;
+
+    assert.ok(wordCount >= 550, `public/home.md is too thin for agents (${wordCount} words)`);
+    for (const heading of [
+      '## What World Monitor answers',
+      '## How the correlation surface works',
+      '## Sources, provenance, and freshness',
+      '## Access and plans',
+      '## For AI agents',
+      '## Trust boundaries',
+    ]) {
+      assert.ok(markdown.includes(heading), `public/home.md is missing ${heading}`);
+    }
+    assert.match(markdown, /\[Data source catalog\]\(https:\/\/www\.worldmonitor\.app\/sources\/\)/);
   });
 
   it('advertises the schemamap and every section llms.txt', () => {

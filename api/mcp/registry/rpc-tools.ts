@@ -544,6 +544,18 @@ const DEFENSE_INDUSTRIAL_METRIC_SCHEMA = {
   },
 };
 
+const DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA = {
+  type: 'object' as const,
+  description: 'A source observation. Read available before value; an unavailable proto3 numeric field is zero.',
+  properties: {
+    available: { type: 'boolean' as const },
+    value: { type: 'number' as const },
+    year: { type: 'integer' as const, description: 'Source observation year.' },
+    source: { type: 'string' as const },
+    unit: { type: 'string' as const },
+  },
+};
+
 export const RPC_TOOLS: ToolDef[] = [
   {
     name: 'get_defense_industrial_base',
@@ -772,7 +784,7 @@ export const RPC_TOOLS: ToolDef[] = [
         headers: { ...auth, 'User-Agent': 'worldmonitor-mcp-edge/1.0' },
         signal: AbortSignal.timeout(8_000),
       });
-      assertToolFetchOk(response, 'list-global-tenders');
+      await assertToolFetchOk(response, 'list-global-tenders');
       const result = await response.json() as ProcurementRouteResponse;
       return {
         opportunities: (result.tenders || []).map(compactProcurementOpportunity),
@@ -961,8 +973,16 @@ export const RPC_TOOLS: ToolDef[] = [
       // gateway-backed path to retain entitlement and replay protection.
       const insightsUrl = `${base}/api/infrastructure/v1/get-bootstrap-data?keys=insights`;
       const insightsAuth = await buildAuthHeaders(context, 'GET', insightsUrl, null);
+      // On a self-hosted install `base` is the sidecar's own loopback origin,
+      // whose global auth gate requires the per-session LOCAL_API_TOKEN (the
+      // MCP key authenticates the client, not this internal hop). Route the
+      // headers through the loopback helper so the process attaches the token
+      // it already holds — mirroring get_defense_industrial_base (#6538).
       const insightsRes = await fetch(insightsUrl, {
-        headers: { ...insightsAuth, 'User-Agent': UA },
+        headers: buildMcpDownstreamHeaders(base, execution, {
+          ...insightsAuth,
+          'User-Agent': UA,
+        }),
         signal: AbortSignal.timeout(6_000),
       });
       await assertMcpToolFetchOk(insightsRes, {
@@ -1043,7 +1063,7 @@ export const RPC_TOOLS: ToolDef[] = [
               storyPhase: {
                 type: 'string',
                 enum: ['STORY_PHASE_UNSPECIFIED', 'STORY_PHASE_BREAKING', 'STORY_PHASE_DEVELOPING', 'STORY_PHASE_SUSTAINED', 'STORY_PHASE_FADING'],
-                description: 'Lifecycle phase from the digest story tracker. STORY_PHASE_FADING is reserved and is not currently emitted by derivePhase.',
+                description: 'Lifecycle phase from the digest story tracker. STORY_PHASE_FADING is reserved and is not currently emitted by this surface: a fading story stops appearing in the digest, so the phase cannot be observed where it is derived (#7081). Do not read the absence of STORY_PHASE_FADING as evidence that a story is still active.',
               },
             },
           },
@@ -1189,11 +1209,85 @@ export const RPC_TOOLS: ToolDef[] = [
         headers: { ...auth, 'User-Agent': 'worldmonitor-mcp-edge/1.0' },
         signal: AbortSignal.timeout(8_000),
       });
-      assertToolFetchOk(res, 'get-country-risk');
+      await assertToolFetchOk(res, 'get-country-risk');
       return res.json();
     },
     _apiPaths: [
       "GET /api/intelligence/v1/get-country-risk",
+    ],
+  },
+  {
+    name: 'list_x_feed',
+    _outputBudgetBytes: 65536,
+    description: 'Curated public news-account posts from monitored X accounts. Returns permalink plus derived facts only — never tweet bodies. Use this to see which accounts posted recently, not to redistribute post text.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number', description: 'Maximum posts to return (1-200, default 50)' },
+        topic: { type: 'string', description: 'Optional topic filter such as breaking, conflict, geopolitics, cyber' },
+        account: { type: 'string', description: 'Optional account handle without @' },
+      },
+      required: [],
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        enabled: { type: 'boolean', description: 'Whether the ais-relay X poller currently has credentials.' },
+        count: { type: 'number' },
+        error: { type: 'string' },
+        posts: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              accountId: { type: 'string' },
+              accountName: { type: 'string' },
+              handle: { type: 'string' },
+              topic: { type: 'string' },
+              timestampMs: { type: 'number' },
+              permalink: { type: 'string' },
+              facts: { type: 'array', items: { type: 'string' } },
+              hasMedia: { type: 'boolean' },
+              lang: { type: 'string' },
+              contentState: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _coverageKeys: ['intelligence:x-feed:v1'],
+    _execute: async (params, base, context) => {
+      const qs = new URLSearchParams();
+      const limit = Math.max(1, Math.min(200, Number(params.limit ?? 50) || 50));
+      qs.set('limit', String(limit));
+      if (params.topic) qs.set('topic', String(params.topic));
+      if (params.account) qs.set('account', String(params.account).replace(/^@/, ''));
+      const url = `${base}/api/intelligence/v1/list-x-feed?${qs}`;
+      const auth = await buildAuthHeaders(context, 'GET', url, null);
+      const res = await fetch(url, {
+        headers: { ...auth, 'User-Agent': 'worldmonitor-mcp-edge/1.0' },
+        signal: AbortSignal.timeout(10_000),
+      });
+      await assertToolFetchOk(res, 'list-x-feed');
+      const payload = await res.json() as Record<string, unknown>;
+      const rawPosts = Array.isArray(payload.posts) ? payload.posts : [];
+      const posts = rawPosts.map((post: unknown) => {
+        if (!post || typeof post !== 'object') return {};
+        const rest = { ...(post as Record<string, unknown>) };
+        delete rest.text;
+        return rest;
+      });
+      return {
+        enabled: Boolean(payload?.enabled),
+        count: posts.length,
+        error: typeof payload?.error === 'string' ? payload.error : '',
+        posts,
+      };
+    },
+    _apiPaths: [
+      'GET /api/intelligence/v1/list-x-feed',
     ],
   },
   {
@@ -1272,11 +1366,96 @@ export const RPC_TOOLS: ToolDef[] = [
         headers: { ...auth, 'User-Agent': 'worldmonitor-mcp-edge/1.0' },
         signal: AbortSignal.timeout(8_000),
       });
-      assertToolFetchOk(res, 'get-food-stocks');
+      await assertToolFetchOk(res, 'get-food-stocks');
       return res.json();
     },
     _apiPaths: [
       'GET /api/resilience/v1/get-food-stocks',
+    ],
+  },
+  {
+    name: 'get_demographics_capability',
+    _outputBudgetBytes: 32768,
+    description: 'Country demographics capability observations from UN WPP, World Bank/UNESCO UIS, and ILOSTAT. Returns age structure, education and industrial-workforce groups independently, with observation year, source, unit and explicit availability for every metric. Requires an ISO-2 country code and a WorldMonitor subscription.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        country_code: {
+          type: 'string',
+          description: 'Required ISO 3166-1 alpha-2 country code (for example "DE"). Case-insensitive.',
+        },
+      },
+      required: ['country_code'],
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        countryCode: { type: 'string' },
+        available: { type: 'boolean', description: 'True when at least one validated observation is available.' },
+        fetchedAt: { type: 'string', description: 'ISO-8601 snapshot generation time.' },
+        stages: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'wpp, education, or ilostat.' },
+              status: { type: 'string', description: 'fresh, retained, or unavailable.' },
+              fetchedAt: { type: 'string' },
+              recordCount: { type: 'number' },
+              newestObservationYear: { type: 'number' },
+            },
+          },
+        },
+        ageStructure: {
+          type: 'object',
+          description: 'UN WPP age and working-age population observations. Read each metric available flag before value.',
+          properties: {
+            available: { type: 'boolean' },
+            medianAgeYears: DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA,
+            oldAgeDependencyRatioPercent: DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA,
+            totalDependencyRatioPercent: DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA,
+            workingAgePopulationPeople: DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA,
+            workingAgePopulationProjected10yPeople: DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA,
+          },
+        },
+        education: {
+          type: 'object',
+          description: 'World Bank WDI and UNESCO UIS education observations. Read each metric available flag before value.',
+          properties: {
+            available: { type: 'boolean' },
+            tertiaryEnrollmentGrossPercent: DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA,
+            stemGraduatesSharePercent: DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA,
+            researchersPerMillion: DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA,
+          },
+        },
+        industrialWorkforce: {
+          type: 'object',
+          description: 'ILOSTAT workforce observations. The combined trained workforce is available only for a valid same-year ISCO 7+8 cohort.',
+          properties: {
+            available: { type: 'boolean' },
+            craftTradesEmploymentPeople: DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA,
+            plantMachineOperatorsEmploymentPeople: DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA,
+            trainedIndustrialWorkforcePeople: DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA,
+            manufacturingEmploymentSharePercent: DEMOGRAPHICS_OBSERVATION_OUTPUT_SCHEMA,
+          },
+        },
+      },
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _coverageKeys: ['demographics:capability:v1'],
+    _execute: async (params, base, context) => {
+      const countryCode = String(params.country_code ?? '').trim().toUpperCase();
+      const url = `${base}/api/resilience/v1/get-demographics-capability?countryCode=${encodeURIComponent(countryCode)}`;
+      const auth = await buildAuthHeaders(context, 'GET', url, null);
+      const res = await fetch(url, {
+        headers: { ...auth, 'User-Agent': 'worldmonitor-mcp-edge/1.0' },
+        signal: AbortSignal.timeout(8_000),
+      });
+      await assertToolFetchOk(res, 'get-demographics-capability');
+      return res.json();
+    },
+    _apiPaths: [
+      'GET /api/resilience/v1/get-demographics-capability',
     ],
   },
   {
@@ -1738,7 +1917,7 @@ export const RPC_TOOLS: ToolDef[] = [
         body,
         signal: AbortSignal.timeout(25_000),
       });
-      assertToolFetchOk(res, 'deduct-situation');
+      await assertToolFetchOk(res, 'deduct-situation');
       return res.json();
     },
     _apiPaths: [
@@ -1781,7 +1960,7 @@ export const RPC_TOOLS: ToolDef[] = [
         body,
         signal: AbortSignal.timeout(25_000),
       });
-      assertToolFetchOk(res, 'get-forecasts');
+      await assertToolFetchOk(res, 'get-forecasts');
       return res.json();
     },
     _apiPaths: [],
@@ -1844,7 +2023,7 @@ export const RPC_TOOLS: ToolDef[] = [
         headers: { ...auth, 'User-Agent': 'worldmonitor-mcp-edge/1.0' },
         signal: AbortSignal.timeout(25_000),
       });
-      assertToolFetchOk(res, 'search-google-flights');
+      await assertToolFetchOk(res, 'search-google-flights');
       return res.json();
     },
     _apiPaths: [
@@ -1902,7 +2081,7 @@ export const RPC_TOOLS: ToolDef[] = [
         headers: { ...auth, 'User-Agent': 'worldmonitor-mcp-edge/1.0' },
         signal: AbortSignal.timeout(25_000),
       });
-      assertToolFetchOk(res, 'search-google-dates');
+      await assertToolFetchOk(res, 'search-google-dates');
       return res.json();
     },
     _apiPaths: [
@@ -1981,7 +2160,7 @@ export const RPC_TOOLS: ToolDef[] = [
         headers: { ...auth, 'User-Agent': 'worldmonitor-mcp-edge/1.0' },
         signal: AbortSignal.timeout(15_000),
       });
-      assertToolFetchOk(res, 'get-mineral-production');
+      await assertToolFetchOk(res, 'get-mineral-production');
       return res.json();
     },
     _coverageKeys: [

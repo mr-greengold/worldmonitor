@@ -5,14 +5,17 @@ on:
     - cron: '*/15 * * * *'
   workflow_dispatch:
 
-# A newer ingestion observation supersedes an older one.
+# Transition publication must finish before the next observation can classify
+# the same incident; the publisher's checkedAt fence then rejects delayed writes.
 concurrency:
   group: seed-freshness-monitor
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  statuses: read
+  # Per-source statuses live on a historical operational anchor. They never
+  # become part of the deployable main revision's check suite.
+  statuses: write
 
 jobs:
   monitor:
@@ -96,5 +99,44 @@ jobs:
       # This workflow owns only ingestion/data acceptance. Deployment
       # configuration and image drift have their own six-hourly read-only workflow.
       - name: Check ingestion operational acceptance
+        id: acceptance
         if: ${{ !cancelled() && steps.gate.conclusion != 'failure' }}
-        run: node scripts/check-seed-freshness.mjs
+        # The probe remains strict and exits non-zero for every active problem.
+        # The next step decides whether that problem is a new transition or the
+        # same durable incident already attached to the operational anchor.
+        continue-on-error: true
+        run: node scripts/check-seed-freshness.mjs --json-output "$RUNNER_TEMP/seed-freshness-observation.json"
+
+      - name: Publish ingestion operational transitions
+        if: ${{ !cancelled() && steps.gate.conclusion != 'failure' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SEED_ACCEPTANCE_SHA: ${{ steps.gate.outputs.sha || github.sha }}
+          SEED_ACCEPTANCE_OUTCOME: ${{ steps.acceptance.outcome }}
+          # PR #6876 introduced the transition publisher. Its historical merge
+          # commit is an ancestor of every supported monitored revision and is
+          # never a future deployment candidate.
+          SEED_STATUS_SHA: b93afd05d0f4ea2c465e79fd064e87fc1f9fb2f3
+          SEED_STATUS_WRITER_LOGIN: github-actions[bot]
+        run: |
+          # During the first post-merge race, the newest gated ancestor can
+          # predate this lifecycle. Wait for the new revision to pass `gate`
+          # instead of turning that expected bootstrap state into an alarm.
+          if [ ! -f scripts/update-seed-health-statuses.mjs ]; then
+            if [ "$SEED_ACCEPTANCE_OUTCOME" != "success" ]; then
+              echo "::error::Ingestion operational acceptance failed on gated revision $SEED_ACCEPTANCE_SHA, and no transition publisher is available to classify the failure."
+              exit 1
+            fi
+            echo "Transition publisher is not active on gated revision $SEED_ACCEPTANCE_SHA; waiting for a gated activation revision."
+            exit 0
+          fi
+          status_args=()
+          if grep -q -- "'status-sha':" scripts/update-seed-health-statuses.mjs; then
+            status_args=(--status-sha "$SEED_STATUS_SHA")
+          else
+            echo "Gated revision $SEED_ACCEPTANCE_SHA predates anchored statuses; using its compatible transition publisher until the activation revision is gated."
+          fi
+          node scripts/update-seed-health-statuses.mjs \
+            --sha "$SEED_ACCEPTANCE_SHA" \
+            "${status_args[@]}" \
+            --report "$RUNNER_TEMP/seed-freshness-observation.json"

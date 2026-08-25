@@ -5,32 +5,28 @@ import test from 'node:test';
 import {
   PROVIDER_IDENTITY_GROUPS,
   PROVIDER_IDENTITY_REVIEW,
+  activeSourceAttributionEntries,
   buildManifest,
+  buildSourceAttributionStats,
   checkSourceAttribution,
   loadManifest,
   matchGeneratedAttributionSection,
   renderAttributionSection,
   runSourceAttribution,
   scanUpstreamHosts,
+  sourceAttributionLedgerStats,
   sourceAttributionStats,
+  validateSourceAttributionLedger,
   validateManifest,
   validateProviderIdentityGroups,
   providerIdentityDigest,
 } from '../scripts/source-attribution.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { catalogProviderIdentities } from '../scripts/source-catalog-identity.mjs';
+import { rawCatalogProviderNames, rawManifestActiveEntries } from './helpers/raw-catalog-providers.mjs';
 
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), '..');
-
-// Deliberately independent of the production active-entry predicate. Keep this
-// oracle expressed only in raw manifest fields so a predicate mutation cannot
-// change both the implementation and the expected membership.
-function rawManifestActiveEntries(manifest) {
-  assert.ok(Array.isArray(manifest?.entries), 'the attribution manifest must contain an entries array');
-  return manifest.entries.filter(
-    (entry) => entry?.observed === true && (entry.status === 'reviewed' || entry.status === 'terms-review'),
-  );
-}
 
 /**
  * Build a throwaway checkout whose committed artifacts the generator itself
@@ -87,6 +83,15 @@ test('source inventory has complete metadata and matches the generated catalog',
   const generated = renderAttributionSection(inventory, manifest);
   const actual = matchGeneratedAttributionSection(docs);
   assert.equal(actual, generated, 'docs/source-attribution.mdx must contain exactly the generated attribution section');
+  assert.match(generated, /\| Provider \| Observed surface \|/);
+  for (const forbidden of [
+    /\blicen[cs]\w*/i,
+    /\bterms-review\b/i,
+    /\bredistribut\w*/i,
+    /\bcommercial(?:-|\s+)use\b/i,
+  ]) {
+    assert.doesNotMatch(docs, forbidden, `public source attribution docs must omit ${forbidden}`);
+  }
 
   // Mintlify parses these pages as MDX v3, which rejects `<!--` with
   // "Unexpected character `!` (U+0021) before name" and fails the whole
@@ -112,13 +117,18 @@ test('source inventory has complete metadata and matches the generated catalog',
   assert.ok(activeEntries.length > 0, 'the active source oracle must not be empty');
   assert.deepEqual(observedManifestHosts, inventoryHosts, 'raw manifest membership must match the source scan exactly');
   assert.equal(stats.activeHosts, activeEntries.length, 'production stats must match the independent active-host oracle');
+  assert.deepEqual(
+    [...catalogProviderIdentities(manifest)].sort(),
+    [...rawCatalogProviderNames(manifest)].sort(),
+    'production identities must match the independent provider oracle membership',
+  );
   assert.equal(
     stats.providerCount,
-    new Set(activeEntries.map((entry) => entry.provider)).size,
+    rawCatalogProviderNames(manifest).size,
     'production stats must match the independent provider oracle',
   );
   assert.equal(stats.observedHosts, inventory.length, 'observed stats must derive from the source scan');
-  assert.ok(stats.reviewNeeded > 0, 'terms-review rows must remain visible until a license audit is complete');
+  assert.ok(stats.reviewNeeded > 0, 'the internal source-policy review backlog must remain tracked');
 
   const byHost = new Map(manifest.entries.map((entry) => [entry.host, entry]));
   assert.equal(byHost.get('auth.opensky-network.org')?.provider, 'opensky-network.org');
@@ -144,6 +154,37 @@ test('Google News site feeds account for both the editorial host and Google News
     lorientToday.references.some((reference) => reference.path === 'server/worldmonitor/news/v1/_feeds.ts'),
     "L'Orient Today must retain its server feed reference",
   );
+
+  const annahar = byHost.get('annahar.com');
+  assert.ok(annahar, 'Annahar must be accounted under annahar.com');
+  assert.ok(
+    annahar.references.some((reference) => reference.path === 'src/config/feeds.ts'),
+    'Annahar must retain its client feed reference',
+  );
+  assert.ok(
+    annahar.references.some((reference) => reference.path === 'server/worldmonitor/news/v1/_feeds.ts'),
+    'Annahar must retain its server feed reference',
+  );
+
+  for (const [host, provider] of [
+    ['pap.pl', 'PAP'],
+    ['wyborcza.pl', 'Gazeta Wyborcza'],
+    ['polityka.pl', 'Polityka'],
+    ['wiadomosci.onet.pl', 'Onet'],
+    ['oko.press', 'OKO.press'],
+    ['tvp.info', 'TVP Info'],
+  ]) {
+    const entry = byHost.get(host);
+    assert.ok(entry, `${provider} must be accounted under ${host}`);
+    assert.ok(
+      entry.references.some((reference) => reference.path === 'src/config/feeds.ts'),
+      `${provider} must retain its client feed reference`,
+    );
+    assert.ok(
+      entry.references.some((reference) => reference.path === 'server/worldmonitor/news/v1/_feeds.ts'),
+      `${provider} must retain its server feed reference`,
+    );
+  }
 
   const serverFeeds = readFileSync(
     join(rootDir, 'server/worldmonitor/news/v1/_feeds.ts'),
@@ -258,14 +299,19 @@ test('single-host provider identity changes require a reviewed lifecycle epoch',
 test('the independent raw-manifest oracle catches an active-predicate mutation', async () => {
   const sourcePath = join(rootDir, 'scripts/source-attribution.mjs');
   const source = readFileSync(sourcePath, 'utf8');
-  const originalPredicate = "return entry?.observed === true && CREDIT_BEARING_STATUSES.has(entry.status);";
+  const originalPredicate = "return entry?.observed === true && entry.catalogActive !== false && CREDIT_BEARING_STATUSES.has(entry.status);";
   assert.equal(source.split(originalPredicate).length - 1, 1, 'mutation target must identify the canonical predicate once');
   const mutantDir = mkdtempSync(join(tmpdir(), 'source-attribution-mutant-'));
   const mutantPath = join(mutantDir, 'source-attribution-mutant.mjs');
   try {
     writeFileSync(
       mutantPath,
-      source.replace(originalPredicate, "return entry?.observed === true && entry.status === 'excluded';"),
+      source
+        .replace(
+          "from './source-catalog-identity.mjs'",
+          `from ${JSON.stringify(pathToFileURL(join(rootDir, 'scripts/source-catalog-identity.mjs')).href)}`,
+        )
+        .replace(originalPredicate, "return entry?.observed === true && entry.status === 'excluded';"),
     );
     const mutant = await import(`${pathToFileURL(mutantPath).href}?test=${Date.now()}`);
     const manifest = loadManifest(rootDir);
@@ -313,6 +359,9 @@ test('the issue audit providers are represented by named attribution rows', () =
     'ReliefWeb (UN OCHA)',
     'NSIDC',
     'Fintraffic Digitraffic',
+    'Toronto Police Service',
+    'Toronto Police Service Open Data',
+    'GTA Update',
   ]) {
     assert.ok(names.has(provider), `missing named provider row: ${provider}`);
   }
@@ -327,6 +376,67 @@ test('City of Toronto CART host stays terms-review while CKAN licence_id is nots
   assert.ok(entry, 'secure.toronto.ca must have a generated attribution row');
   assert.equal(entry.status, 'terms-review');
   assert.equal(entry.provider, 'City of Toronto Open Data');
+});
+
+test('GTA Update records permission but stays inactive pending activation gates', () => {
+  const inventory = scanUpstreamHosts(rootDir);
+  const manifest = loadManifest(rootDir);
+  const observed = inventory.find((entry) => entry.host === 'gtaupdate.com');
+  assert.ok(observed, 'gtaupdate.com must be observed from the GTA Update adapter');
+  const entry = [...manifest.entries, ...manifest.logicalEntries].find((row) => row.host === 'gtaupdate.com');
+  assert.ok(entry, 'gtaupdate.com must have a generated attribution row');
+  assert.equal(entry.status, 'reviewed');
+  assert.equal(entry.provider, 'GTA Update');
+  assert.match(entry.license, /Reuse permission held by WorldMonitor/);
+  assert.match(entry.license, /upstream provenance/);
+  assert.equal(entry.catalogActive, false);
+  assert.equal(activeSourceAttributionEntries(manifest).some((row) => row.host === 'gtaupdate.com'), false);
+  assert.equal(rawManifestActiveEntries(manifest).some((row) => row.host === 'gtaupdate.com'), false);
+});
+
+test('TPS Open Data records the exact OGL-Ontario licence before reviewed', () => {
+  const inventory = scanUpstreamHosts(rootDir);
+  const manifest = loadManifest(rootDir);
+  for (const host of ['data.tps.ca', 'www.tps.ca']) {
+    assert.ok(inventory.some((entry) => entry.host === host), `${host} must be observed`);
+    const entry = [...manifest.entries, ...manifest.logicalEntries].find((row) => row.host === host);
+    assert.ok(entry, `${host} must have a generated attribution row`);
+    assert.equal(entry.status, 'reviewed');
+    assert.equal(entry.provider, 'Toronto Police Service Open Data');
+    assert.match(entry.license, /Open Government Licence - Ontario/);
+    assert.match(entry.attribution, /Contains information licensed under the Open Government Licence - Ontario/);
+    assert.match(entry.license, /0a239a5563a344a3bbf8452504ed8d68/);
+    assert.match(entry.license, /46c7581a136445c78831acb657a4fb0d/);
+    assert.doesNotMatch(entry.license, /C4S_Public_NoGO/);
+    assert.doesNotMatch(entry.license, /privacy-filtered public live/);
+  }
+});
+
+test('C4S CAD and TPS Open Data stay distinct catalog identities on the shared ArcGIS host', () => {
+  const inventory = scanUpstreamHosts(rootDir);
+  const manifest = loadManifest(rootDir);
+  assert.ok(inventory.some((entry) => entry.host === 'services.arcgis.com'), 'services.arcgis.com must be observed');
+  const cad = [...manifest.entries, ...manifest.logicalEntries].find((row) => row.host === 'services.arcgis.com');
+  assert.ok(cad, 'services.arcgis.com must have a generated attribution row');
+  assert.equal(cad.status, 'reviewed');
+  assert.equal(cad.provider, 'Toronto Police Service');
+  assert.match(cad.license, /C4S_Public_NoGO/);
+  assert.match(cad.license, /Not Major Crime Indicators \/ YTD/);
+  assert.match(cad.attribution, /Toronto Police Service, Calls for Service/);
+  assert.doesNotMatch(cad.license, /0a239a5563a344a3bbf8452504ed8d68/);
+  assert.doesNotMatch(cad.license, /46c7581a136445c78831acb657a4fb0d/);
+  assert.doesNotMatch(cad.license, /deliberately offset/);
+  assert.doesNotMatch(cad.provider, /Open Data/);
+
+  const names = catalogProviderIdentities(manifest);
+  assert.ok(names.has('Toronto Police Service'), 'C4S must remain a live catalog identity');
+  assert.ok(names.has('Toronto Police Service Open Data'), 'Open Data must remain a live catalog identity');
+  assert.equal(
+    PROVIDER_IDENTITY_GROUPS['tps-open-data'].memberHosts.includes('services.arcgis.com'),
+    false,
+    'the Open Data identity group must not absorb the C4S ArcGIS host',
+  );
+  assert.deepEqual([...PROVIDER_IDENTITY_GROUPS['tps-open-data'].memberHosts].sort(), ['data.tps.ca', 'www.tps.ca']);
 });
 
 test('uppercase URL constants are included in the upstream inventory', () => {
@@ -415,6 +525,129 @@ test('manifest and scanner references record a path only', () => {
       assert.deepEqual(Object.keys(reference), ['path'], `scanner emitted ${JSON.stringify(reference)}`);
     }
   }
+});
+
+test('scanUpstreamHosts does not crash on empty leftover api/[domain]/v1 trees', () => {
+  const fixture = makeFixtureCheckout();
+  try {
+    mkdirSync(join(fixture.dir, 'api', '[__docs_stats_probe__]', 'v1'), { recursive: true });
+    assert.doesNotThrow(() => scanUpstreamHosts(fixture.dir));
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('ledger stats match validated stats when the committed manifest is current', () => {
+  const inventory = scanUpstreamHosts(rootDir);
+  const manifest = loadManifest(rootDir);
+  const validated = sourceAttributionStats(inventory, manifest);
+  const ledger = sourceAttributionLedgerStats(manifest, { observedHosts: inventory.length });
+  assert.deepEqual(ledger, validated);
+  assert.deepEqual(buildSourceAttributionStats({ rootDir, validate: false }), sourceAttributionLedgerStats(manifest));
+});
+
+test('ledger stats remain countable when scan-parity validation would fail', () => {
+  const stale = {
+    entries: [{
+      host: 'stale.example',
+      provider: 'stale.example',
+      license: 'Provider terms',
+      attribution: 'Credit stale.example.',
+      observed: true,
+      kind: 'structured',
+      status: 'terms-review',
+      references: [{ path: 'scripts/removed-seed.mjs' }],
+    }],
+    logicalEntries: [],
+  };
+  assert.throws(
+    () => sourceAttributionStats([], stale),
+    /invalid manifest/,
+  );
+  const ledger = sourceAttributionLedgerStats(stale);
+  assert.equal(ledger.activeHosts, 1);
+  assert.equal(ledger.providerCount, 1);
+  assert.equal(ledger.structuredHosts, 1);
+  assert.equal(ledger.observedHosts, 1);
+});
+
+test('ledger stats reject intrinsic manifest failures before counting', () => {
+  const malformed = {
+    entries: [
+      {
+        host: 'invalid.example',
+        provider: '',
+        license: '',
+        attribution: '',
+        observed: true,
+        kind: 'not-a-source-kind',
+        status: 'reviewed',
+        references: [{ path: 'scripts/invalid.mjs' }],
+      },
+      {
+        host: 'invalid.example',
+        provider: 'invalid.example',
+        license: 'Provider terms',
+        attribution: 'Credit invalid.example.',
+        observed: true,
+        kind: 'structured',
+        status: 'reviewed',
+        references: [{ path: 'scripts/duplicate.mjs' }],
+      },
+    ],
+    logicalEntries: [{
+      host: 'candidate.example',
+      provider: 'Candidate',
+      license: '',
+      attribution: '',
+      observed: false,
+      kind: 'candidate',
+      status: 'excluded',
+    }],
+  };
+  const errors = validateSourceAttributionLedger(malformed);
+  assert.ok(errors.some((error) => error.includes('invalid manifest kind')));
+  assert.ok(errors.some((error) => error.includes('incomplete attribution metadata')));
+  assert.ok(errors.some((error) => error.includes('duplicate manifest entry')));
+  assert.ok(errors.some((error) => error.includes('incomplete logical attribution metadata')));
+  assert.throws(() => sourceAttributionLedgerStats(malformed), /invalid manifest/);
+});
+
+test('ledger stats reject unknown roles and incomplete logical providers', () => {
+  const manifest = loadManifest(rootDir);
+  const withUnknownRole = {
+    ...manifest,
+    entries: [
+      ...manifest.entries,
+      {
+        host: 'role-invalid.example',
+        provider: 'role-invalid.example',
+        license: 'Provider terms',
+        attribution: 'Credit role-invalid.example.',
+        observed: true,
+        kind: 'structured',
+        status: 'reviewed',
+        role: 'publisher',
+        references: [{ path: 'scripts/invalid-role.mjs' }],
+      },
+    ],
+  };
+  const roleErrors = validateSourceAttributionLedger(withUnknownRole);
+  assert.ok(roleErrors.some((error) => error.includes('role must be "transport"')));
+  assert.throws(() => sourceAttributionLedgerStats(withUnknownRole), /invalid manifest/);
+
+  const withBrokenLogical = {
+    ...manifest,
+    logicalProviders: [
+      ...(manifest.logicalProviders || []),
+      { provider: 'Broken Logical' },
+      { provider: 'Broken Logical', feedLabels: ['Broken Logical'], transportHosts: ['feeds.feedburner.com'] },
+    ],
+  };
+  const logicalErrors = validateSourceAttributionLedger(withBrokenLogical);
+  assert.ok(logicalErrors.some((error) => error.includes('needs feedLabels')));
+  assert.ok(logicalErrors.some((error) => error.includes('duplicate logical provider')));
+  assert.throws(() => sourceAttributionLedgerStats(withBrokenLogical), /invalid manifest/);
 });
 
 test('the committed manifest is a fixpoint of its own generator', () => {

@@ -165,9 +165,7 @@
       "energyMix": "전원 구성",
       "coal": "석탄",
       "noMajorDisruptions": "보고된 주요 중단 없음",
-      "activeDisruptions_one": "활성 중단 {{count}}건",
       "activeDisruptions_other": "활성 중단 {{count}}건",
-      "activeSignals_one": "활성 신호 {{count}}건",
       "activeSignals_other": "활성 신호 {{count}}건",
       "aviationSource": "항공 모니터링",
       "hazardSource": "국가 인텔리전스 신호",
@@ -207,6 +205,31 @@
       "soybeans": "Soybeans",
       "barley": "Barley",
       "palmOil": "Palm oil"
+    },
+    "demographicsCapability": {
+      "title": "Demographics & Workforce",
+      "help": "Age structure, education pipeline, and industrial workforce capacity from UN WPP, UNESCO UIS and World Bank WDI, and ILOSTAT.",
+      "loading": "Loading demographics and workforce data…",
+      "unavailable": "Demographics and workforce data unavailable.",
+      "proLocked": "Upgrade to PRO for demographics and workforce data",
+      "notAvailable": "Not available",
+      "ageStructure": "Age structure",
+      "education": "Education pipeline",
+      "industrialWorkforce": "Industrial workforce",
+      "medianAge": "Median age",
+      "oldAgeDependency": "Old-age dependency",
+      "totalDependency": "Total dependency",
+      "workingAgePopulation": "Working-age population",
+      "workingAgeProjection": "Working-age population (+10 years)",
+      "tertiaryEnrollment": "Tertiary enrollment",
+      "stemGraduates": "STEM graduates",
+      "researchers": "Researchers",
+      "craftTrades": "Craft and trades workers",
+      "plantOperators": "Plant and machine operators",
+      "trainedIndustrialWorkforce": "Combined industrial workforce",
+      "manufacturingShare": "Manufacturing employment",
+      "source": "Sources: {{sources}}.",
+      "retained": "{{stage}} data retained from the last successful refresh."
     }
   },
   "header": {
@@ -338,6 +361,7 @@
     "securityAdvisories": "보안 권고",
     "orefSirens": "이스라엘 공습 경보",
     "telegramIntel": "Telegram 인텔리전스",
+    "xIntel": "X News Accounts",
     "startups": "스타트업 & VC",
     "vcblogs": "VC 인사이트 & 에세이",
     "regionalStartups": "글로벌 스타트업 뉴스",
@@ -478,7 +502,7 @@
         "outages": "인터넷 장애 전환",
         "tradeRoutes": "무역 노선 전환",
         "canadaRoads": "Toggle Canada roads overlay",
-        "canadaAlerts": "Toggle Alberta Emergency Alert overlay"
+        "canadaAlerts": "Toggle Canada provincial emergency alerts overlay"
       },
       "view": {
         "dark": "다크 모드로 전환",
@@ -1170,7 +1194,7 @@
         "ucdpEvents": "UCDP 사건",
         "displacementFlows": "난민 이동",
         "climateAnomalies": "기후 이상",
-        "weatherAlerts": "미국·캐나다 기상 경보(NWS, ECCC)",
+        "weatherAlerts": "악천후 경보(NWS, ECCC, WMO SWIC)",
         "strategicWaterways": "전략 수로",
         "economicCenters": "경제 중심지",
         "criticalMinerals": "핵심 광물",
@@ -1192,7 +1216,7 @@
         "radiationSpike": "방사능 급증",
         "radiationElevated": "상승된 방사능",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (Alberta Emergency Alert)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
       },
       "tooltip": {
         "earthquake": "지진",
@@ -1253,7 +1277,7 @@
           "infraDatacenters": "GPU 10,000대 이상 AI 컴퓨팅 클러스터",
           "infraOutages": "인터넷 차단 및 서비스 중단",
           "naturalEventsTech": "지진, 폭풍, 화재 (데이터 센터 영향 가능)",
-          "weatherAlerts": "미국과 캐나다의 악천후 경보(NWS, ECCC)",
+          "weatherAlerts": "국가 기상 기관의 공식 악천후 경보(NWS, ECCC, WMO SWIC)",
           "economicCenters": "증권거래소 및 중앙은행",
           "countriesOverlay": "국가명 오버레이",
           "financeExchanges": "시장 등급별 주요 글로벌 거래소",
@@ -1265,7 +1289,7 @@
           "financeOutages": "시장 운영에 영향을 줄 수 있는 인터넷 중단",
           "financeCyberThreats": "금융 인프라 관련 보안 이벤트",
           "macroWaterways": "원자재 해운의 전략적 병목 지점",
-          "weatherAlertsMarket": "시장 관련성이 있는 미국과 캐나다의 악천후 현상(NWS, ECCC)",
+          "weatherAlertsMarket": "시장 관련성이 있는 공식 악천후 경보(NWS, ECCC, WMO SWIC)",
           "naturalEventsMacro": "지진, 화재, 홍수 및 기타 자연재해",
           "timeRecent": "시간 기반 데이터를 최근 시간대로 필터링",
           "timeExtended": "지난 주, 월, 전체 기간의 데이터 표시",
@@ -1300,7 +1324,7 @@
           "geoBoundaries": "비무장지대, 휴전선 및 분쟁 경계선",
           "ciiChoropleth": "국가 불안정 지수 히트맵 — CII 점수에 따라 국가를 색상으로 표시 (녹색=안정, 빨간색=심각)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Alberta Emergency Alert public warnings (Atom feed from www.alberta.ca)"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
         },
         "notes": {
           "timeAffects": "영향 대상: 지진, 기상, 시위, 장애"
@@ -1378,7 +1402,6 @@
       "clusters": "클러스터",
       "alertsLabel": "알림",
       "alert": "알림",
-      "sources_one": "{{count}}개 출처",
       "sources_other": "{{count}}개 출처",
       "briefTech": "기술 브리프",
       "briefCommodity": "상품 브리프",
@@ -1672,7 +1695,9 @@
     "breakingNews": {
       "critical": "심각",
       "high": "높음",
-      "dismiss": "닫기"
+      "dismiss": "닫기",
+      "alertsRegion": "Breaking news alerts",
+      "viewPanel": "View related panel"
     },
     "intelligenceFindings": {
       "breakingAlerts": "긴급 경보",
@@ -1732,6 +1757,21 @@
       "viewSource": "출처 보기",
       "filterGeopolitics": "지정학",
       "filterCyber": "사이버"
+    },
+    "xIntel": {
+      "infoTooltip": "Curated public news-account posts from X. Official API only.",
+      "loading": "Connecting to X news-account relay...",
+      "empty": "No posts available",
+      "disabled": "X news-account relay not active",
+      "filterAll": "All",
+      "filterBreaking": "Breaking",
+      "filterConflict": "Conflict",
+      "filterOsint": "OSINT",
+      "filterMiddleeast": "Middle East",
+      "live": "LIVE",
+      "viewSource": "View Source",
+      "filterGeopolitics": "Geopolitics",
+      "filterCyber": "Cyber"
     },
     "investments": {
       "infoTooltip": "사우디아라비아와 UAE의 글로벌 핵심 인프라 해외직접투자 데이터베이스. 행을 클릭하면 지도에서 해당 투자를 확인할 수 있습니다.",
@@ -1909,7 +1949,17 @@
       "topTargets": "상위 대상 국가"
     },
     "commodities": {
-      "infoTooltip": "<strong>Commodities</strong> Tradeable non-energy commodity tape focused on metals and materials. Energy prices live in Energy Complex; macro stress indicators live in Macro Stress."
+      "infoTooltip": "<strong>Commodities</strong> Tradeable non-energy commodity tape focused on metals and materials. Energy prices live in Energy Complex; macro stress indicators live in Macro Stress.",
+      "commodities": "Commodities",
+      "physicalPremiums": "Physical premium",
+      "physical": "Physical",
+      "paper": "Paper",
+      "premium": "Premium",
+      "asOf": "As of {{date}}",
+      "metals": {
+        "gold": "Gold",
+        "silver": "Silver"
+      }
     },
     "crypto": {
       "infoTooltip": "<strong>Crypto</strong> Live prices, 24h changes, and volume for major cryptocurrencies. Data sourced from CoinGecko."
@@ -1983,17 +2033,12 @@
       },
       "time": {
         "justNow": "방금",
-        "hoursAgo_one": "{{count}}시간 전",
         "hoursAgo_other": "{{count}}시간 전",
-        "daysAgo_one": "{{count}}일 전",
         "daysAgo_other": "{{count}}일 전"
       },
       "filters": {
-        "alert_one": "{{count}} 알림",
         "alert_other": "{{count}} 알림",
-        "warning_one": "{{count}} 경고",
         "warning_other": "{{count}} 경고",
-        "watch_one": "{{count}} 감시",
         "watch_other": "{{count}} 감시"
       },
       "errors": {
@@ -2156,7 +2201,6 @@
       "rationale": "근거:",
       "driver": "동인:",
       "appliesToNext": "다음 AI 재생성에 적용",
-      "signals_one": "{{count}}개 신호",
       "signals_other": "{{count}}개 신호",
       "disclaimer": "AI 생성 거래 신호는 정보 제공 목적입니다. 투자 조언이 아닙니다. 항상 자신의 조사를 수행하세요.",
       "unavailable": "AI 시장 영향은 각 예측 실행 후 생성됩니다. 잠시 후 다시 확인하세요."
@@ -2387,7 +2431,6 @@
         "new": "신규",
         "sema": "sema-ca"
       },
-      "designations_one": "{{count}}개 지정",
       "designations_other": "{{count}}개 지정",
       "fallbacks": {
         "unattributed": "미귀속",
@@ -2425,9 +2468,7 @@
         "updated": "{{time}}에 업데이트됨"
       },
       "observed": {
-        "hoursAgo_one": "{{count}}시간 전",
         "hoursAgo_other": "{{count}}시간 전",
-        "daysAgo_one": "{{count}}일 전",
         "daysAgo_other": "{{count}}일 전"
       },
       "confidence": {
@@ -2457,7 +2498,6 @@
     "correlation": {
       "loading": "데이터를 기다리는 중입니다...",
       "empty": "검출된 활성 수렴이 없습니다.",
-      "signals_one": "{{count}}개 신호",
       "signals_other": "{{count}}개 신호",
       "analyzing": "분석 중입니다...",
       "viewOnMap": "지도에서 보기"
@@ -2484,16 +2524,11 @@
         "industrial": "industrial",
         "strategic": "strategic"
       },
-      "observations_one": "{{count}} obs",
       "observations_other": "{{count}} obs",
-      "sources_one": "{{count}} src",
       "sources_other": "{{count}} src",
       "age": {
-        "minutesAgo_one": "{{count}}분 전",
         "minutesAgo_other": "{{count}}분 전",
-        "hoursAgo_one": "{{count}}시간 전",
         "hoursAgo_other": "{{count}}시간 전",
-        "daysAgo_one": "{{count}}일 전",
         "daysAgo_other": "{{count}}일 전"
       }
     },
@@ -2951,7 +2986,11 @@
       "heading": "방위",
       "hexCode": "HEX 코드",
       "squawk": "스쿼크",
-      "attribution": "출처: adsb.lol (ODbL) · OpenSky Network"
+      "attribution": "출처: adsb.lol (ODbL) · OpenSky Network",
+      "climbRate": "상승률",
+      "manufacturer": "제조사",
+      "owner": "운영사",
+      "builtYear": "제조년도"
     },
     "militaryVessel": {
       "aisDark": "AIS 소실",
@@ -2996,7 +3035,8 @@
       "moreVessels": "+{{count}}척 추가 함정",
       "vesselsCount": "{{count}}척 함정",
       "vessels": "함정",
-      "trackedVessels": "추적 중인 함정"
+      "trackedVessels": "추적 중인 함정",
+      "showLess": "축소"
     },
     "naturalEvent": {
       "closed": "종료",
@@ -3262,7 +3302,8 @@
     "retry": "재시도",
     "refresh": "새로고침",
     "all": "전체",
-    "cancel": "취소"
+    "cancel": "취소",
+    "dismiss": "Dismiss"
   },
   "preferences": {
     "display": "디스플레이",
@@ -3284,7 +3325,9 @@
     "fontFamily": "글꼴 패밀리",
     "fontFamilyDesc": "기술적 모양을 위해 모노스페이스, 더 쉬운 읽기를 위해 시스템 기본값.",
     "fontMono": "모노스페이스",
-    "fontSystem": "시스템 기본값"
+    "fontSystem": "시스템 기본값",
+    "panelFontScale": "텍스트 크기",
+    "followGlobalFontScale": "전역 설정 사용"
   },
   "contextMenu": {
     "openCountryBrief": "국가 개요 열기",
@@ -3375,7 +3418,9 @@
       "orefSirens1": "실시간 이스라엘 미사일 및 로켓 경보",
       "orefSirens2": "경보 영역 지도 및 위협 분류",
       "telegramIntel1": "큐레이션된 Telegram OSINT 채널",
-      "telegramIntel2": "거의 실시간 분쟁 및 지정학 업데이트"
+      "telegramIntel2": "거의 실시간 분쟁 및 지정학 업데이트",
+      "xIntel1": "Curated public news accounts on X",
+      "xIntel2": "API-fresh posts with official permalinks"
     }
   },
   "auth": {

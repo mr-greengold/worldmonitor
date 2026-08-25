@@ -358,7 +358,8 @@
           "Làm mới dữ liệu ưu tiên"
         ],
         "highlightFeatures": [
-          "Giấy phép cá nhân"
+          "Giấy phép cá nhân",
+          "1 người dùng được đặt tên"
         ]
       },
       "api": {
@@ -383,7 +384,11 @@
           "Hỗ trợ chuyên dụng",
           "Tích hợp tùy chỉnh",
           "Bảo đảm SLA",
-          "Tuỳ chọn tại chỗ"
+          "Tuỳ chọn tại chỗ",
+          "Thỏa thuận xử lý dữ liệu (DPA)",
+          "Thanh toán theo đơn đặt hàng",
+          "SAML SSO, SCIM",
+          "Cài đặt bảo mật và quyền riêng tư tùy chỉnh"
         ],
         "cta": "Liên hệ Phòng bán hàng"
       },
@@ -412,7 +417,8 @@
           "Hỗ trợ ưu tiên"
         ],
         "highlightFeatures": [
-          "Giấy phép thương mại kèm theo"
+          "Giấy phép thương mại kèm theo",
+          "1 người dùng được đặt tên — không phải đăng nhập chung"
         ]
       }
     },
@@ -423,7 +429,7 @@
     "axisPersonal": "Cá nhân",
     "axisPersonalNote": "sử dụng cá nhân",
     "axisCommercial": "Thương mại",
-    "axisCommercialNote": "công việc, nhóm & sản phẩm"
+    "axisCommercialNote": "công việc, khách hàng & sản phẩm"
   },
   "welcome": {
     "meta": {

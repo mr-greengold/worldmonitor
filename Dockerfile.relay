@@ -47,10 +47,18 @@ COPY scripts/lib/usni-fleet-parser.cjs ./scripts/lib/usni-fleet-parser.cjs
 COPY scripts/lib/llm-telemetry.cjs ./scripts/lib/llm-telemetry.cjs
 # Canonical CommonJS model policy required directly by ais-relay.cjs.
 COPY scripts/lib/llm-model-policy.cjs ./scripts/lib/llm-model-policy.cjs
+# Curated X news-account helpers required by ais-relay.cjs (#6654).
+COPY scripts/lib/x-news-accounts.cjs ./scripts/lib/x-news-accounts.cjs
+COPY scripts/lib/poll-generation-guard.cjs ./scripts/lib/poll-generation-guard.cjs
+COPY scripts/lib/x-poll-cycle.cjs ./scripts/lib/x-poll-cycle.cjs
 COPY scripts/shared/country-name-to-iso2.cjs ./scripts/shared/country-name-to-iso2.cjs
 # country-names.json backs the full name→ISO2 map (#5359 uniform country
 # scoping); required by country-name-to-iso2.cjs at startup.
 COPY scripts/shared/country-names.json ./scripts/shared/country-names.json
+# iso3-to-iso2.json maps WMO SWIC member `code` (ISO 3166-1 alpha-3) onto the
+# weather_alert countryCode. scripts/_weather-alert-select.mjs reads it at
+# import time; missing it is ERR_MODULE_NOT_FOUND / ENOENT at relay start.
+COPY scripts/shared/iso3-to-iso2.json ./scripts/shared/iso3-to-iso2.json
 # iso2-to-region.json backs regional_* country-scope matching in
 # notification-relay.cjs (#5359).
 COPY scripts/shared/iso2-to-region.json ./scripts/shared/iso2-to-region.json

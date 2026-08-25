@@ -67,6 +67,7 @@
     "securityAdvisories": "Alertas de Segurança",
     "orefSirens": "Israel Sirens",
     "telegramIntel": "Inteligência Telegram",
+    "xIntel": "X News Accounts",
     "giving": "Doações Globais",
     "supplyChain": "Cadeia de Suprimentos",
     "gulfEconomies": "Economias do Golfo",
@@ -188,7 +189,7 @@
         "outages": "Alternar interrupções de internet",
         "tradeRoutes": "Alternar rotas comerciais",
         "canadaRoads": "Toggle Canada roads overlay",
-        "canadaAlerts": "Toggle Alberta Emergency Alert overlay"
+        "canadaAlerts": "Toggle Canada provincial emergency alerts overlay"
       },
       "view": {
         "dark": "Mudar para modo escuro",
@@ -572,7 +573,7 @@
         "ucdpEvents": "Eventos UCDP",
         "displacementFlows": "Fluxos de deslocamento",
         "climateAnomalies": "Anomalias Climáticas",
-        "weatherAlerts": "Alertas meteorológicos nos EUA e no Canadá (NWS, ECCC)",
+        "weatherAlerts": "Alertas de tempo severo (NWS, ECCC, WMO SWIC)",
         "strategicWaterways": "Hidrovias Estratégicas",
         "economicCenters": "Centros Econômicos",
         "criticalMinerals": "Minerais Críticos",
@@ -594,7 +595,7 @@
         "radiationSpike": "Pico de radiação",
         "radiationElevated": "Radiação elevada",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (Alberta Emergency Alert)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
       },
       "layersTitle": "Camadas",
       "layerSearch": "Pesquisar camadas...",
@@ -662,7 +663,7 @@
           "infraDatacenters": "Clusters de computação de IA >=10.000 GPUs",
           "infraOutages": "Apagões de Internet e interrupções de serviço",
           "naturalEventsTech": "Terremotos, tempestades, incêndios (podem afetar data centers)",
-          "weatherAlerts": "Alertas de tempo severo nos EUA e no Canadá (NWS, ECCC)",
+          "weatherAlerts": "Alertas oficiais de tempo severo dos serviços meteorológicos nacionais (NWS, ECCC, WMO SWIC)",
           "economicCenters": "Bolsas de valores e bancos centrais",
           "countriesOverlay": "Sobreposições de nomes de países",
           "financeExchanges": "Principais bolsas globais por nível de mercado",
@@ -674,7 +675,7 @@
           "financeOutages": "Interrupções na Internet que podem impactar as operações do mercado",
           "financeCyberThreats": "Eventos de segurança em torno da infraestrutura financeira",
           "macroWaterways": "Pontos de estrangulamento estratégicos para o transporte de mercadorias",
-          "weatherAlertsMarket": "Eventos climáticos severos nos EUA e no Canadá com relevância para o mercado (NWS, ECCC)",
+          "weatherAlertsMarket": "Alertas oficiais de tempo severo com relevância para o mercado (NWS, ECCC, WMO SWIC)",
           "naturalEventsMacro": "Terremotos, incêndios, inundações e outras perturbações naturais",
           "timeRecent": "Filtrar dados baseados em tempo para horas recentes",
           "timeExtended": "Mostrar dados da semana, do mês anterior ou de todos os tempos",
@@ -709,7 +710,7 @@
           "geoBoundaries": "Zonas desmilitarizadas, linhas de cessar-fogo e fronteiras disputadas",
           "ciiChoropleth": "Mapa térmico do índice de instabilidade — colore os países pela pontuação CII (verde=estável, vermelho=crítico)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Alberta Emergency Alert public warnings (Atom feed from www.alberta.ca)"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
         },
         "notes": {
           "timeAffects": "Afeta: terremotos, clima, protestos, interrupções"
@@ -1115,6 +1116,21 @@
       "filterGeopolitics": "Geopolítica",
       "filterCyber": "Cyber"
     },
+    "xIntel": {
+      "infoTooltip": "Curated public news-account posts from X. Official API only.",
+      "loading": "Connecting to X news-account relay...",
+      "empty": "No posts available",
+      "disabled": "X news-account relay not active",
+      "filterAll": "All",
+      "filterBreaking": "Breaking",
+      "filterConflict": "Conflict",
+      "filterOsint": "OSINT",
+      "filterMiddleeast": "Middle East",
+      "live": "LIVE",
+      "viewSource": "View Source",
+      "filterGeopolitics": "Geopolitics",
+      "filterCyber": "Cyber"
+    },
     "investments": {
       "infoTooltip": "Banco de dados de investimentos diretos estrangeiros da Arábia Saudita e dos Emirados Árabes Unidos em infraestrutura crítica global. Clique em uma linha para ir até o investimento no mapa.",
       "searchPlaceholder": "Search assets, countries, entities…",
@@ -1499,7 +1515,9 @@
     "breakingNews": {
       "critical": "CRÍTICO",
       "dismiss": "Dispensar",
-      "high": "ALTO"
+      "high": "ALTO",
+      "alertsRegion": "Breaking news alerts",
+      "viewPanel": "View related panel"
     },
     "giving": {
       "activityIndex": "Índice de Atividade",
@@ -1620,7 +1638,17 @@
       "topTargets": "Países Alvo Principais"
     },
     "commodities": {
-      "infoTooltip": "<strong>Commodities</strong> Tradeable non-energy commodity tape focused on metals and materials. Energy prices live in Energy Complex; macro stress indicators live in Macro Stress."
+      "infoTooltip": "<strong>Commodities</strong> Tradeable non-energy commodity tape focused on metals and materials. Energy prices live in Energy Complex; macro stress indicators live in Macro Stress.",
+      "commodities": "Commodities",
+      "physicalPremiums": "Physical premium",
+      "physical": "Physical",
+      "paper": "Paper",
+      "premium": "Premium",
+      "asOf": "As of {{date}}",
+      "metals": {
+        "gold": "Gold",
+        "silver": "Silver"
+      }
     },
     "crypto": {
       "infoTooltip": "<strong>Crypto</strong> Live prices, 24h changes, and volume for major cryptocurrencies. Data sourced from CoinGecko."
@@ -2669,7 +2697,11 @@
       "heading": "CABEÇALHO",
       "hexCode": "CÓDIGO HEX.",
       "squawk": "GRANDE",
-      "attribution": "Fonte: adsb.lol (ODbL) · OpenSky Network"
+      "attribution": "Fonte: adsb.lol (ODbL) · OpenSky Network",
+      "climbRate": "TAXA DE SUBIDA",
+      "manufacturer": "FABRICANTE",
+      "owner": "OPERADOR",
+      "builtYear": "ANO DE FABRICAÇÃO"
     },
     "militaryVessel": {
       "aisDark": "AIS ESCURO",
@@ -2714,7 +2746,8 @@
       "moreVessels": "+{{count}} mais embarcações",
       "vesselsCount": "{{count}} NAVIOS",
       "vessels": "NAVIOS",
-      "trackedVessels": "NAVIOS RASTREADOS"
+      "trackedVessels": "NAVIOS RASTREADOS",
+      "showLess": "Mostrar menos"
     },
     "naturalEvent": {
       "closed": "FECHADO",
@@ -2988,7 +3021,8 @@
     "all": "Todos",
     "loadingGiving": "Carregando dados de doações...",
     "rateLimitedMarket": "Dados de mercado temporariamente limitados — tentando novamente automaticamente",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "dismiss": "Dismiss"
   },
   "header": {
     "world": "MUNDO",
@@ -3280,6 +3314,31 @@
       "soybeans": "Soybeans",
       "barley": "Barley",
       "palmOil": "Palm oil"
+    },
+    "demographicsCapability": {
+      "title": "Demographics & Workforce",
+      "help": "Age structure, education pipeline, and industrial workforce capacity from UN WPP, UNESCO UIS and World Bank WDI, and ILOSTAT.",
+      "loading": "Loading demographics and workforce data…",
+      "unavailable": "Demographics and workforce data unavailable.",
+      "proLocked": "Upgrade to PRO for demographics and workforce data",
+      "notAvailable": "Not available",
+      "ageStructure": "Age structure",
+      "education": "Education pipeline",
+      "industrialWorkforce": "Industrial workforce",
+      "medianAge": "Median age",
+      "oldAgeDependency": "Old-age dependency",
+      "totalDependency": "Total dependency",
+      "workingAgePopulation": "Working-age population",
+      "workingAgeProjection": "Working-age population (+10 years)",
+      "tertiaryEnrollment": "Tertiary enrollment",
+      "stemGraduates": "STEM graduates",
+      "researchers": "Researchers",
+      "craftTrades": "Craft and trades workers",
+      "plantOperators": "Plant and machine operators",
+      "trainedIndustrialWorkforce": "Combined industrial workforce",
+      "manufacturingShare": "Manufacturing employment",
+      "source": "Sources: {{sources}}.",
+      "retained": "{{stage}} data retained from the last successful refresh."
     }
   },
   "preferences": {
@@ -3302,7 +3361,9 @@
     "fontFamily": "Família de Fontes",
     "fontFamilyDesc": "Monospace para uma aparência técnica, fonte padrão do sistema para leitura mais fácil.",
     "fontMono": "Monospace",
-    "fontSystem": "Padrão do Sistema"
+    "fontSystem": "Padrão do Sistema",
+    "panelFontScale": "Tamanho do texto",
+    "followGlobalFontScale": "Usar global"
   },
   "contextMenu": {
     "openCountryBrief": "Abrir resumo do país",
@@ -3393,7 +3454,9 @@
       "orefSirens1": "Alertas em tempo real de mísseis e foguetes de Israel",
       "orefSirens2": "Mapeamento de zona de sirene com classificação de ameaça",
       "telegramIntel1": "Canais curados do Telegram OSINT",
-      "telegramIntel2": "Atualizações de conflito e geopolítica em tempo quase real"
+      "telegramIntel2": "Atualizações de conflito e geopolítica em tempo quase real",
+      "xIntel1": "Curated public news accounts on X",
+      "xIntel2": "API-fresh posts with official permalinks"
     }
   },
   "auth": {

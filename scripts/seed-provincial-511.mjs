@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 // Runs as the Provincial-511 member of seed-bundle-canada (#6711), not as its own
 // Railway service — six Canada seeders do not earn six slots. The bundle gates it
-// on intervalMs 15min and gives the section a 180s timeout, because three
+// on intervalMs 15min and gives the section a 240s timeout, because seven
 // endpoints x three runSeed attempts can also wait on the per-host 10/60 bucket.
-// Seeds Ontario 511 (events/alerts/roadconditions) and Alberta 511 events and
-// alerts. One process ticks both jurisdictions, so both clear on the same tick.
-// Do not add Canada loops to ais-relay.cjs. Manitoba (#6622) is the next
-// config row and needs key= — do not fetch it here.
+// Seeds Ontario 511 (events/alerts/roadconditions), Alberta 511 events and
+// alerts, and Manitoba 511 events and alerts. One process ticks all three
+// jurisdictions, so they clear on the same tick. Manitoba requires
+// MANITOBA_511_KEY and Alberta requires ALBERTA_511_KEY via loadEnvFile (Alberta
+// began enforcing keys 2026-08-19, answering an unkeyed GET with HTTP 400
+// "Invalid Key"); an unset key skips that jurisdiction, preserves last-good
+// without rewriting freshness, and lets fetchedAt age into an actionable health
+// failure. Do not add Canada loops to ais-relay.cjs.
 // Each fetch goes through acquire511Slot(hostname) inside the adapter
-// (511on.ca and 511.alberta.ca are separate 10/60 buckets).
+// (511on.ca, 511.alberta.ca, and www.manitoba511.ca are separate 10/60 buckets).
 
 import {
   loadEnvFile,
@@ -23,6 +27,7 @@ import {
   isCompleteVendor511,
   ONTARIO_511,
   ALBERTA_511,
+  MANITOBA_511,
   select511Records,
 } from './lib/provincial-511.mjs';
 
@@ -31,11 +36,23 @@ loadEnvFile(import.meta.url);
 const ONTARIO_KEY = 'infra:ontario-511:v1';
 const ALBERTA_KEY = 'infra:alberta-511:v1';
 const ALBERTA_META_KEY = 'seed-meta:infra:alberta-511';
+const MANITOBA_KEY = 'infra:manitoba-511:v1';
+const MANITOBA_META_KEY = 'seed-meta:infra:manitoba-511';
 const CACHE_TTL = 5400; // 90 min ≥ 3× the */15 cron (900s)
 const STAGGER_MS = 7000;
 
 function stampRecords(records, source) {
   return records.map((record) => ({ ...record, source }));
+}
+
+function readManitoba511Key() {
+  const raw = process.env.MANITOBA_511_KEY;
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : '';
+}
+
+function readAlberta511Key() {
+  const raw = process.env.ALBERTA_511_KEY;
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : '';
 }
 
 async function fetchOntario511() {
@@ -56,9 +73,27 @@ async function fetchOntario511() {
 }
 
 async function fetchAlberta511() {
+  // 511.alberta.ca began enforcing api keys around 2026-08-19: an unkeyed GET
+  // now answers `HTTP 400 {"Message":"Invalid Key"}` on both resources. It reads
+  // like a malformed request rather than an auth failure, which is why the
+  // seeder kept "succeeding" — Ontario and Manitoba published while Alberta
+  // silently preserved last-good for 88 hours.
+  //
+  // Same contract as Manitoba: an unset key is NOT an outage. The jurisdiction
+  // is simply not configured, so it preserves last-good and stays quiet. A key
+  // that is present and REJECTED is a different thing and still fails loudly
+  // through the ordinary fetch path.
+  const key = readAlberta511Key();
+  if (!key) {
+    const err = new Error('Alberta 511: not configured (ALBERTA_511_KEY missing); keeping last-good');
+    err.notConfigured = true;
+    err.nonRetryable = true;
+    throw err;
+  }
   const envelope = await fetchVendor511(ALBERTA_511, {
     userAgent: CHROME_UA,
     staggerMs: STAGGER_MS,
+    key,
   });
   if (!isCompleteVendor511(envelope, ALBERTA_511)) {
     const failed = envelope.failedResources?.join(', ') || 'incomplete';
@@ -70,11 +105,36 @@ async function fetchAlberta511() {
   return { records: stampRecords(select511Records(combined), 'alberta-511') };
 }
 
+async function fetchManitoba511() {
+  const key = readManitoba511Key();
+  if (!key) {
+    const err = new Error('Manitoba 511: not configured (MANITOBA_511_KEY missing); keeping last-good');
+    err.notConfigured = true;
+    err.nonRetryable = true;
+    throw err;
+  }
+  const envelope = await fetchVendor511(MANITOBA_511, {
+    userAgent: CHROME_UA,
+    staggerMs: STAGGER_MS,
+    key,
+  });
+  if (!isCompleteVendor511(envelope, MANITOBA_511)) {
+    const failed = envelope.failedResources?.join(', ') || 'incomplete';
+    const err = new Error(`Manitoba 511: partial poll (${failed} failed); keeping last-good`);
+    err.nonRetryable = true;
+    throw err;
+  }
+  const combined = [...envelope.events, ...envelope.alerts];
+  return { records: stampRecords(select511Records(combined), 'manitoba-511') };
+}
+
 async function fetchProvincial511Tick() {
   let ontario = null;
   let alberta = null;
+  let manitoba = null;
   let ontarioErr = null;
   let albertaErr = null;
+  let manitobaErr = null;
 
   try {
     ontario = await fetchOntario511();
@@ -90,15 +150,27 @@ async function fetchProvincial511Tick() {
     console.warn(`  Alberta 511: ${err.message || err}`);
   }
 
-  if (!ontario && !alberta) {
-    throw ontarioErr || albertaErr || new Error('provincial-511: Ontario and Alberta fetches failed');
+  try {
+    manitoba = await fetchManitoba511();
+  } catch (err) {
+    manitobaErr = err;
+    console.warn(`  Manitoba 511: ${err.message || err}`);
+  }
+
+  if (!ontario && !alberta && !manitoba) {
+    throw ontarioErr || albertaErr || manitobaErr
+      || new Error('provincial-511: Ontario, Alberta, and Manitoba fetches failed');
   }
 
   return {
     records: ontario?.records || [],
     alberta,
+    manitoba,
     _ontarioFailed: !ontario,
     _albertaFailed: !alberta,
+    _manitobaFailed: !manitoba,
+    _albertaNotConfigured: Boolean(albertaErr?.notConfigured),
+    _manitobaNotConfigured: Boolean(manitobaErr?.notConfigured),
   };
 }
 
@@ -121,6 +193,11 @@ async function preserveAlberta() {
 }
 
 async function publishAlbertaFromTick(data) {
+  if (data?._albertaNotConfigured) {
+    console.warn('  Alberta 511: not configured; preserving last-good while freshness metadata ages');
+    await preserveAlberta();
+    return;
+  }
   if (!data || data._albertaFailed) {
     console.warn('  Alberta 511: preserving last-good (fetch failed this tick)');
     await preserveAlberta();
@@ -128,6 +205,44 @@ async function publishAlbertaFromTick(data) {
   }
   const records = Array.isArray(data.alberta?.records) ? data.alberta.records : [];
   await publishAlbertaEnvelope(records);
+}
+
+async function publishManitobaEnvelope(records) {
+  const recordCount = records.length;
+  await writeExtraKey(MANITOBA_KEY, { records }, CACHE_TTL, {
+    fetchedAt: Date.now(),
+    recordCount,
+    sourceVersion: 'manitoba-511-v1',
+    schemaVersion: 1,
+    state: recordCount > 0 ? 'OK' : 'OK_ZERO',
+  });
+  await writeSeedMeta(MANITOBA_KEY, recordCount, MANITOBA_META_KEY, undefined, undefined, {
+    sourceVersion: 'manitoba-511-v1',
+  });
+}
+
+async function preserveManitoba() {
+  await extendExistingTtl([MANITOBA_KEY, MANITOBA_META_KEY], CACHE_TTL);
+}
+
+async function publishManitobaFromTick(data) {
+  if (data?._manitobaNotConfigured) {
+    console.warn('  Manitoba 511: not configured; preserving last-good while freshness metadata ages');
+    await preserveManitoba();
+    return;
+  }
+  if (!data || data._manitobaFailed) {
+    console.warn('  Manitoba 511: preserving last-good (fetch failed this tick)');
+    await preserveManitoba();
+    return;
+  }
+  const records = Array.isArray(data.manitoba?.records) ? data.manitoba.records : [];
+  await publishManitobaEnvelope(records);
+}
+
+async function publishExtraJurisdictionsFromTick(data) {
+  await publishAlbertaFromTick(data);
+  await publishManitobaFromTick(data);
 }
 
 export function declareRecords(data) {
@@ -154,9 +269,9 @@ runSeed('infra', 'ontario-511', ONTARIO_KEY, fetchProvincial511Tick, {
   schemaVersion: 1,
   maxStaleMin: 45,
   publishTransform: publishOntario,
-  preserveKeys: [ALBERTA_KEY, ALBERTA_META_KEY],
-  afterPublish: publishAlbertaFromTick,
-  afterValidationSkip: publishAlbertaFromTick,
+  preserveKeys: [ALBERTA_KEY, ALBERTA_META_KEY, MANITOBA_KEY, MANITOBA_META_KEY],
+  afterPublish: publishExtraJurisdictionsFromTick,
+  afterValidationSkip: publishExtraJurisdictionsFromTick,
 }).catch((err) => {
   const _cause = err.cause ? ` (cause: ${err.cause.message || err.cause.code || err.cause})` : '';
   console.error('FATAL:', (err.message || err) + _cause);

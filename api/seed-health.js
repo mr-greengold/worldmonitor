@@ -101,6 +101,13 @@ const SEED_DOMAINS = {
   // Aligned with health.js SEED_META (intervalMin = maxStaleMin / 2)
   'market:stocks':            { key: 'seed-meta:market:stocks',            intervalMin: 15 },
   'market:commodities':       { key: 'seed-meta:market:commodities',       intervalMin: 15 },
+  // Daily SGE prints; intervalMin*2 matches api/health.js's 72h run budget.
+  'market:physical-premium':  {
+    key: 'seed-meta:market:physical-premium',
+    intervalMin: 2160,
+    minRecordCount: 2,
+    activationKey: 'seed-activated:market:physical-premium',
+  },
   'market:gold-extended':     { key: 'seed-meta:market:gold-extended',     intervalMin: 15 },
   'market:gold-etf-flows':    { key: 'seed-meta:market:gold-etf-flows',    intervalMin: 1440 },
   // maxStaleMin in health.js is 44640 (~31 days; IMF IFS is monthly w/ 2-3mo lag).
@@ -132,6 +139,19 @@ const SEED_DOMAINS = {
   'intelligence:gpsjam':      { key: 'seed-meta:intelligence:gpsjam',      intervalMin: 720 }, // 720 × 2 = 1440min (24h) staleness; matches api/health.js gpsjam.maxStaleMin. Widened from 360 (12h) on 2026-04-29 alongside Wingbits API quota incident — see PR #3494 + the seeder graceful-failure path at scripts/fetch-gpsjam.mjs:258-262.
   'intelligence:satellites':  { key: 'seed-meta:intelligence:satellites',  intervalMin: 90 },
   'military:flights':         { key: 'seed-meta:military:flights',         intervalMin: 8 },
+  // #6845 item 3: staleness was invisible — this endpoint had no entry for the
+  // bases corpus at all, and /api/health checked only the presence of
+  // military:bases:active. The seeder runs on Military-Bases' 30-day cadence
+  // (seed-bundle-static-ref-HEAVY since #6806 moved the three expensive members
+  // off leftover), so intervalMin = one cadence and stale fires at
+  // 2x = one fully missed cycle. activationKey is the active-version pointer
+  // itself: atomicSwitch writes it atomically with seed-meta, so a deployment
+  // that has never published reads as pending-activation rather than missing,
+  // while the #6806 missing-marker case (pointer present, seed-meta absent)
+  // still alarms and forces the repair path to matter. minRecordCount floors
+  // the corpus near the published 125,380 — the integrity half of the item: a
+  // degenerate partial seed must not read as a healthy quiet cycle.
+  'military:bases':           { key: 'seed-meta:military:bases',           intervalMin: 43200, activationKey: 'military:bases:active', minRecordCount: 100_000 },
   'military:cross-strait-activity': { key: 'seed-meta:military:cross-strait-activity', intervalMin: 180 },
   'military:cross-strait-activity-bootstrap': { key: 'seed-meta:military:cross-strait-activity-bootstrap', intervalMin: 180 },
   'military:cross-strait-activity:complete': { key: 'seed-meta:military:cross-strait-activity:complete', intervalMin: 180 },
@@ -195,6 +215,7 @@ const SEED_DOMAINS = {
   'economic:bigmac':          { key: 'seed-meta:economic:bigmac',          intervalMin: 5040 }, // weekly seed; intervalMin = maxStaleMin / 2
   'resilience:static':        { key: 'seed-meta:resilience:static',        intervalMin: 288000 }, // annual October snapshot; intervalMin = health.js maxStaleMin / 2 (400d alert threshold)
   'resilience:food-stocks':   { key: 'seed-meta:resilience:food-stocks',   intervalMin: 43200 }, // monthly WASDE; intervalMin = health.js maxStaleMin / 2 (86400 / 2)
+  'demographics:capability':  { key: 'seed-meta:demographics:capability', intervalMin: 18000, minRecordCount: 150 }, // static-ref every 20d; 25d /api/health budget expressed as intervalMin * 2.
   'resilience:education-attainment': {
     key: 'seed-meta:resilience:education-attainment',
     intervalMin: 5760, // 11520min /api/health budget expressed as intervalMin * 2.
@@ -239,7 +260,7 @@ const SEED_DOMAINS = {
     key: 'seed-meta:supply_chain:portwatch-ports',
     intervalMin: 720,
     minRecordCount: 174,
-    requireContentFreshness: { countries: ['CN', 'HK'], budgetMinutes: 2 * 72 * 60 },
+    requireContentFreshness: { countries: ['CN', 'HK'], budgetMinutes: 10 * 24 * 60 },
     contentFreshnessActivationKey: PORTWATCH_CONTENT_FRESHNESS_ACTIVATION_KEY,
   }, // 12h cron (0 */12 * * *); intervalMin = maxStaleMin / 3 (2160 / 3); #3613 requires 174-country coverage before OK.
   'energy:chokepoint-flows': { key: 'seed-meta:energy:chokepoint-flows', intervalMin: 360 }, // 6h relay loop; intervalMin = maxStaleMin / 2 (720 / 2)

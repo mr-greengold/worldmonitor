@@ -19,6 +19,15 @@ import { createHash } from 'node:crypto';
 import { dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
+import {
+  buildLogicalProviders,
+  catalogProviderIdentities,
+  FEED_DECLARATION_FILES,
+  isSyndicationTransportEntry,
+  loadSourceGeography,
+  scanNamedFeedDeclarations,
+  validateFeedBurnerPublisherIdentity,
+} from './source-catalog-identity.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST_PATH = 'shared/source-attribution-manifest.json';
@@ -42,12 +51,11 @@ const LOGICAL_KIND_RE = /^(?:candidate|structured|feed|operational-status)(?:\+(
 const SOURCE_ROOTS = ['scripts', 'server', 'api', 'src'];
 const SOURCE_EXTENSIONS = new Set(['.cjs', '.js', '.mjs', '.ts', '.tsx']);
 const FEED_FILES = new Set([
-  'src/config/feeds.ts',
+  ...FEED_DECLARATION_FILES,
   // LiveNewsPanel owns optional native-video HLS feeds. They are observed for
   // completeness, but their playback transport is excluded from the data
   // provider count below.
   'src/components/LiveNewsPanel.ts',
-  'server/worldmonitor/news/v1/_feeds.ts',
 ]);
 const PRESENTATION_ONLY_FILES = new Set(['src/components/LiveNewsPanel.ts']);
 const STATUS_FILE = 'server/worldmonitor/infrastructure/v1/list-service-statuses.ts';
@@ -84,6 +92,18 @@ const publisherMetadataFeed = (provider) => ({
  * become a provider rename or regroup.
  */
 export const PROVIDER_IDENTITY_GROUPS = Object.freeze({
+  bbc: Object.freeze({
+    provider: 'BBC',
+    memberHosts: Object.freeze(['feeds.bbci.co.uk', 'www.bbc.com']),
+    reason: 'The BBC feed host and BBC language-edition host belong to one publisher identity.',
+    reviewReference: 'Issue #7000 source-catalog publisher identity review',
+  }),
+  'bc-evacuation-orders-alerts': Object.freeze({
+    provider: 'B.C. Evacuation Orders and Alerts',
+    memberHosts: Object.freeze(['catalogue.data.gov.bc.ca', 'services6.arcgis.com']),
+    reason: 'The B.C. catalogue record supplies the licence for the ArcGIS evacuation dataset.',
+    reviewReference: 'Issue #6659 source-rights probe',
+  }),
   interfax: Object.freeze({
     provider: 'Interfax',
     memberHosts: Object.freeze(['interfax.com', 'www.interfax.ru']),
@@ -102,6 +122,12 @@ export const PROVIDER_IDENTITY_GROUPS = Object.freeze({
     reason: 'The public data host and dataset landing host belong to one Our World in Data provider identity.',
     reviewReference: 'PR #6250',
   }),
+  'tps-open-data': Object.freeze({
+    provider: 'Toronto Police Service Open Data',
+    memberHosts: Object.freeze(['data.tps.ca', 'www.tps.ca']),
+    reason: 'The TPS Open Data landing page and Public Safety Data Portal licence the Major Crime Indicators and Calls for Service Attended datasets. They are not the live C4S CAD identity.',
+    reviewReference: 'Issue #7012',
+  }),
   'uspto-open-data': Object.freeze({
     provider: 'USPTO Open Data Portal',
     memberHosts: Object.freeze(['api.uspto.gov', 'data.uspto.gov']),
@@ -119,10 +145,29 @@ export const PROVIDER_IDENTITY_GROUPS = Object.freeze({
 const PROVIDER_OVERRIDES = {
   'api.adsb.lol': { provider: 'adsb.lol' },
   'api.airplanes.live': { provider: 'airplanes.live' },
+  'api.worldbank.org': {
+    provider: 'World Bank Open Data',
+    license: 'World Development Indicators are licensed under CC BY 4.0. UNESCO UIS indicators mirrored through WDI also require the UIS attribution stated in the public source documentation.',
+    attribution: 'World Bank Open Data. For education indicators: UNESCO Institute for Statistics via World Bank WDI; include the UIS source URL and extraction date.',
+    status: 'reviewed',
+  },
   'api.x.com': { provider: 'X API' },
   'atbackend.sipri.org': { provider: 'SIPRI Arms Transfers Database' },
   'opendata.adsb.fi': { provider: 'adsb.fi Open Data' },
+  'population.un.org': {
+    provider: 'United Nations Population Division',
+    license: 'UN World Population Prospects 2024 is licensed under CC BY 3.0 IGO.',
+    attribution: 'United Nations, Department of Economic and Social Affairs, Population Division (2024). World Population Prospects 2024.',
+    status: 'reviewed',
+  },
+  'sdmx.ilo.org': {
+    provider: 'ILOSTAT',
+    license: 'ILOSTAT datasets and metadata published from 3 May 2023 are licensed under CC BY 4.0.',
+    attribution: 'International Labour Organization, ILOSTAT database; include the dataset and extraction date.',
+    status: 'reviewed',
+  },
   'auth.opensky-network.org': { provider: 'opensky-network.org', identityGroup: 'opensky-network' },
+  'feeds.bbci.co.uk': { provider: 'BBC', identityGroup: 'bbc' },
   'opensky-network.org': { provider: 'opensky-network.org', identityGroup: 'opensky-network' },
   'customer-api.wingbits.com': { provider: 'wingbits.com', identityGroup: 'wingbits' },
   'ecs-api.wingbits.com': { provider: 'wingbits.com', identityGroup: 'wingbits' },
@@ -143,11 +188,13 @@ const PROVIDER_OVERRIDES = {
   'feed.businesswire.com': licensedPublisherFeed('Business Wire'),
   'chainwire.org': licensedPublisherFeed('Chainwire'),
   'www.interfax.ru': { ...licensedPublisherFeed('Interfax'), identityGroup: 'interfax' },
+  'www.bbc.com': { provider: 'BBC', identityGroup: 'bbc' },
   'interfax.com': { ...licensedPublisherFeed('Interfax'), identityGroup: 'interfax' },
   'prnewswire.com': licensedPublisherFeed('PR Newswire'),
   'coinbase.com': licensedPublisherFeed('Coinbase'),
   'binance.com': licensedPublisherFeed('Binance'),
   'jin10.com': licensedPublisherFeed('Jin10'),
+  'timesofindia.indiatimes.com': licensedPublisherFeed('Times of India'),
   'yemenonline.info': publisherMetadataFeed('Yemen Online'),
   'sanaacenter.org': publisherMetadataFeed("Sana'a Center"),
   'syriadirect.org': publisherMetadataFeed('Syria Direct'),
@@ -160,6 +207,13 @@ const PROVIDER_OVERRIDES = {
   'pajhwok.com': publisherMetadataFeed('Pajhwok Afghan News'),
   'www.naharnet.com': publisherMetadataFeed('Naharnet Lebanon'),
   'lorientlejour.com': publisherMetadataFeed("L'Orient Today"),
+  'annahar.com': publisherMetadataFeed('Annahar'),
+  'pap.pl': publisherMetadataFeed('PAP'),
+  'wyborcza.pl': publisherMetadataFeed('Gazeta Wyborcza'),
+  'polityka.pl': publisherMetadataFeed('Polityka'),
+  'wiadomosci.onet.pl': publisherMetadataFeed('Onet'),
+  'oko.press': publisherMetadataFeed('OKO.press'),
+  'tvp.info': publisherMetadataFeed('TVP Info'),
   'www.studiotamani.org': publisherMetadataFeed('Studio Tamani'),
   'lefaso.net': publisherMetadataFeed('leFaso.net'),
   'actuniger.com': publisherMetadataFeed('ActuNiger'),
@@ -196,11 +250,23 @@ const PROVIDER_OVERRIDES = {
     attribution: 'Alberta 511 (Alberta Transportation and Economic Corridors). https://511.alberta.ca/',
     status: 'terms-review',
   },
+  'www.manitoba511.ca': {
+    provider: 'Manitoba 511',
+    license: 'Contains information from the Government of Manitoba, licensed under the OpenMB Information and Data Use License (Manitoba.ca/OpenMB). Manitoba 511 developer copy permits creating traffic apps; no separate developer access agreement is published.',
+    attribution: 'Manitoba 511 (Government of Manitoba). Contains information from the Government of Manitoba, licensed under the OpenMB Information and Data Use License. https://www.manitoba511.ca/',
+    status: 'terms-review',
+  },
   'secure.toronto.ca': {
     provider: 'City of Toronto Open Data',
     license: 'CKAN package_show for road-restrictions: license_id=notspecified, license_title="License not specified" (https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/package_show?id=road-restrictions). Portal dataset page chrome links OGL-Toronto but is not data-bound to this dataset.',
     attribution: 'City of Toronto, Road Restrictions. https://open.toronto.ca/dataset/road-restrictions/',
     status: 'terms-review',
+  },
+  'www.toronto.ca': {
+    provider: 'Toronto Fire Services',
+    license: 'Direct permission: World Monitor\'s owner confirmed on 2026-08-21 that World Monitor holds redistribution and public-display rights for the Toronto Fire Services live CAD XML. This does not claim that the feed is licensed under the City of Toronto Open Government Licence: no data-bound CKAN package was found for toronto-fire-active-incidents or livecad.xml. City of Toronto copyright and the source-specific permission still apply. Not the historical fire-incidents CKAN datasets.',
+    attribution: 'Toronto Fire Services, Active Incidents (CAD). https://www.toronto.ca/community-people/public-safety-alerts/alerts-notifications/toronto-fire-active-incidents/',
+    status: 'reviewed',
   },
   'api.open511.gov.bc.ca': {
     provider: 'BC Open511',
@@ -208,10 +274,30 @@ const PROVIDER_OVERRIDES = {
     attribution: 'DriveBC Open511 (Province of British Columbia). Licensed under OGL-BC. https://api.open511.gov.bc.ca/help',
     status: 'reviewed',
   },
+  'catalogue.data.gov.bc.ca': {
+    provider: 'B.C. Evacuation Orders and Alerts',
+    identityGroup: 'bc-evacuation-orders-alerts',
+    license: 'Open Government Licence - British Columbia (OGL-BC). The B.C. Data Catalogue record 7efd46d0-b5d3-4dff-af80-d376c42aec33 explicitly assigns OGL-BC to this ArcGIS layer.',
+    attribution: 'Contains information licensed under the Open Government Licence - British Columbia. https://catalogue.data.gov.bc.ca/dataset/7efd46d0-b5d3-4dff-af80-d376c42aec33',
+    status: 'reviewed',
+  },
+  'services6.arcgis.com': {
+    provider: 'B.C. Evacuation Orders and Alerts',
+    identityGroup: 'bc-evacuation-orders-alerts',
+    license: 'Open Government Licence - British Columbia (OGL-BC). The B.C. Data Catalogue record 7efd46d0-b5d3-4dff-af80-d376c42aec33 explicitly assigns OGL-BC to this ArcGIS layer.',
+    attribution: 'Contains information licensed under the Open Government Licence - British Columbia. https://catalogue.data.gov.bc.ca/dataset/7efd46d0-b5d3-4dff-af80-d376c42aec33',
+    status: 'reviewed',
+  },
   'www.alberta.ca': {
     provider: 'Alberta Emergency Alert',
     license: 'Alberta.ca terms of use. Open Government Licence - Alberta exists on the open.alberta.ca licence page but is not bound to the AEA Atom feed on a live dataset page (the alberta-emergency-alert.aspx page has no OGL statement).',
     attribution: 'Alberta Emergency Alert, Government of Alberta. https://www.alberta.ca/alberta-emergency-alert.aspx',
+    status: 'terms-review',
+  },
+  'emergencyalert.saskatchewan.ca': {
+    provider: 'SaskAlert',
+    license: 'Public SaskAlert mobile JSON at /sapublic/feed.json plus same-host CAP 1.2 JSON details. Government of Saskatchewan website terms exclude some connected subsites; this host is the official public alert feed authorized for canadaAlerts ingest under #6659. Not Pelmorex LMD.',
+    attribution: 'SaskAlert, Government of Saskatchewan. https://emergencyalert.saskatchewan.ca/',
     status: 'terms-review',
   },
   'api.elections.kalshi.com': {
@@ -372,6 +458,33 @@ const PROVIDER_OVERRIDES = {
     provider: 'Global Energy Monitor',
     license: 'CC BY 4.0 for published datasets unless the dataset page states otherwise',
     attribution: 'Global Energy Monitor; link to the dataset page.',
+    status: 'reviewed',
+  },
+  'gtaupdate.com': {
+    provider: 'GTA Update',
+    license: 'Reuse permission held by WorldMonitor, as confirmed by the repository owner on 2026-08-21. The private grant is not stored in this public repository. Production activation remains separately blocked on official TPS/TFS upstream provenance and the safety, cadence, capacity, and product acceptance gates in issue #7012.',
+    attribution: 'GTA Update (unofficial third-party TPS/TFS dispatch mirror; not official, not verified, entertainment-only per publisher). Used with permission. Production disabled pending upstream provenance and product activation. https://gtaupdate.com/about.php',
+    status: 'reviewed',
+    catalogActive: false,
+  },
+  'www.tps.ca': {
+    provider: 'Toronto Police Service Open Data',
+    identityGroup: 'tps-open-data',
+    license: 'Custom licence based on the Open Government Licence - Ontario. The Major Crime Indicators FeatureServer (serviceItemId 0a239a5563a344a3bbf8452504ed8d68) and Calls for Service Attended table (serviceItemId 46c7581a136445c78831acb657a4fb0d) require: "Contains information licensed under the Open Government Licence - Ontario." Credit Toronto Police Service without crests, logos, flags, or official marks. No TPS endorsement. Locations are deliberately offset; do not present them as precise addresses. Do not merge or link the data with other databases for the purpose of identifying a person, business, or organization. Do not fill privacy exclusions from GTA Update, news, radio, or another source. Evidence: https://www.tps.ca/data-maps/open-data/ and the item-level FeatureServer descriptions on https://data.tps.ca/.',
+    attribution: 'Contains information licensed under the Open Government Licence - Ontario. Toronto Police Service Open Data (https://www.tps.ca/data-maps/open-data/, https://data.tps.ca/). Coordinates are approximate offset intersection nodes. No TPS endorsement.',
+    status: 'reviewed',
+  },
+  'data.tps.ca': {
+    provider: 'Toronto Police Service Open Data',
+    identityGroup: 'tps-open-data',
+    license: 'Custom licence based on the Open Government Licence - Ontario. The Major Crime Indicators FeatureServer (serviceItemId 0a239a5563a344a3bbf8452504ed8d68) and Calls for Service Attended table (serviceItemId 46c7581a136445c78831acb657a4fb0d) require: "Contains information licensed under the Open Government Licence - Ontario." Credit Toronto Police Service without crests, logos, flags, or official marks. No TPS endorsement. Locations are deliberately offset; do not present them as precise addresses. Do not merge or link the data with other databases for the purpose of identifying a person, business, or organization. Do not fill privacy exclusions from GTA Update, news, radio, or another source. Evidence: https://www.tps.ca/data-maps/open-data/ and the item-level FeatureServer descriptions on https://data.tps.ca/.',
+    attribution: 'Contains information licensed under the Open Government Licence - Ontario. Toronto Police Service Open Data (https://www.tps.ca/data-maps/open-data/, https://data.tps.ca/). Coordinates are approximate offset intersection nodes. No TPS endorsement.',
+    status: 'reviewed',
+  },
+  'services.arcgis.com': {
+    provider: 'Toronto Police Service',
+    license: 'Open Government Licence – Ontario as published on the TPS Calls for Service Experience item a22f5295933e48a5b0a4c90cd3c4cae1 (licenseInfo), plus TPS Public Safety Data Portal terms on that item: no identification of individuals, no TPS marks. Layer C4S_Public_NoGO is the privacy-filtered public Calls-for-Service map (refresh ~20 min). Not Major Crime Indicators / YTD.',
+    attribution: 'Toronto Police Service, Calls for Service. Contains information licensed under the Open Government Licence – Ontario.',
     status: 'reviewed',
   },
   'gtfsrt.ttc.ca': {
@@ -572,6 +685,12 @@ const PROVIDER_OVERRIDES = {
     attribution: 'Excluded from the provider count: user-configured MCP connector.',
     status: 'excluded',
   },
+  'search.parallel.ai': {
+    provider: 'Parallel Search MCP',
+    license: 'Excluded: optional user-configured MCP connector',
+    attribution: 'Excluded from the provider count: user-configured MCP connector.',
+    status: 'excluded',
+  },
   'api.example.com': {
     provider: 'Example API placeholder',
     license: 'Excluded: documentation/test placeholder',
@@ -692,6 +811,8 @@ const PROVIDER_OVERRIDES = {
     attribution: 'VIA Rail Canada; unofficial live train JSON at tsimobile.viarail.ca. Not the Developer Resources GTFS feed; OGL does not apply to this host. Best-effort only.',
     status: 'terms-review',
   },
+  'feeds.feedburner.com': { role: 'transport' },
+  'news.google.com': { role: 'transport' },
 };
 
 // Provider display identities change rarely and affect attribution, catalog
@@ -699,9 +820,13 @@ const PROVIDER_OVERRIDES = {
 // a provider-bearing override a separate, explicit lifecycle event instead of
 // something `--write` can silently normalize into the manifest.
 export const PROVIDER_IDENTITY_REVIEW = Object.freeze({
-  sha256: '69c3fa808e80592086ebdba220adf79f27546a97a0b7d1971c30b1e7b1bc61cd',
-  reason: 'Baseline the reviewed identities, including site-scoped publishers that use Google News URLs and the crisis-desk publishers selected in issues #6813-#6830.',
-  reviewReference: 'PR #6662; PR #6670; PR #6736; PR #6840; issues #6813-#6830',
+  sha256: 'a7ab631b0e17d681791f6978832fb0a8c4f8567bfa1c90d9e79a747b5a7dfbfe',
+  reason: 'Keep Toronto Police Service C4S live-dispatch on services.arcgis.com distinct from Toronto Police Service Open Data on data.tps.ca and www.tps.ca, so live CAD is not catalogued as Open Data / geopolitics.',
+  // A URL cited here is scanned like any other: this file sits inside
+  // SOURCE_ROOTS, so citing a host that is not already a registered source
+  // invents a provider row for it. The B.C. catalogue URLs above are safe
+  // because that host is itself an observed source; parallel.ai is not.
+  reviewReference: 'Issues #7012 and #6682 Toronto safety sources; plus Issue #7000 publisher-centric source catalog; plus Issue #7001, Issue #6437, Issue #6622, Issue #6659, and PR #6447 identity reviews.',
 });
 
 export function providerIdentityDigest(providerOverrides = PROVIDER_OVERRIDES) {
@@ -794,11 +919,23 @@ function read(rootDir, path) {
   return readFileSync(join(rootDir, path), 'utf8');
 }
 
+function readdirPresentSync(absoluteDir) {
+  try {
+    return readdirSync(absoluteDir, { withFileTypes: true });
+  } catch (error) {
+    // Parallel test:data can mkdir/rm empty leftover trees under api/ (see
+    // tests/docs-stats-api-endpoints.test.mts) while docs-stats --check walks
+    // SOURCE_ROOTS. A vanished directory is not an inventory finding.
+    if (error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) return [];
+    throw error;
+  }
+}
+
 function walkSourceFiles(rootDir) {
   const files = [];
   const visit = (relativeDir) => {
     const absoluteDir = join(rootDir, relativeDir);
-    for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
+    for (const entry of readdirPresentSync(absoluteDir)) {
       const relativePath = join(relativeDir, entry.name).replaceAll('\\', '/');
       if (entry.isDirectory()) {
         if (['node_modules', '.git', 'generated', 'e2e', 'fixtures', '__fixtures__', 'test', 'tests'].includes(entry.name)) continue;
@@ -1011,19 +1148,22 @@ function overrideFor(observed) {
 function mergeEntry(observed, previous) {
   const override = overrideFor(observed);
   const base = previous ? clearStaleExclusion(previous, observed, override) : defaultEntry(observed);
-  return {
-    ...base,
+  const { role: _ignoredRole, ...baseRest } = base;
+  const merged = {
+    ...baseRest,
     ...override,
     host: observed.host,
     kind: observed.kinds.join('+'),
     observed: true,
     references: observed.references,
   };
+  if (!override.role) delete merged.role;
+  return merged;
 }
 
 export function loadManifest(rootDir = ROOT) {
   const path = join(rootDir, MANIFEST_PATH);
-  if (!existsSync(path)) return { version: 1, entries: [], logicalEntries: [] };
+  if (!existsSync(path)) return { version: 1, entries: [], logicalEntries: [], logicalProviders: [] };
   const raw = readFileSync(path, 'utf8');
   let manifest;
   try {
@@ -1032,10 +1172,23 @@ export function loadManifest(rootDir = ROOT) {
     // A bare "Unexpected end of JSON input" names no file; say which one.
     throw new Error(`source-attribution: ${MANIFEST_PATH} is not valid JSON (${error.message})`);
   }
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw new Error(`source-attribution: invalid manifest (${MANIFEST_PATH} must be an object)`);
+  }
+  if (!Array.isArray(manifest.entries)) {
+    throw new Error(`source-attribution: invalid manifest (${MANIFEST_PATH} entries must be an array)`);
+  }
+  if (manifest.logicalEntries !== undefined && !Array.isArray(manifest.logicalEntries)) {
+    throw new Error(`source-attribution: invalid manifest (${MANIFEST_PATH} logicalEntries must be an array)`);
+  }
+  if (manifest.logicalProviders !== undefined && !Array.isArray(manifest.logicalProviders)) {
+    throw new Error(`source-attribution: invalid manifest (${MANIFEST_PATH} logicalProviders must be an array)`);
+  }
   return {
     version: manifest.version || 1,
-    entries: Array.isArray(manifest.entries) ? manifest.entries : [],
-    logicalEntries: Array.isArray(manifest.logicalEntries) ? manifest.logicalEntries : [],
+    entries: manifest.entries,
+    logicalEntries: manifest.logicalEntries || [],
+    logicalProviders: manifest.logicalProviders || [],
   };
 }
 
@@ -1045,8 +1198,8 @@ function retirementRequiredMessage(host) {
 
 export function buildManifest(
   inventory,
-  previous = { entries: [], logicalEntries: [] },
-  { retireHosts = [] } = {},
+  previous = { entries: [], logicalEntries: [], logicalProviders: [] },
+  { retireHosts = [], rootDir = null, declarations = null, geography = null } = {},
 ) {
   const previousByHost = new Map((previous.entries || []).map((entry) => [entry.host, entry]));
   const entries = inventory.map((observed) => mergeEntry(observed, previousByHost.get(observed.host)));
@@ -1098,13 +1251,38 @@ export function buildManifest(
     .filter((entry) => !observedHosts.has(entry.host))
     .filter((entry, index, all) => all.findIndex((candidate) => candidate.provider === entry.provider && candidate.host === entry.host) === index)
     .sort((a, b) => a.provider.localeCompare(b.provider));
-  return { version: 1, entries: entries.sort((a, b) => a.host.localeCompare(b.host)), logicalEntries };
+  const logicalProviders = declarations
+    ? buildLogicalProviders(declarations, geography || new Map())
+    : (rootDir
+      ? buildLogicalProviders(scanNamedFeedDeclarations(rootDir), loadSourceGeography(rootDir))
+      : [...(previous.logicalProviders || [])]);
+  return {
+    version: 1,
+    entries: entries.sort((a, b) => a.host.localeCompare(b.host)),
+    logicalEntries,
+    logicalProviders,
+  };
 }
 
-export function validateManifest(inventory, manifest) {
+/**
+ * Validate fields the committed ledger owns independently of the source scan.
+ * Build-owned inventory facts may use this ledger only after this passes.
+ */
+export function validateSourceAttributionLedger(manifest) {
   const errors = [];
-  const observedByHost = new Map(inventory.map((entry) => [entry.host, entry]));
-  const manifestEntries = manifest.entries || [];
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    return ['source-attribution manifest must be an object'];
+  }
+  if (!Array.isArray(manifest.entries)) {
+    errors.push('source-attribution manifest entries must be an array');
+  }
+  if (manifest.logicalEntries !== undefined && !Array.isArray(manifest.logicalEntries)) {
+    errors.push('source-attribution manifest logicalEntries must be an array');
+  }
+  if (manifest.logicalProviders !== undefined && !Array.isArray(manifest.logicalProviders)) {
+    errors.push('source-attribution manifest logicalProviders must be an array');
+  }
+  const manifestEntries = Array.isArray(manifest.entries) ? manifest.entries : [];
   const manifestByHost = new Map();
   for (const entry of manifestEntries) {
     const label = entry?.host || '(unknown host)';
@@ -1116,9 +1294,18 @@ export function validateManifest(inventory, manifest) {
     if (typeof entry.observed !== 'boolean') errors.push(`manifest entry ${label} observed must be boolean`);
     if (typeof entry.kind !== 'string' || !MANIFEST_KIND_RE.test(entry.kind)) errors.push(`invalid manifest kind for ${label}`);
     if (typeof entry.status !== 'string' || !MANIFEST_STATUSES.has(entry.status)) errors.push(`invalid manifest status for ${label}`);
+    if (entry.catalogActive !== undefined && typeof entry.catalogActive !== 'boolean') {
+      errors.push(`manifest entry ${label} catalogActive must be boolean when present`);
+    }
+    if (typeof entry.provider !== 'string' || !entry.provider.trim() || typeof entry.license !== 'string' || !entry.license.trim() || typeof entry.attribution !== 'string' || !entry.attribution.trim()) {
+      errors.push(`incomplete attribution metadata for ${label}`);
+    }
     const reviewedProvider = PROVIDER_OVERRIDES[entry.host]?.provider;
     if (typeof entry.provider === 'string' && entry.provider !== entry.host && entry.provider !== reviewedProvider) {
       errors.push(`custom provider identity for ${label} must be declared in PROVIDER_OVERRIDES`);
+    }
+    if (entry.role !== undefined && entry.role !== 'transport') {
+      errors.push(`manifest entry ${label} role must be "transport" when present`);
     }
     if (entry.references !== undefined && !Array.isArray(entry.references)) {
       errors.push(`manifest entry ${label} references must be an array`);
@@ -1138,7 +1325,80 @@ export function validateManifest(inventory, manifest) {
     }
     if (manifestByHost.has(entry.host)) errors.push(`duplicate manifest entry for ${entry.host}`);
     manifestByHost.set(entry.host, entry);
+    const override = PROVIDER_OVERRIDES[entry.host];
+    if (override) {
+      const { identityGroup, ...owned } = override;
+      if (entry.identityGroup !== undefined) {
+        errors.push(`manifest entry ${label} must not carry script-only identityGroup metadata`);
+      }
+      if (entry.observed === true) {
+        for (const [field, value] of Object.entries(owned)) {
+          if (!isDeepStrictEqual(entry[field], value)) {
+            errors.push(`manifest entry ${label} disagrees with script-owned ${field}`);
+          }
+        }
+      }
+    }
   }
+  const logicalEntries = Array.isArray(manifest.logicalEntries) ? manifest.logicalEntries : [];
+  for (const entry of logicalEntries) {
+    const label = entry?.provider || '(unknown provider)';
+    if (!entry || typeof entry !== 'object') {
+      errors.push(`logical attribution entry ${label} must be an object`);
+      continue;
+    }
+    if (typeof entry.host !== 'string' || !entry.host || /\s/.test(entry.host)) errors.push(`invalid logical attribution host ${label}`);
+    if (typeof entry.observed !== 'boolean') errors.push(`logical attribution entry ${label} observed must be boolean`);
+    if (typeof entry.kind !== 'string' || !LOGICAL_KIND_RE.test(entry.kind)) errors.push(`invalid logical attribution kind for ${label}`);
+    if (typeof entry.status !== 'string' || !MANIFEST_STATUSES.has(entry.status)) errors.push(`invalid logical attribution status for ${label}`);
+    if (typeof entry.provider !== 'string' || !entry.provider.trim() || typeof entry.license !== 'string' || !entry.license.trim() || typeof entry.attribution !== 'string' || !entry.attribution.trim()) {
+      errors.push(`incomplete logical attribution metadata for ${label}`);
+    }
+  }
+  const logicalProviders = Array.isArray(manifest.logicalProviders) ? manifest.logicalProviders : [];
+  const seenLogicalProviders = new Set();
+  for (const entry of logicalProviders) {
+    const label = entry?.provider || '(unknown logical provider)';
+    if (!entry || typeof entry !== 'object') {
+      errors.push(`logical provider ${label} must be an object`);
+      continue;
+    }
+    if (typeof entry.provider !== 'string' || !entry.provider.trim()) {
+      errors.push(`logical provider ${label} needs a provider identity`);
+    } else if (seenLogicalProviders.has(entry.provider)) {
+      errors.push(`duplicate logical provider ${entry.provider}`);
+    } else {
+      seenLogicalProviders.add(entry.provider);
+    }
+    if (!Array.isArray(entry.feedLabels) || entry.feedLabels.length === 0) {
+      errors.push(`logical provider ${label} needs feedLabels`);
+    }
+    if (!Array.isArray(entry.transportHosts) || entry.transportHosts.length === 0) {
+      errors.push(`logical provider ${label} needs transportHosts`);
+    }
+    if (!Array.isArray(entry.editorialHosts)) {
+      errors.push(`logical provider ${label} editorialHosts must be an array`);
+    }
+    if (entry.originCountry != null && (typeof entry.originCountry !== 'string' || !entry.originCountry.trim())) {
+      errors.push(`logical provider ${label} originCountry must be an ISO2 code or null`);
+    }
+    if (!Array.isArray(entry.coveredCountries)) {
+      errors.push(`logical provider ${label} coveredCountries must be an array`);
+    }
+  }
+  errors.push(...validateProviderIdentityGroups({ ...manifest, entries: manifestEntries }));
+  return errors;
+}
+
+export function validateManifest(inventory, manifest) {
+  const errors = validateSourceAttributionLedger(manifest);
+  const observedByHost = new Map(inventory.map((entry) => [entry.host, entry]));
+  const manifestEntries = Array.isArray(manifest?.entries) ? manifest.entries : [];
+  const manifestByHost = new Map(
+    manifestEntries
+      .filter((entry) => entry && typeof entry === 'object')
+      .map((entry) => [entry.host, entry]),
+  );
   for (const entry of inventory) {
     if (!Array.isArray(entry.references) || !Array.isArray(entry.kinds)) {
       // mergeEntry below reads both. Report the bad row instead of letting a
@@ -1170,9 +1430,7 @@ export function validateManifest(inventory, manifest) {
       : `stale manifest entry for ${entry.host}: ${stale.join(', ')} no longer match the source tree; ${REGENERATE_HINT}`);
   }
   for (const entry of manifestEntries) {
-    if (typeof entry.provider !== 'string' || !entry.provider.trim() || typeof entry.license !== 'string' || !entry.license.trim() || typeof entry.attribution !== 'string' || !entry.attribution.trim()) {
-      errors.push(`incomplete attribution metadata for ${entry.host || '(unknown host)'}`);
-    }
+    if (!entry || typeof entry !== 'object') continue;
     if (entry.observed && !observedByHost.has(entry.host)) {
       // Two very different causes, one of which --write resolves destructively:
       // the provider really was removed, or the scanner simply lost sight of a
@@ -1181,21 +1439,6 @@ export function validateManifest(inventory, manifest) {
       errors.push(`manifest marks ${entry.host} observed but scanner found no current reference — ${retirementRequiredMessage(entry.host)} or add it to DYNAMIC_HOSTS`);
     }
   }
-  for (const entry of manifest.logicalEntries || []) {
-    const label = entry?.provider || '(unknown provider)';
-    if (!entry || typeof entry !== 'object') {
-      errors.push(`logical attribution entry ${label} must be an object`);
-      continue;
-    }
-    if (typeof entry.host !== 'string' || !entry.host || /\s/.test(entry.host)) errors.push(`invalid logical attribution host ${label}`);
-    if (typeof entry.observed !== 'boolean') errors.push(`logical attribution entry ${label} observed must be boolean`);
-    if (typeof entry.kind !== 'string' || !LOGICAL_KIND_RE.test(entry.kind)) errors.push(`invalid logical attribution kind for ${label}`);
-    if (typeof entry.status !== 'string' || !MANIFEST_STATUSES.has(entry.status)) errors.push(`invalid logical attribution status for ${label}`);
-    if (typeof entry.provider !== 'string' || !entry.provider.trim() || typeof entry.license !== 'string' || !entry.license.trim() || typeof entry.attribution !== 'string' || !entry.attribution.trim()) {
-      errors.push(`incomplete logical attribution metadata for ${label}`);
-    }
-  }
-  errors.push(...validateProviderIdentityGroups(manifest));
   return errors;
 }
 
@@ -1299,7 +1542,7 @@ export function validateProviderIdentityGroups(
 }
 
 export function isActiveSourceAttributionEntry(entry) {
-  return entry?.observed === true && CREDIT_BEARING_STATUSES.has(entry.status);
+  return entry?.observed === true && entry.catalogActive !== false && CREDIT_BEARING_STATUSES.has(entry.status);
 }
 
 export function activeSourceAttributionEntries(manifest) {
@@ -1307,22 +1550,33 @@ export function activeSourceAttributionEntries(manifest) {
     .filter(isActiveSourceAttributionEntry);
 }
 
-export function sourceAttributionStats(inventory, manifest) {
-  const validationErrors = validateManifest(inventory, manifest);
+export function isSourceAttributionManifestError(error) {
+  return error instanceof Error && error.message.startsWith('source-attribution: invalid manifest');
+}
+
+/** Count the committed ledger without requiring scan-parity. */
+export function sourceAttributionLedgerStats(manifest, { observedHosts } = {}) {
+  const validationErrors = validateSourceAttributionLedger(manifest);
   if (validationErrors.length) throw new Error(`source-attribution: invalid manifest (${validationErrors.join('; ')})`);
   const active = activeSourceAttributionEntries(manifest);
-  const structured = active.filter((entry) => entry.kind.split('+').includes('structured'));
-  const feeds = active.filter((entry) => entry.kind.split('+').includes('feed'));
-  const status = active.filter((entry) => entry.kind.split('+').includes('operational-status'));
+  const structured = active.filter((entry) => String(entry.kind || '').split('+').includes('structured'));
+  const feeds = active.filter((entry) => String(entry.kind || '').split('+').includes('feed'));
+  const status = active.filter((entry) => String(entry.kind || '').split('+').includes('operational-status'));
   return {
     activeHosts: active.length,
     structuredHosts: structured.length,
     feedHosts: feeds.length,
     operationalStatusHosts: status.length,
-    providerCount: new Set(active.map((entry) => entry.provider)).size,
-    observedHosts: inventory.length,
+    providerCount: catalogProviderIdentities(manifest).size,
+    observedHosts: observedHosts ?? manifest.entries.filter((entry) => entry.observed === true).length,
     reviewNeeded: active.filter((entry) => entry.status === 'terms-review').length,
   };
+}
+
+export function sourceAttributionStats(inventory, manifest) {
+  const validationErrors = validateManifest(inventory, manifest);
+  if (validationErrors.length) throw new Error(`source-attribution: invalid manifest (${validationErrors.join('; ')})`);
+  return sourceAttributionLedgerStats(manifest, { observedHosts: inventory.length });
 }
 
 function markdownCell(value) {
@@ -1340,18 +1594,22 @@ export function renderAttributionSection(inventory, manifest) {
     const refs = references.length > REFERENCE_DISPLAY_LIMIT
       ? `${references.slice(0, REFERENCE_DISPLAY_LIMIT).map((reference) => reference.path).join(', ')}, +${references.length - REFERENCE_DISPLAY_LIMIT} more`
       : references.map((reference) => reference.path).join(', ');
-    const surface = entry.observed === false ? 'Excluded / candidate' : entry.kind;
+    const surface = entry.observed === false
+      ? 'Excluded / candidate'
+      : (isSyndicationTransportEntry(entry)
+        ? `${entry.kind} (syndication transport)`
+        : entry.kind);
     const sourceRef = refs || (entry.observed === false ? 'No current fetch observed' : 'Manifest-only review row');
-    return `| ${markdownCell(entry.provider)} (${markdownCell(entry.host)}) | ${markdownCell(surface)} — ${markdownCell(sourceRef)} | ${markdownCell(entry.license)} | ${markdownCell(entry.attribution)} | ${markdownCell(entry.status)} |`;
+    return `| ${markdownCell(entry.provider)} (${markdownCell(entry.host)}) | ${markdownCell(surface)} — ${markdownCell(sourceRef)} |`;
   });
   return [
     '## Observed Source Inventory',
     '',
     BEGIN_MARKER,
-    `This generated inventory covers **${stats.activeHosts} active source hosts** representing **${stats.providerCount} active providers** (**${stats.structuredHosts} structured/API**, **${stats.feedHosts} feed**, and **${stats.operationalStatusHosts} operational-status** hosts). It is derived from source declarations in \`scripts/\`, \`server/\`, \`api/\`, and \`src/\`; the manifest records a license posture and the credit required for every observed host. ${stats.reviewNeeded} entries remain marked \`terms-review\` and should be confirmed before a redistribution or commercial-use claim.`,
+    `This generated inventory covers **${stats.activeHosts} active source hosts** representing **${stats.providerCount} active providers** (**${stats.structuredHosts} structured/API**, **${stats.feedHosts} feed**, and **${stats.operationalStatusHosts} operational-status** hosts). It is derived from source declarations in \`scripts/\`, \`server/\`, \`api/\`, and \`src/\`. Each row shows the configured provider identity and where the source is referenced. Syndication transports such as FeedBurner and Google News remain listed as hosts and are not counted as publishers.`,
     '',
-    '| Provider | Observed surface | License posture | Required attribution or exclusion reason | Status |',
-    '| --- | --- | --- | --- | --- |',
+    '| Provider | Observed surface |',
+    '| --- | --- |',
     ...rows,
     END_MARKER,
   ].join('\n');
@@ -1385,10 +1643,10 @@ function updateDocs(rootDir, section) {
   writeFileSync(path, updated);
 }
 
-export function buildSourceAttributionStats({ rootDir = ROOT } = {}) {
-  const inventory = scanUpstreamHosts(rootDir);
+export function buildSourceAttributionStats({ rootDir = ROOT, validate = true } = {}) {
   const manifest = loadManifest(rootDir);
-  return sourceAttributionStats(inventory, manifest);
+  if (!validate) return sourceAttributionLedgerStats(manifest);
+  return sourceAttributionStats(scanUpstreamHosts(rootDir), manifest);
 }
 
 function printStats(stats, log = console.log) {
@@ -1415,11 +1673,18 @@ export function checkSourceAttribution(rootDir = ROOT) {
   const previous = loadManifest(rootDir);
   const errors = validateManifest(inventory, previous);
   if (errors.length) return { errors };
+  const declarations = scanNamedFeedDeclarations(rootDir);
+  const identityErrors = validateFeedBurnerPublisherIdentity(declarations);
+  if (identityErrors.length) return { errors: identityErrors };
   // Compare the committed manifest against a rebuild, not against itself. The
   // per-row validation above covers observed hosts; this catches the rest —
   // retired rows, logical entries, and formatting — so --check and --write can
   // no longer disagree about what the committed artifact should contain.
-  const rebuilt = serializeManifest(buildManifest(inventory, previous));
+  const rebuilt = serializeManifest(buildManifest(inventory, previous, {
+    rootDir,
+    declarations,
+    geography: loadSourceGeography(rootDir),
+  }));
   if (readFileSync(manifestPath, 'utf8') !== rebuilt) {
     return { errors: [`${MANIFEST_PATH} is out of date; ${REGENERATE_HINT}`] };
   }
@@ -1466,7 +1731,17 @@ export function runSourceAttribution({
     try {
       const inventory = scanUpstreamHosts(rootDir);
       const previous = loadManifest(rootDir);
-      const manifest = buildManifest(inventory, previous, { retireHosts });
+      const declarations = scanNamedFeedDeclarations(rootDir);
+      const identityErrors = validateFeedBurnerPublisherIdentity(declarations);
+      if (identityErrors.length) {
+        throw new Error(identityErrors.join('; '));
+      }
+      const manifest = buildManifest(inventory, previous, {
+        retireHosts,
+        rootDir,
+        declarations,
+        geography: loadSourceGeography(rootDir),
+      });
       // Render and count before writing anything. Both throw on a manifest row
       // that no longer validates, and a row retired by an earlier run is now kept
       // rather than dropped — so writing first would leave the manifest rewritten,

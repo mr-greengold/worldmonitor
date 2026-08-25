@@ -358,7 +358,8 @@
           "Priorytetowe odświeżanie danych"
         ],
         "highlightFeatures": [
-          "Licencja osobista"
+          "Licencja osobista",
+          "1 użytkownik"
         ]
       },
       "api": {
@@ -383,7 +384,11 @@
           "Wsparcie dedykowane",
           "Niestandardowe integracje",
           "Gwarancja SLA",
-          "Opcja on-premise"
+          "Opcja on-premise",
+          "Umowa przetwarzania danych (DPA)",
+          "Rozliczanie na podstawie zamówienia zakupu",
+          "SAML SSO, SCIM",
+          "Niestandardowe ustawienia bezpieczeństwa i prywatności"
         ],
         "cta": "Skontaktuj się z działem sprzedaży"
       },
@@ -412,7 +417,8 @@
           "Priorytetowe wsparcie"
         ],
         "highlightFeatures": [
-          "Licencja komercyjna w zestawie"
+          "Licencja komercyjna w zestawie",
+          "1 użytkownik — nie udostępniane logowanie"
         ]
       }
     },
@@ -423,7 +429,7 @@
     "axisPersonal": "Osobiste",
     "axisPersonalNote": "użytek indywidualny",
     "axisCommercial": "Komercyjne",
-    "axisCommercialNote": "praca, zespoły i produkty"
+    "axisCommercialNote": "praca, klienci i produkty"
   },
   "welcome": {
     "meta": {

@@ -211,6 +211,31 @@
       "soybeans": "Soybeans",
       "barley": "Barley",
       "palmOil": "Palm oil"
+    },
+    "demographicsCapability": {
+      "title": "Demographics & Workforce",
+      "help": "Age structure, education pipeline, and industrial workforce capacity from UN WPP, UNESCO UIS and World Bank WDI, and ILOSTAT.",
+      "loading": "Loading demographics and workforce data…",
+      "unavailable": "Demographics and workforce data unavailable.",
+      "proLocked": "Upgrade to PRO for demographics and workforce data",
+      "notAvailable": "Not available",
+      "ageStructure": "Age structure",
+      "education": "Education pipeline",
+      "industrialWorkforce": "Industrial workforce",
+      "medianAge": "Median age",
+      "oldAgeDependency": "Old-age dependency",
+      "totalDependency": "Total dependency",
+      "workingAgePopulation": "Working-age population",
+      "workingAgeProjection": "Working-age population (+10 years)",
+      "tertiaryEnrollment": "Tertiary enrollment",
+      "stemGraduates": "STEM graduates",
+      "researchers": "Researchers",
+      "craftTrades": "Craft and trades workers",
+      "plantOperators": "Plant and machine operators",
+      "trainedIndustrialWorkforce": "Combined industrial workforce",
+      "manufacturingShare": "Manufacturing employment",
+      "source": "Sources: {{sources}}.",
+      "retained": "{{stage}} data retained from the last successful refresh."
     }
   },
   "header": {
@@ -342,6 +367,7 @@
     "securityAdvisories": "Bezpečnostní varování",
     "orefSirens": "Sirény v Izraeli",
     "telegramIntel": "Telegram Intel",
+    "xIntel": "X News Accounts",
     "startups": "Startupy a VC",
     "vcblogs": "Postřehy z VC a eseje",
     "regionalStartups": "Globální startupové zprávy",
@@ -482,7 +508,7 @@
         "outages": "Přepnout výpadky internetu",
         "tradeRoutes": "Přepnout obchodní trasy",
         "canadaRoads": "Toggle Canada roads overlay",
-        "canadaAlerts": "Toggle Alberta Emergency Alert overlay"
+        "canadaAlerts": "Toggle Canada provincial emergency alerts overlay"
       },
       "view": {
         "dark": "Přepnout na tmavý režim",
@@ -1162,7 +1188,7 @@
         "ucdpEvents": "UCDP události",
         "displacementFlows": "Toky vysídlení",
         "climateAnomalies": "Klimatické anomálie",
-        "weatherAlerts": "Meteorologická varování pro USA a Kanadu (NWS, ECCC)",
+        "weatherAlerts": "Varování před nebezpečným počasím (NWS, ECCC, WMO SWIC)",
         "strategicWaterways": "Strategické vodní cesty",
         "economicCenters": "Ekonomická centra",
         "criticalMinerals": "Kritické minerály",
@@ -1184,7 +1210,7 @@
         "radiationSpike": "Skokový nárůst radiace",
         "radiationElevated": "Zvýšená radiace",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (Alberta Emergency Alert)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
       },
       "tooltip": {
         "earthquake": "Zemětřesení",
@@ -1245,7 +1271,7 @@
           "infraDatacenters": "Výpočetní clustery AI >=10 000 GPU",
           "infraOutages": "Výpadky internetu a narušení služeb",
           "naturalEventsTech": "Zemětřesení, bouře, požáry (mohou ovlivnit datová centra)",
-          "weatherAlerts": "Varování před extrémním počasím v USA a Kanadě (NWS, ECCC)",
+          "weatherAlerts": "Oficiální varování před nebezpečným počasím od národních meteorologických služeb (NWS, ECCC, WMO SWIC)",
           "economicCenters": "Burzy a centrální banky",
           "countriesOverlay": "Překryv názvů zemí",
           "financeExchanges": "Hlavní světové burzy podle úrovně trhu",
@@ -1257,7 +1283,7 @@
           "financeOutages": "Výpadky internetu, které mohou ovlivnit operace na trzích",
           "financeCyberThreats": "Bezpečnostní události kolem finanční infrastruktury",
           "macroWaterways": "Strategická úzká hrdla pro přepravu komodit",
-          "weatherAlertsMarket": "Události extrémního počasí v USA a Kanadě s tržním významem (NWS, ECCC)",
+          "weatherAlertsMarket": "Oficiální varování před nebezpečným počasím s významem pro trhy (NWS, ECCC, WMO SWIC)",
           "naturalEventsMacro": "Zemětřesení, požáry, záplavy a další přírodní narušení",
           "timeRecent": "Filtrovat data na základě času za poslední hodiny",
           "timeExtended": "Zobrazit data z minulého týdne, měsíce nebo za celou dobu",
@@ -1292,7 +1318,7 @@
           "geoBoundaries": "Demilitarizované zóny, linie příměří a sporné hranice",
           "ciiChoropleth": "Tepelná mapa Country Instability Index — zbarvuje země podle skóre CII (zelená=stabilní, červená=kritická)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Alberta Emergency Alert public warnings (Atom feed from www.alberta.ca)"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
         },
         "notes": {
           "timeAffects": "Ovlivňuje: Zemětřesení, Počasí, Protesty, Výpadky"
@@ -1657,7 +1683,9 @@
     "breakingNews": {
       "critical": "KRITICKÉ",
       "high": "VYSOKÉ",
-      "dismiss": "Zavřít"
+      "dismiss": "Zavřít",
+      "alertsRegion": "Breaking news alerts",
+      "viewPanel": "View related panel"
     },
     "intelligenceFindings": {
       "breakingAlerts": "Blesková upozornění",
@@ -1717,6 +1745,21 @@
       "viewSource": "Zobrazit zdroj",
       "filterGeopolitics": "Geopolitika",
       "filterCyber": "Kyber"
+    },
+    "xIntel": {
+      "infoTooltip": "Curated public news-account posts from X. Official API only.",
+      "loading": "Connecting to X news-account relay...",
+      "empty": "No posts available",
+      "disabled": "X news-account relay not active",
+      "filterAll": "All",
+      "filterBreaking": "Breaking",
+      "filterConflict": "Conflict",
+      "filterOsint": "OSINT",
+      "filterMiddleeast": "Middle East",
+      "live": "LIVE",
+      "viewSource": "View Source",
+      "filterGeopolitics": "Geopolitics",
+      "filterCyber": "Cyber"
     },
     "investments": {
       "infoTooltip": "Databáze přímých zahraničních investic Saúdské Arábie a SAE do globální kritické infrastruktury. Kliknutím na řádek přejdete k investici na mapě.",
@@ -1915,7 +1958,17 @@
       "topTargets": "Nejčastější cílové země"
     },
     "commodities": {
-      "infoTooltip": "<strong>Commodities</strong> Tradeable non-energy commodity tape focused on metals and materials. Energy prices live in Energy Complex; macro stress indicators live in Macro Stress."
+      "infoTooltip": "<strong>Commodities</strong> Tradeable non-energy commodity tape focused on metals and materials. Energy prices live in Energy Complex; macro stress indicators live in Macro Stress.",
+      "commodities": "Commodities",
+      "physicalPremiums": "Physical premium",
+      "physical": "Physical",
+      "paper": "Paper",
+      "premium": "Premium",
+      "asOf": "As of {{date}}",
+      "metals": {
+        "gold": "Gold",
+        "silver": "Silver"
+      }
     },
     "crypto": {
       "infoTooltip": "<strong>Crypto</strong> Live prices, 24h changes, and volume for major cryptocurrencies. Data sourced from CoinGecko."
@@ -2979,7 +3032,11 @@
       "heading": "SMĚR",
       "hexCode": "HEX KÓD",
       "squawk": "SQUAWK",
-      "attribution": "Zdroj: adsb.lol (ODbL) · OpenSky Network"
+      "attribution": "Zdroj: adsb.lol (ODbL) · OpenSky Network",
+      "climbRate": "RYCHLOST STOUPÁNÍ",
+      "manufacturer": "VÝROBCE",
+      "owner": "MAJITEL",
+      "builtYear": "ROK VÝROBY"
     },
     "militaryVessel": {
       "aisDark": "AIS VYP",
@@ -3024,7 +3081,8 @@
       "moreVessels": "+{{count}} dalších plavidel",
       "vesselsCount": "{{count}} PLAVIDEL",
       "vessels": "PLAVIDLA",
-      "trackedVessels": "SLEDOVANÁ PLAVIDLA"
+      "trackedVessels": "SLEDOVANÁ PLAVIDLA",
+      "showLess": "Zobrazit méně"
     },
     "naturalEvent": {
       "closed": "ZAVŘENO",
@@ -3298,7 +3356,8 @@
     "retry": "Zkusit znovu",
     "refresh": "Obnovit",
     "all": "Vše",
-    "cancel": "Zrušit"
+    "cancel": "Zrušit",
+    "dismiss": "Dismiss"
   },
   "preferences": {
     "display": "Zobrazení",
@@ -3320,7 +3379,9 @@
     "fontFamily": "Typ písma",
     "fontFamilyDesc": "Monospace pro technický vzhled, systémové výchozí pro snazší čtení.",
     "fontMono": "Monospace",
-    "fontSystem": "Systémové výchozí"
+    "fontSystem": "Systémové výchozí",
+    "panelFontScale": "Velikost textu",
+    "followGlobalFontScale": "Použít globální"
   },
   "contextMenu": {
     "openCountryBrief": "Otevřít přehled země",
@@ -3411,7 +3472,9 @@
       "orefSirens1": "Výstrahy na rakety a střely v Izraeli v reálném čase",
       "orefSirens2": "Mapování zón sirén s klasifikací hrozby",
       "telegramIntel1": "Kurátorované kanály Telegram OSINT",
-      "telegramIntel2": "Aktualizace konfliktů a geopolitických témat téměř v reálném čase"
+      "telegramIntel2": "Aktualizace konfliktů a geopolitických témat téměř v reálném čase",
+      "xIntel1": "Curated public news accounts on X",
+      "xIntel2": "API-fresh posts with official permalinks"
     }
   },
   "auth": {

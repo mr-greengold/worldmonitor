@@ -358,7 +358,8 @@
           "Öncelikli veri yenileme"
         ],
         "highlightFeatures": [
-          "Kişisel lisans"
+          "Kişisel lisans",
+          "1 adlandırılmış kullanıcı"
         ]
       },
       "api": {
@@ -383,7 +384,11 @@
           "Özel destek",
           "Özel entegrasyonlar",
           "SLA garantisi",
-          "Şirket içi seçenek"
+          "Şirket içi seçenek",
+          "Veri İşleme Anlaşması (DPA)",
+          "Satın Alma Siparişi Faturalandırması",
+          "SAML SSO, SCIM",
+          "Özel Güvenlik ve Gizlilik Ayarları"
         ],
         "cta": "Satışla İletişime Geçin"
       },
@@ -412,7 +417,8 @@
           "Öncelikli destek"
         ],
         "highlightFeatures": [
-          "Ticari lisans dahil"
+          "Ticari lisans dahil",
+          "1 adlandırılmış kullanıcı — paylaşılan oturum değil"
         ]
       }
     },
@@ -423,7 +429,7 @@
     "axisPersonal": "Kişisel",
     "axisPersonalNote": "bireysel kullanım",
     "axisCommercial": "Ticari",
-    "axisCommercialNote": "iş, takımlar ve ürünler"
+    "axisCommercialNote": "iş, müşteriler ve ürünler"
   },
   "welcome": {
     "meta": {

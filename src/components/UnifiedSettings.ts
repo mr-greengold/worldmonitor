@@ -53,6 +53,8 @@ import {
   type ApiPlanLimitNotice,
 } from '@/services/api-plan-limit-notices';
 import { setTrustedHtml, trustedHtml } from '@/utils/dom-utils';
+import { checkoutConsentHtml, legalLinksHtml, LEGAL_LINK_ATTR } from '@/utils/legal-links';
+import { createFocusTrap, type FocusTrap } from '@/utils/focus-trap';
 import {
   overlayHistory,
   type OverlayCloseOrigin,
@@ -110,8 +112,10 @@ type AccountRequest = { userId: string; generation: number };
 
 export class UnifiedSettings {
   private overlay: HTMLElement;
+  private focusTrap: FocusTrap;
   private config: UnifiedSettingsConfig;
   private activeTab: TabId = 'settings';
+  private legalLinkHandoffAttached = false;
   private activeSourceRegion = 'all';
   private sourceFilter = '';
   private activePanelCategory = 'all';
@@ -165,7 +169,9 @@ export class UnifiedSettings {
     this.overlay.className = 'modal-overlay';
     this.overlay.id = 'unifiedSettingsModal';
     this.overlay.setAttribute('role', 'dialog');
+    this.overlay.setAttribute('aria-modal', 'true');
     this.overlay.setAttribute('aria-label', t('header.settings'));
+    this.focusTrap = createFocusTrap(this.overlay);
     this.businessSeatsSection = new BusinessSeatsSection(this.overlay);
 
     this.resetPanelDraft();
@@ -521,6 +527,7 @@ export class UnifiedSettings {
     }
     this.render();
     this.overlay.classList.add('active');
+    this.focusTrap.activate();
     if (isMobileDevice()) {
       this.historyRegistered = true;
       const close = (origin: OverlayCloseOrigin) => this.close(origin);
@@ -628,6 +635,7 @@ export class UnifiedSettings {
     }
     this.historyRegistered = false;
     this.overlay.classList.remove('active');
+    this.focusTrap.deactivate();
     this.prefsCleanup?.();
     this.prefsCleanup = null;
     this.notifCleanup?.();
@@ -705,6 +713,9 @@ export class UnifiedSettings {
     this.unsubscribeAuth = null;
     this.stopMcpQuotaPolling();
     document.removeEventListener('keydown', this.escapeHandler);
+    // Teardown, not a user-initiated close: release the trap's document
+    // listener without handing focus back to a trigger that is also going away.
+    this.focusTrap.deactivate({ restoreFocus: false });
     this.overlay.remove();
   }
 
@@ -733,7 +744,7 @@ export class UnifiedSettings {
     this.notifCleanup = null;
     this.pendingNotifs = null;
 
-    const isSignedIn = !this.config.isDesktopApp && (getAuthState().user !== null);
+    const isSignedIn = getAuthState().user !== null;
     const prefs = renderPreferences({
       isDesktopApp: this.config.isDesktopApp,
       onMapProviderChange: this.config.onMapProviderChange,
@@ -833,6 +844,7 @@ export class UnifiedSettings {
           ${this.renderMcpClientsContent()}
         </div>
         ` : ''}
+        ${legalLinksHtml(WEB_APP_ORIGIN)}
       </div>
     `, "legacy direct innerHTML migration"));
 
@@ -855,6 +867,8 @@ export class UnifiedSettings {
       });
     }
 
+    this.attachLegalLinkHandoff();
+
     this.renderPanelCategoryPills();
     this.renderPanelsTab();
     this.renderRegionPills();
@@ -874,6 +888,28 @@ export class UnifiedSettings {
         this.startMcpQuotaPolling();
       }
     }
+  }
+
+  /**
+   * Desktop hands legal links to the OS browser (#5911 precedent). A plain
+   * `target="_blank"` anchor inside the Tauri WebView opens another WebView
+   * window with no chrome, which is how a user ends up stranded on the Terms
+   * with no way back. Delegated on the overlay so it covers the legal row AND
+   * every checkout-consent line rendered inside a tab panel, including the ones
+   * re-rendered after this handler is attached.
+   */
+  private attachLegalLinkHandoff(): void {
+    if (!this.config.isDesktopApp || this.legalLinkHandoffAttached) return;
+    // The overlay element outlives every re-render, so an unguarded attach
+    // would stack one listener per render and open N windows on one click.
+    this.legalLinkHandoffAttached = true;
+    this.overlay.addEventListener('click', (e) => {
+      const link = (e.target as HTMLElement | null)?.closest?.(`a[${LEGAL_LINK_ATTR}]`);
+      const href = link instanceof HTMLAnchorElement ? link.href : '';
+      if (!href) return;
+      e.preventDefault();
+      void openExternalUrl(href);
+    });
   }
 
   private switchTab(tab: TabId): void {
@@ -946,7 +982,7 @@ export class UnifiedSettings {
         <div class="upgrade-pro-section upgrade-pro-lapsed" data-billing-state="lapsed">
           <div class="upgrade-pro-title">${escapeHtml(t('components.billingState.resubscribe'))}: ${escapeHtml(planName)}</div>
           <div class="upgrade-pro-desc">${escapeHtml(t('components.billingState.lapsedDesc'))}</div>
-          <a class="upgrade-pro-cta-link" href="${getReactivationHref(sub?.planKey)}" target="_blank" rel="noopener">${escapeHtml(t('components.billingState.resubscribe'))} →</a>
+          <a class="upgrade-pro-cta-link" href="${WEB_APP_ORIGIN}${getReactivationHref(sub?.planKey)}" target="_blank" rel="noopener">${escapeHtml(t('components.billingState.resubscribe'))} →</a>
         </div>
       `;
     }
@@ -1033,7 +1069,7 @@ export class UnifiedSettings {
           <div class="upgrade-pro-title">Plan status unavailable</div>
           <div class="upgrade-pro-desc">We could not verify your current plan. Try again or view plans in a new tab.</div>
           <button class="manage-billing-btn retry-plan-status-btn" style="margin-bottom:8px;">Try again</button>
-          <a class="upgrade-pro-cta-link" href="/pro" target="_blank" rel="noopener">View plans →</a>
+          <a class="upgrade-pro-cta-link" href="${WEB_APP_ORIGIN}/pro" target="_blank" rel="noopener">View plans →</a>
         </div>
       `;
     }
@@ -1042,6 +1078,7 @@ export class UnifiedSettings {
       <div class="upgrade-pro-section" data-billing-state="free">
         <div class="upgrade-pro-title">WorldMonitor Free</div>
         <div class="upgrade-pro-desc">Your current plan is Free. Upgrade for all panels, AI analysis, and priority data refresh.</div>
+        ${checkoutConsentHtml(WEB_APP_ORIGIN)}
         <button class="upgrade-pro-cta">Upgrade to Pro</button>
       </div>
     `;
@@ -1508,6 +1545,7 @@ export class UnifiedSettings {
                 </div>
               </div>
               <div class="api-plan-limit-notice-actions">
+                ${notice.ctaKind === 'checkout' ? checkoutConsentHtml(WEB_APP_ORIGIN) : ''}
                 ${cta ? `<button class="btn btn-primary api-plan-limit-notice-cta" data-plan-limit-cta="${escapeHtml(notice._id)}">${escapeHtml(cta)}</button>` : ''}
                 <button class="btn btn-ghost api-plan-limit-notice-ack" data-plan-limit-ack="${escapeHtml(notice._id)}">Dismiss</button>
               </div>
@@ -1641,6 +1679,7 @@ export class UnifiedSettings {
         <div class="panel-locked-state">
           <div class="panel-locked-icon">${upgradeIcon}</div>
           <div class="panel-locked-desc">Create and manage API keys to access WorldMonitor data programmatically.</div>
+          ${checkoutConsentHtml(WEB_APP_ORIGIN)}
           <button class="panel-locked-cta api-keys-gate-btn">Upgrade to API Starter</button>
         </div>`;
     }

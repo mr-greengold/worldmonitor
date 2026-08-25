@@ -34,6 +34,14 @@ import {
 } from "./checkoutRateLimit";
 import { recordTerminalCheckoutRateLimit } from "./checkoutRateLimitAlarm";
 
+// MCP paid-funnel campaign marker (#6716). Imported, never re-declared: a
+// second copy of this normalisation is exactly the drift that produced the
+// display-vs-enforcement divergence documented in
+// docs/solutions/security-issues/mcp-quota-credential-class-vs-plan-family-scoping-bypass.md.
+// The Convex runtime imports from `shared/` elsewhere (convex/apiKeys.ts,
+// convex/companyMonitoring/*), so there is no module-boundary reason to fork it.
+import { normalizeCheckoutAttributionSource as normalizeAttributionSource } from "../../shared/mcp-attribution";
+
 const ACTIVE_SUBSCRIPTION_EXISTS = "ACTIVE_SUBSCRIPTION_EXISTS";
 const PAYMENT_IN_PROGRESS = "PAYMENT_IN_PROGRESS";
 
@@ -85,6 +93,8 @@ interface CheckoutArgs {
   returnUrl?: string;
   discountCode?: string;
   referralCode?: string;
+  /** MCP paid-funnel attribution (#6716). Parallel to referralCode. */
+  attributionSource?: string;
 }
 
 interface UserInfo {
@@ -233,6 +243,40 @@ async function _createCheckoutSession(
     returnUrl = parsedReturnUrl.toString();
   }
 
+  // Record Terms assent (#6976). Both checkout paths — the /pro pricing page
+  // and every dashboard CTA — funnel through here, so one call covers them all
+  // and no client can skip it: the buyer clicked a button that sits directly
+  // under "By subscribing you agree to the Terms of Service and Privacy Policy".
+  //
+  // Deliberately BEFORE the Dodo call. Assent is a fact about what the user was
+  // shown and clicked, not about whether the payment provider then answered.
+  //
+  // Skipped for an anonymous buyer: `users` is keyed by Clerk userId, and
+  // writing an anon UUID into it would create a row nothing can ever join. Their
+  // assent lands on the first authenticated session after they claim the
+  // subscription, via `users:ensureRecord`'s insert branch.
+  //
+  // Never allowed to fail the checkout: losing a paid conversion to an audit
+  // write is strictly worse than the missing row, which stays visible in logs.
+  if (!ANON_ID_V4_REGEX.test(user.userId)) {
+    try {
+      await ctx.runMutation(internal.users.recordTermsAcceptance, {
+        userId: user.userId,
+        email: user.email,
+      });
+    } catch (err) {
+      // sentry-coverage-ok: structured console.error is forwarded by Convex
+      // auto-Sentry, so on-call still sees a customer who bought without an
+      // assent record. Re-throwing is the wrong trade here — same reasoning as
+      // the pending-payment guard above: losing a paid conversion to an audit
+      // write is strictly worse than the missing row.
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[checkout] terms acceptance not recorded user=${user.userId}: ${msg}`,
+      );
+    }
+  }
+
   // Build metadata: HMAC-signed userId for the webhook identity bridge.
   const metadata: Record<string, string> = {};
   metadata.wm_user_id = user.userId;
@@ -282,6 +326,13 @@ async function _createCheckoutSession(
     // created on this conversion path. Mirror read in
     // `convex/payments/subscriptionHelpers.ts`.
     metadata.affonso_referral = args.referralCode;
+  }
+  const attributionSource = normalizeAttributionSource(args.attributionSource);
+  if (attributionSource) {
+    // Internal source tag for MCP paid-funnel conversions (#6716). Distinct
+    // from affonso_referral — never an affiliate code. Mirror read in
+    // subscriptionHelpers on first subscription.active.
+    metadata.wm_attribution = attributionSource;
   }
 
   try {
@@ -353,6 +404,7 @@ export const createCheckout = action({
     returnUrl: v.optional(v.string()),
     discountCode: v.optional(v.string()),
     referralCode: v.optional(v.string()),
+    attributionSource: v.optional(v.string()),
     // "Start a new checkout anyway" — skips ONLY the pending-payment guard
     // (#4438). The subscription guard still applies.
     bypassPendingGuard: v.optional(v.boolean()),
@@ -420,6 +472,7 @@ export const internalCreateCheckout = internalAction({
     returnUrl: v.optional(v.string()),
     discountCode: v.optional(v.string()),
     referralCode: v.optional(v.string()),
+    attributionSource: v.optional(v.string()),
     // See createCheckout — skips only the pending-payment guard (#4438).
     bypassPendingGuard: v.optional(v.boolean()),
   },
@@ -452,6 +505,7 @@ export const internalCreateCheckout = internalAction({
         returnUrl: args.returnUrl,
         discountCode: args.discountCode,
         referralCode: args.referralCode,
+        attributionSource: args.attributionSource,
       },
       {
         userId: args.userId,

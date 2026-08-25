@@ -142,9 +142,6 @@
     "china": {
       "title": "Picha ya Nchi ya China",
       "description": "Taarifa za sasa za uchumi mkuu, masoko, biashara, nishati na upatikanaji wa uendeshaji kutoka mikataba ya data ya umma iliyopo.",
-      "macroPolicy": "Macro & Policy",
-      "marketCredit": "Market & Credit",
-      "tradeSupply": "Trade & Supply Chain",
       "energy": "Nishati",
       "availability": "Hatari na Anga",
       "observed": "Kufikia:",
@@ -156,8 +153,6 @@
       "gasDemand": "Mahitaji ya gesi",
       "energyMix": "Mchanganyiko wa umeme",
       "coal": "Makaa ya mawe",
-      "aviationAvailability": "Aviation availability",
-      "hazardAvailability": "Hazard availability",
       "noMajorDisruptions": "Hakuna usumbufu mkubwa ulioripotiwa",
       "activeDisruptions_one": "{{count}} usumbufu unaoendelea",
       "activeDisruptions_other": "{{count}} usumbufu unaoendelea",
@@ -169,11 +164,6 @@
       "ccfiSource": "Soko la Kubadilishana la Usafirishaji la Shanghai",
       "comtradeSource": "Mtoa taarifa wa UN Comtrade 156",
       "sourceUnavailable": "Chanzo hakipatikani",
-      "macroUnavailable": "Macro and policy data are currently unavailable.",
-      "marketUnavailable": "Market and credit data are currently unavailable.",
-      "tradeUnavailable": "Trade and supply-chain data are currently unavailable.",
-      "energyUnavailable": "Energy data are currently unavailable.",
-      "availabilityUnavailable": "Hazard and aviation availability data are currently unavailable.",
       "status": {
         "loading": "Inapakia",
         "available": "Inapatikana",
@@ -286,6 +276,31 @@
       "soybeans": "Maharagwe ya soya",
       "barley": "Shayiri",
       "palmOil": "Mafuta ya mawese"
+    },
+    "demographicsCapability": {
+      "title": "Demographics & Workforce",
+      "help": "Age structure, education pipeline, and industrial workforce capacity from UN WPP, UNESCO UIS and World Bank WDI, and ILOSTAT.",
+      "loading": "Loading demographics and workforce data…",
+      "unavailable": "Demographics and workforce data unavailable.",
+      "proLocked": "Upgrade to PRO for demographics and workforce data",
+      "notAvailable": "Not available",
+      "ageStructure": "Age structure",
+      "education": "Education pipeline",
+      "industrialWorkforce": "Industrial workforce",
+      "medianAge": "Median age",
+      "oldAgeDependency": "Old-age dependency",
+      "totalDependency": "Total dependency",
+      "workingAgePopulation": "Working-age population",
+      "workingAgeProjection": "Working-age population (+10 years)",
+      "tertiaryEnrollment": "Tertiary enrollment",
+      "stemGraduates": "STEM graduates",
+      "researchers": "Researchers",
+      "craftTrades": "Craft and trades workers",
+      "plantOperators": "Plant and machine operators",
+      "trainedIndustrialWorkforce": "Combined industrial workforce",
+      "manufacturingShare": "Manufacturing employment",
+      "source": "Sources: {{sources}}.",
+      "retained": "{{stage}} data retained from the last successful refresh."
     }
   },
   "header": {
@@ -423,6 +438,7 @@
     "securityAdvisories": "Ushauri wa Usalama",
     "orefSirens": "Israel Sirens",
     "telegramIntel": "Telegraph ya Intel",
+    "xIntel": "X News Accounts",
     "startups": "Anza na VC",
     "vcblogs": "Maarifa na Insha za VC",
     "regionalStartups": "Habari za Kuanzishwa Ulimwenguni",
@@ -557,7 +573,7 @@
         "outages": "Geuza kukatika kwa mtandao",
         "tradeRoutes": "Geuza njia za biashara",
         "canadaRoads": "Toggle Canada roads overlay",
-        "canadaAlerts": "Toggle Alberta Emergency Alert overlay"
+        "canadaAlerts": "Toggle Canada provincial emergency alerts overlay"
       },
       "view": {
         "dark": "Badili hadi hali ya giza",
@@ -1323,7 +1339,7 @@
         "ucdpEvents": "Matukio ya Migogoro ya Silaha",
         "displacementFlows": "Mitiririko ya Uhamisho",
         "climateAnomalies": "Matatizo ya Hali ya Hewa",
-        "weatherAlerts": "Tahadhari za Hali ya Hewa za Marekani na Kanada (NWS, ECCC)",
+        "weatherAlerts": "Tahadhari za hali mbaya ya hewa (NWS, ECCC, WMO SWIC)",
         "strategicWaterways": "Chokepoints",
         "economicCenters": "Vituo vya Uchumi",
         "criticalMinerals": "Madini Muhimu",
@@ -1343,7 +1359,7 @@
         "speciesRecovery": "Urejeshaji wa Aina",
         "renewableInstallations": "Nishati Safi",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (Alberta Emergency Alert)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
       },
       "tooltip": {
         "earthquake": "Tetemeko la ardhi",
@@ -1404,7 +1420,7 @@
           "infraDatacenters": "AI inakokotoa makundi >=10,000 GPU",
           "infraOutages": "Kukatika kwa mtandao na kukatizwa kwa huduma",
           "naturalEventsTech": "Matetemeko ya ardhi, dhoruba, moto (huenda ikaathiri vituo vya data)",
-          "weatherAlerts": "Tahadhari za hali ya hewa kali nchini Marekani na Kanada (NWS, ECCC)",
+          "weatherAlerts": "Tahadhari rasmi za hali mbaya ya hewa kutoka huduma za kitaifa za hali ya hewa (NWS, ECCC, WMO SWIC)",
           "economicCenters": "Soko la hisa na benki kuu",
           "countriesOverlay": "Viwekelezo vya majina ya nchi",
           "financeExchanges": "Mabadilishano makuu ya kimataifa kulingana na kiwango cha soko",
@@ -1416,7 +1432,7 @@
           "financeOutages": "Ukatizi wa mtandao ambao unaweza kuathiri shughuli za soko",
           "financeCyberThreats": "Matukio ya usalama karibu na miundombinu ya kifedha",
           "macroWaterways": "Vituo vya kimkakati vya kusafirisha bidhaa",
-          "weatherAlertsMarket": "Matukio ya hali ya hewa kali nchini Marekani na Kanada yenye umuhimu wa soko (NWS, ECCC)",
+          "weatherAlertsMarket": "Tahadhari rasmi za hali mbaya ya hewa zenye umuhimu kwa masoko (NWS, ECCC, WMO SWIC)",
           "naturalEventsMacro": "Matetemeko ya ardhi, moto, mafuriko, na usumbufu mwingine wa asili",
           "timeRecent": "Chuja data kulingana na saa hadi saa za hivi majuzi",
           "timeExtended": "Onyesha data kutoka wiki iliyopita, mwezi au wakati wote",
@@ -1451,7 +1467,7 @@
           "geoBoundaries": "Maeneo yasiyoruhusiwa kijeshi, njia za kusitisha mapigano, na mipaka yenye mizozo",
           "ciiChoropleth": "Ramani ya joto ya Fahirisi ya Nchi Kutoimarika - rangi nchi kwa alama za CII (kijani=imara, nyekundu=muhimu)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Alberta Emergency Alert public warnings (Atom feed from www.alberta.ca)"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
         },
         "notes": {
           "timeAffects": "Athari: Matetemeko ya Ardhi, Hali ya Hewa, Maandamano, Kukatika"
@@ -1826,7 +1842,9 @@
     "breakingNews": {
       "critical": "MUHIMU",
       "high": "JUU",
-      "dismiss": "Ondoa"
+      "dismiss": "Ondoa",
+      "alertsRegion": "Breaking news alerts",
+      "viewPanel": "View related panel"
     },
     "intelligenceFindings": {
       "breakingAlerts": "Tahadhari za Kuvunja",
@@ -1885,6 +1903,21 @@
       "live": "LIVE",
       "viewSource": "Tazama Chanzo",
       "filterGeopolitics": "Siasa za kijiografia",
+      "filterCyber": "Cyber"
+    },
+    "xIntel": {
+      "infoTooltip": "Curated public news-account posts from X. Official API only.",
+      "loading": "Connecting to X news-account relay...",
+      "empty": "No posts available",
+      "disabled": "X news-account relay not active",
+      "filterAll": "All",
+      "filterBreaking": "Breaking",
+      "filterConflict": "Conflict",
+      "filterOsint": "OSINT",
+      "filterMiddleeast": "Middle East",
+      "live": "LIVE",
+      "viewSource": "View Source",
+      "filterGeopolitics": "Geopolitics",
       "filterCyber": "Cyber"
     },
     "investments": {
@@ -1999,7 +2032,17 @@
       "infoTooltip": "<strong>Ramani ya joto ya Sekta</strong> Utendaji wa sekta ya S&P 500 kwa muhtasari. Ukali wa rangi huonyesha ukubwa wa mabadiliko ya kila siku. Kijani = faida, Nyekundu = hasara."
     },
     "commodities": {
-      "infoTooltip": "<strong>Bidhaa</strong> Tepu ya bidhaa isiyo ya nishati inayoweza kuuzwa inayolenga metali na nyenzo. Bei za nishati zinaishi katika Nishati Complex; viashiria vya mkazo mkubwa huishi katika Stress ya Macro."
+      "infoTooltip": "<strong>Bidhaa</strong> Tepu ya bidhaa isiyo ya nishati inayoweza kuuzwa inayolenga metali na nyenzo. Bei za nishati zinaishi katika Nishati Complex; viashiria vya mkazo mkubwa huishi katika Stress ya Macro.",
+      "commodities": "Commodities",
+      "physicalPremiums": "Physical premium",
+      "physical": "Physical",
+      "paper": "Paper",
+      "premium": "Premium",
+      "asOf": "As of {{date}}",
+      "metals": {
+        "gold": "Gold",
+        "silver": "Silver"
+      }
     },
     "crypto": {
       "infoTooltip": "<strong>Crypto</strong> Bei za moja kwa moja, mabadiliko ya saa 24, na sauti ya sarafu kuu za cryptocurrency. Data imechukuliwa kutoka CoinGecko."
@@ -3030,7 +3073,11 @@
       "heading": "KICHWA",
       "hexCode": "MSIMBO WA HEX",
       "squawk": "SQUAWK",
-      "attribution": "Chanzo: Mtandao wa OpenSky"
+      "attribution": "Chanzo: Mtandao wa OpenSky",
+      "climbRate": "KASI YA KUPAA",
+      "manufacturer": "MTENGENEZAJI",
+      "owner": "MMILIKI",
+      "builtYear": "MWAKA WA UJENZI"
     },
     "militaryVessel": {
       "aisDark": "AIS GIZA",
@@ -3075,7 +3122,8 @@
       "moreVessels": "+{{count}} vyombo zaidi",
       "vesselsCount": "{{count}} VYOMBO",
       "vessels": "VYOMBO",
-      "trackedVessels": "VYOMBO VILIVYOFUATILIWA"
+      "trackedVessels": "VYOMBO VILIVYOFUATILIWA",
+      "showLess": "Onyesha kidogo"
     },
     "naturalEvent": {
       "closed": "IMEFUNGWA",
@@ -3341,7 +3389,8 @@
     "currentVariant": "(ya sasa)",
     "retry": "Jaribu tena",
     "refresh": "Onyesha upya",
-    "all": "Wote"
+    "all": "Wote",
+    "dismiss": "Dismiss"
   },
   "connectivity": {
     "offlineCached": "Nje ya mtandao — inaonyesha data iliyohifadhiwa kutoka kwa {{freshness}}.",
@@ -3368,7 +3417,9 @@
     "fontFamily": "Familia ya Fonti",
     "fontFamilyDesc": "Nafasi moja kwa mwonekano wa kiufundi, chaguomsingi ya mfumo kwa usomaji rahisi.",
     "fontMono": "Nafasi moja",
-    "fontSystem": "Chaguomsingi ya Mfumo"
+    "fontSystem": "Chaguomsingi ya Mfumo",
+    "panelFontScale": "Ukubwa wa maandishi",
+    "followGlobalFontScale": "Tumia kiwango cha ulimwengu"
   },
   "premium": {
     "pro": "PRO",
@@ -3381,7 +3432,9 @@
       "orefSirens1": "Arifa za wakati halisi za kombora na roketi za Israeli",
       "orefSirens2": "Ramani ya eneo la king'ora na uainishaji wa vitisho",
       "telegramIntel1": "Vituo vya Telegramu vilivyoratibiwa vya OSINT",
-      "telegramIntel2": "Mizozo ya wakati halisi na masasisho ya kijiografia na kisiasa"
+      "telegramIntel2": "Mizozo ya wakati halisi na masasisho ya kijiografia na kisiasa",
+      "xIntel1": "Curated public news accounts on X",
+      "xIntel2": "API-fresh posts with official permalinks"
     }
   },
   "contextMenu": {
