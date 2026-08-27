@@ -9,6 +9,8 @@ WebMCP lets a browser agent discover and invoke tools exposed by the WorldMonito
 WebMCP is an experimental proposed web standard available through a Chrome 149 origin trial. Its API and browser behavior can change. WorldMonitor supports it only in a visible, human-in-the-loop browser tab.
 
 **WebMCP does not replace the [hosted WorldMonitor MCP server](/mcp-overview).** Use the hosted server for persistent, remote, background, or headless agents and for direct access to WorldMonitor data.
+
+**To test with ChatGPT, use ChatGPT Atlas Agent mode while the WorldMonitor page is open in that Atlas tab.** WebMCP is a browser-agent integration; it is not activated by asking a normal chat on chatgpt.com or in the ChatGPT iOS/Android app to visit a URL. Those clients do not own the page's `document.modelContext`, which is why they report that no callable WebMCP capability is exposed. See [OpenAI's WebMCP guide](https://learn.chatgpt.com/docs/webmcp).
 </Warning>
 
 ## Choose the right surface
@@ -25,22 +27,25 @@ WebMCP is not an MCP transport, MCP Apps extension, discovery server, or embeddi
 
 ### Production origin trial
 
-WorldMonitor enrolls the top-level `/`, `/dashboard`, and `/dashboard.html` routes on these exact production origins:
+WorldMonitor enrolls `/`, `/dashboard`, and `/dashboard.html` on the canonical production origin:
 
 - `https://www.worldmonitor.app`
+
+It enrolls `/dashboard` and `/dashboard.html` on these specialized production origins:
+
 - `https://tech.worldmonitor.app`
 - `https://finance.worldmonitor.app`
 - `https://commodity.worldmonitor.app`
 - `https://happy.worldmonitor.app`
 - `https://energy.worldmonitor.app`
 
-The root route on a specialized origin leads to that origin's dashboard. `/?mode=agent` is a separate machine-readable JSON surface and is not a WebMCP route. Preview deployments and documentation routes are not enrolled.
+The root route on a specialized origin returns a permanent redirect to that origin's enrolled `/dashboard`; the redirect response is not itself a WebMCP document. `/?mode=agent` is a separate machine-readable JSON surface and is not a WebMCP route. Preview deployments and documentation routes are not enrolled.
 
 Origin-trial tokens are time-limited. Release checks must verify the deployed response header rather than assume that a token committed earlier is still accepted.
 
 ### Local development
 
-Use Chrome 149 or newer:
+For discovery and read-only dashboard tools, use Chrome 149 or newer:
 
 1. Open `chrome://flags/#enable-webmcp-testing`.
 2. Set **WebMCP for testing** to **Enabled**.
@@ -53,6 +58,27 @@ Boolean(document.modelContext?.registerTool)
 ```
 
 The local flag replaces origin-trial enrollment for development. WorldMonitor still sends the origin-isolation and permissions-policy headers needed by the API.
+
+### ChatGPT Atlas
+
+Follow OpenAI's [WebMCP testing flow](https://learn.chatgpt.com/docs/webmcp), not the hosted-MCP custom-app flow:
+
+1. Open `https://www.worldmonitor.app/` in ChatGPT Atlas. Use `/dashboard` when testing the dashboard tool inventory.
+2. Start **Agent mode in that same tab** so the agent shares the document that registered the tools.
+3. Ask Atlas to use the page's WorldMonitor tools. The homepage exposes `launchWorldMonitor` and `getWorldMonitorMcpEndpoint`; `/dashboard` exposes the dashboard inventory below.
+4. If Atlas sees no tools, reload the page after Agent mode/WebMCP is available and verify the exact page in DevTools with `Boolean(document.modelContext?.registerTool)`.
+
+The ChatGPT mobile app screenshot flow is not a WebMCP test: it starts a standalone conversation with no WorldMonitor document attached. Registering `https://worldmonitor.app/mcp` as a ChatGPT custom app tests the separate hosted MCP transport, not these tab-bound tools.
+
+<Warning>
+On the origin-trial build, do not touch `document.modelContext` **at all** until the page has finished registering its tools. Any access taken before then — a bare property read, not just a `getTools()` call — wedges the page's registration itself: the tools never appear, and every later `getTools()` stays pending forever. A `getTools()` that resolves with an empty inventory is a symptom of that, not the cause. `executeTool()` is unaffected, and a tool descriptor obtained before the wedge stays usable. This is a browser-side behavior, reproducible on Chrome 151.0.7922.174 against an origin-trial-enrolled page and absent when the same page is enabled through `chrome://flags/#enable-webmcp-testing`. An agent attaching at page load should wait for the document to finish loading before its first access, and should not poll.
+</Warning>
+
+Chrome 149–151 exposes `registerTool()` but invokes the registered callback with the input alone, not the documented `execute(input, { signal })` shape. Aborting the signal you pass to `executeTool()` rejects *your* promise with an `AbortError`, but the browser cannot tell the page, so work already running there continues and its effect still lands. An operation you cancelled can therefore still complete.
+
+WorldMonitor still runs read-only tools and reversible dashboard view changes on these versions. `openSearch`, `open_dashboard_panel`, and `set_map_view` work normally. `set_map_view` writes the address bar through `history.replaceState`, producing the same share URL the page's link-copy control produces and that the dashboard restores on reload; that write is visible in the address bar and is overwritten by the next human map move.
+
+`openCountryBrief`, `set_map_layers`, and `open_search_result` stay gated and reject as unavailable. `openCountryBrief` can start server-side LLM generation (`premiumFetch` → `/api/intelligence/v1/get-country-intel-brief` → `callLlm`) that consumes the caller's daily allowance even if the browser later cancels the caller-side promise. The two layer tools persist the map-layer selection to browser storage, and enabling the AIS layer also opens a network stream. These effects can outlive cancellation, so the tools become available only on a browser that supplies the target-side signal.
 
 <Note>
 Browsers without the current API, including the Tauri desktop webview when it does not expose WebMCP, safely do nothing. WorldMonitor does not install a browser polyfill and does not fall back to an older draft API.
@@ -74,6 +100,8 @@ The static `https://www.worldmonitor.app/` welcome page registers two imperative
 ### Dashboard imperative tools
 
 Every dashboard variant registers the same eight imperative tools. Registration is stable across sign-in and entitlement changes; each invocation rechecks the live state.
+
+On a browser that omits the target-side invocation signal, the reversible view-state tools still run: because such a browser cannot cancel them, an invocation you abort still completes and its visible dashboard change still lands. `openCountryBrief`, `set_map_layers`, and `open_search_result` reject as unavailable there instead. The country tool can consume daily LLM allowance after caller cancellation, while the layer tools persist selection beyond the session. See [Availability](#availability).
 
 | Tool | Input schema | Visible result |
 |---|---|---|
@@ -167,6 +195,10 @@ try {
 }
 ```
 
+This cooperative target-side cancellation proof requires the browser to pass the invocation signal to the registered callback. On a one-argument callback implementation — every Chrome released so far — your `AbortError` branch still runs, but it proves only that *your* call was abandoned. The page never learns of the abort, so its work continues and its visible effect still lands. Whether you observe the `AbortError` or the tool's normal result depends on whether the page callback happened to finish first. Treat cancellation as caller-side only on those builds.
+
+Cancellation stops work that has not reached its synchronous UI commit point. It does not roll back a viewport transition that was already issued before the signal arrived. On a browser that delivers the target-side `AbortSignal` to the registered callback, WorldMonitor checks that signal again before its later URL synchronization and success telemetry, so cancellation there cannot overwrite newer human input. Every shipped Chrome build through 151 omits that signal, so this suppression does not run for real users today; on those builds, treat cancellation as caller-side only, per the previous section.
+
 For a visual workflow, install Chrome's official [Model Context Tool Inspector](https://chromewebstore.google.com/detail/model-context-tool-inspec/gbpdfapgefenggkahomfgkhfehlcenpd). Use it to confirm discovery, descriptions, schemas, valid and invalid arguments, outputs, errors, cancellation, and the corresponding visible UI change. [Chrome DevTools 149](https://developer.chrome.com/blog/new-in-devtools-149) also has an experimental WebMCP Application-panel inspector; that separate experiment requires both `chrome://flags/#enable-webmcp-testing` and `chrome://flags/#devtools-webmcp-support`.
 
 <Warning>
@@ -194,7 +226,7 @@ These commands resolve and print the exact commit, then fail if the worktree has
 
 ### Production, same SHA
 
-First verify in the deployment control plane that the target URL is serving the intended SHA. The runner records `WM_WEBMCP_DEPLOYED_SHA` in its evidence but cannot independently derive or prove the URL-to-SHA mapping.
+First verify in the deployment control plane that the target URL is serving the intended SHA. The runner also fetches `/build-hash.txt` from every enrolled dashboard origin and fails if any served build does not match `WM_WEBMCP_DEPLOYED_SHA`.
 
 Run the opt-in headed production suite without the local testing flag so it exercises the real origin trial:
 
@@ -204,7 +236,7 @@ WM_WEBMCP_DEPLOYED_SHA='<40-character-git-sha>' \
 npm run test:e2e:webmcp:production
 ```
 
-The suite asserts the `Origin-Trial`, `Origin-Agent-Cluster`, and `Permissions-Policy` headers; the inventory and schemas; a free context call; a denied unavailable-panel call; and cancellation, then writes JSON evidence artifacts. Preserve those artifacts with the release evidence. Its guard intentionally accepts only the canonical `https://www.worldmonitor.app` target. On other enrolled origins, verify headers and use `getTools()` or the Inspector to check inventory and behavior manually unless a separate smoke target has been reviewed and added.
+The suite asserts the served build SHA; the `Origin-Trial`, `Origin-Agent-Cluster`, and `Permissions-Policy` headers; the inventory and schemas; an invocation started immediately after discovery and completed after UI readiness; caller-side cancellation and the phantom-completion invariant — the page's work completes and its visible effect lands even when the caller's own call sees `AbortError` — for the tested browser; the cancellation-required denial for `openCountryBrief`, `set_map_layers`, and `open_search_result`; all six enrolled dashboard inventories; specialized-root redirects; and a cross-origin embed denial. On a target-signal-capable browser it also proves the denied unavailable-panel path. The local strict suite separately proves a visible mutation without changing production state. The production suite writes durable `webmcp-smoke.json`, `webmcp-cancellation.json`, and `webmcp-production-matrix.json` files below `test-results/`; preserve those files with the release evidence. Its guard intentionally accepts only the canonical `https://www.worldmonitor.app` base target, while the reviewed matrix uses fixed absolute URLs for the other enrolled origins.
 
 Also verify `/embed` and `/embed.html` return `tools=()`, and that `/?mode=agent`, preview deployments, docs, and embed pages do not gain the top-level inventory. Treat the deployment control-plane SHA check, headers, inventory, UI behavior, and terminal outcomes as separate assertions; a successful deploy or registration log alone is not acceptance.
 
@@ -234,3 +266,4 @@ Report WorldMonitor inventory, UI, permission, or entitlement problems through [
 - [Evaluation guidance](https://developer.chrome.com/docs/ai/webmcp/evals)
 - [Chrome 149 origin-trial announcement](https://developer.chrome.com/blog/ai-webmcp-origin-trial)
 - [Chrome DevTools 149 WebMCP inspector](https://developer.chrome.com/blog/new-in-devtools-149)
+- [OpenAI: WebMCP in ChatGPT Atlas](https://learn.chatgpt.com/docs/webmcp)
