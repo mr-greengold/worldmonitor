@@ -21,14 +21,14 @@
       "type": "skill-md",
       "description": "Retrieve live disruption status for the 13 monitored maritime chokepoints (Suez, Hormuz, Malacca, Bab el-Mandeb, Panama, and more). Use when the user asks whether a strait or canal is disrupted, congested, or safe for shipping right now.",
       "url": "https://worldmonitor.app/.well-known/agent-skills/check-chokepoint-status/SKILL.md",
-      "digest": "sha256:391be720d0b8d036df44bc6b73f5a66c6f8160aeb2cd4b59de250349f49de74a"
+      "digest": "sha256:7e03c4087a0978e65cbeda24aaeff9b45e2b66eca6c9ef57119b5b7296010938"
     },
     {
       "name": "check-country-risk",
       "type": "skill-md",
       "description": "Retrieve composite country risk intelligence — Country Instability Index (CII), travel advisory level, and active sanctions exposure — for one country by ISO code. Use when the user asks how risky or unstable a country is right now.",
       "url": "https://worldmonitor.app/.well-known/agent-skills/check-country-risk/SKILL.md",
-      "digest": "sha256:9dc6275c69a37e633c161477041b695d12eb8b2c2c79e91476c6999112f45642"
+      "digest": "sha256:b75c3518f110c60b9ca7166f883a3cfb741e0f019693b2597f192881dd760acd"
     },
     {
       "name": "check-forecast-signals",

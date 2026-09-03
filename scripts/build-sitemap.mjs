@@ -77,6 +77,8 @@ export const STATIC_ROUTE_MANIFEST = Object.freeze([
   route(`${SITE_ORIGIN}/mcp-server.md`, 'machine-readable-developer', ['public/mcp-server.md']),
   route(`${SITE_ORIGIN}/openapi.md`, 'machine-readable-developer', ['public/openapi.md']),
   route(`${SITE_ORIGIN}/sdks.md`, 'machine-readable-developer', ['public/sdks.md']),
+  route(`${SITE_ORIGIN}/world-monitor.md`, 'machine-readable-brand', ['public/world-monitor.md']),
+  route(`${SITE_ORIGIN}/api-versioning.md`, 'machine-readable-developer', ['public/api-versioning.md']),
   route(`${SITE_ORIGIN}/llms.txt`, 'machine-readable-developer', ['public/llms.txt']),
   route(`${SITE_ORIGIN}/llms-full.txt`, 'machine-readable-developer', ['public/llms-full.txt']),
   route(`${SITE_ORIGIN}/api/llms.txt`, 'machine-readable-developer', ['public/api/llms.txt']),
@@ -286,7 +288,6 @@ export function buildSitemapEntries({
   requireCompleteCorpus = true,
   today = TODAY,
 } = {}) {
-  const existingLastmods = parseExistingSitemapLastmods(existingSitemapSource);
   const entries = STATIC_ROUTE_MANIFEST.map((manifestEntry) => {
     assertMaterialSourcesExist(repoRoot, manifestEntry);
     return {
@@ -299,6 +300,13 @@ export function buildSitemapEntries({
 
   const corpusPages = discoverContentCorpusPages({ publicDir });
   if (requireCompleteCorpus) {
+    const corpusPathnames = new Set(corpusPages.map((page) => new URL(page.loc).pathname));
+    if (!corpusPathnames.has('/country-instability-index/')) {
+      throw new Error(
+        'generated content corpus is incomplete: no /country-instability-index/ page; '
+        + 'run npm run build:crawlable-corpus before npm run build:sitemap',
+      );
+    }
     for (const prefix of ['/countries/', '/chokepoints/', '/crises/', '/tools/', '/research/', '/reference/']) {
       if (!corpusPages.some((page) => new URL(page.loc).pathname.startsWith(prefix))) {
         throw new Error(
@@ -312,7 +320,7 @@ export function buildSitemapEntries({
   for (const page of corpusPages) {
     entries.push({
       loc: page.loc,
-      lastmod: laterDate(page.lastmod, existingLastmods.get(page.loc)),
+      lastmod: page.lastmod,
       family: 'content-corpus',
       owner: 'root',
     });

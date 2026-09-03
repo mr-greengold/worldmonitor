@@ -27,6 +27,7 @@ import {
   companyMonitoringXDemotionReasonValidator,
   companyMonitoringXStorageStateValidator,
 } from "./companyMonitoring/validators";
+import { SHARED_API_BUDGET } from "./config/productCatalog";
 
 // Subscription status enum — maps Dodo statuses to our internal set
 const subscriptionStatus = v.union(
@@ -693,7 +694,14 @@ export default defineSchema({
     // post-cancel window and outside it once access actually ends — never
     // winback-eligible (review round 2, finding 3). The winback email says
     // "your access ended ~a month ago", so access end is the right clock.
-    .index("by_status_currentPeriodEnd", ["status", "currentPeriodEnd"]),
+    .index("by_status_currentPeriodEnd", ["status", "currentPeriodEnd"])
+    // Cancellation-confirm retry (#7314, PR #7328): still-covering cancelled
+    // rows can sit in by_status_currentPeriodEnd for a full annual period.
+    // Keying this index on cancelledAt lets the daily scan range-read only
+    // the three-day retry cohort instead of every paid-through cancellation.
+    // Rows without cancelledAt are omitted (optional field) — the scan
+    // already skips those as having no stable episode key.
+    .index("by_status_cancelledAt", ["status", "cancelledAt"]),
 
   // What happened in a Pro-activation session, one row per subscription per
   // cohort (see `cohort` below).
@@ -770,6 +778,11 @@ export default defineSchema({
       v.literal("dunning_day3"),
       v.literal("dunning_day7"),
       v.literal("winback_day30"),
+      // Paid-through cancellation confirmation (#7314). Shares this ledger
+      // with winback because both are keyed on the same cancellation episode
+      // (`subscriptions.cancelledAt`) — distinct `step` values keep their
+      // one-shot guarantees independent under `by_sub_step_episode`.
+      v.literal("cancellation_confirm"),
     ),
     episodeAt: v.number(),
     email: v.string(),
@@ -787,7 +800,12 @@ export default defineSchema({
       planLimits: v.optional(v.object({
         apiRequestsPerDay: v.union(v.number(), v.null()),
         apiBurstRequestsPerMinute: v.union(v.number(), v.null()),
-        mcpCallsPerDay: v.union(v.number(), v.null()),
+        // `SHARED_API_BUDGET` = the plan has no MCP allowance of its own; its
+        // MCP calls charge `apiRequestsPerDay`. Imported rather than retyped:
+        // this validator is what ACCEPTS the marker on every entitlement write,
+        // so a renamed constant that left a stale string literal here would
+        // typecheck and then reject the webhook's write at runtime.
+        mcpCallsPerDay: v.union(v.number(), v.null(), v.literal(SHARED_API_BUDGET)),
         // Optional for entitlement rows written before the dashboard-AI
         // dimension existed; the read-time catalog merge supplies it.
         dashboardAiCallsPerDay: v.optional(v.union(v.number(), v.null())),
@@ -1184,7 +1202,7 @@ export default defineSchema({
     domicileCountry: v.optional(v.union(v.literal("US"), v.literal("GB"))),
     customerReference: v.optional(v.string()),
     lifecycle: v.union(v.literal("active"), v.literal("paused"), v.literal("removed")),
-    coverageState: v.optional(v.literal("awaiting_first_scan")),
+    coverageState: v.optional(v.union(v.literal("awaiting_first_scan"), v.literal("identity_unresolved"))),
     observationState: v.optional(v.literal("unknown")),
     // Any new deletion tombstone advances this version and makes downstream
     // derived state stale until the later recomputation slice consumes it.
@@ -1617,13 +1635,14 @@ export default defineSchema({
     .index("by_userId_revokedAt_createdAt", ["userId", "revokedAt", "createdAt"]),
 
   // API Business domain-gated Pro-seat invites (#4634/#4635). One row per seat
-  // invite issued by an active `api_business` owner to a same-corporate-domain
-  // teammate. The grant is an explicit, revocable object keyed to the owner's
+  // invite issued by an active `api_business` owner to a corporate-email
+  // invitee. The grant is an explicit, revocable object keyed to the owner's
   // Business `dodoSubscriptionId` (KTD1) — NOT a fake subscription — so
   // `pickBestCoveringSub` stays clean. An `accepted` grant under a covering
   // Business sub resolves the invitee to Pro (U5); when the Business sub stops
   // covering, its grants flip to `revoked` and each invitee recomputes down (U6).
-  // `inviteeEmail`/`domain` are stored lowercased for exact same-domain checks.
+  // `inviteeEmail` and the owner `domain` are stored lowercased for stable comparisons
+  // and reporting.
   businessProGrants: defineTable({
     businessSubscriptionId: v.string(),
     ownerUserId: v.string(),

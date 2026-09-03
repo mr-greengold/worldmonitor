@@ -104,6 +104,15 @@ function extensionFrame(filename = 'blob:https://example.com/ext-1234', fn = 'in
   return { filename, lineno: 1, function: fn };
 }
 
+/** Every .ts/.mts/.tsx file under `dir`, recursively, skipping node_modules. */
+function walkTsFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = join(dir, e.name);
+    if (e.isDirectory()) return e.name === 'node_modules' ? [] : walkTsFiles(full);
+    return /\.(?:m?ts|tsx)$/.test(e.name) ? [full] : [];
+  });
+}
+
 // ─── ignoreErrors message matches ────────────────────────────────────────
 
 describe('ignoreErrors filters', () => {
@@ -439,6 +448,27 @@ describe('zero-frame async-rejection patterns (timeout / DOMException / OOM / DO
     ["Failed to execute 'appendChild' on 'Node': Unexpected identifier 'x'", 'SyntaxError'],
     ["Failed to execute 'appendChild' on 'Node': Unexpected token '}'", 'SyntaxError'],
     ["SyntaxError: Failed to execute 'appendChild' on 'Node': Unexpected end of input", 'SyntaxError'],
+    // Chromium's WebAuthn / Credential Management bridge wording when the
+    // OS-side credential service is unavailable (WORLDMONITOR-11B: Android 10 /
+    // Chrome Mobile 150, /pro). It arrives as an unhandled rejection out of
+    // Clerk's sign-in passkey autofill (`navigator.credentials.get`), which runs
+    // wholly inside the Clerk bundle — zero captured frames. Our only passkey
+    // call site, `createPasskey()` in src/services/passkeys.ts, try/catches
+    // `user.createPasskey()` and returns a classified outcome, and
+    // `navigator.credentials` appears nowhere else in src/ or api/ — so a
+    // first-party frame here would mean a NEW call site, which the "lets
+    // through" arm of this loop keeps visible.
+    ['NotReadableError: An unknown error occurred while talking to the credential manager.', 'Error'],
+    // The overlapping-request half of the same WebAuthn surface
+    // (WORLDMONITOR-11T: Chrome 151 / Windows, /pro, zero frames, breadcrumbs
+    // ending at Clerk's `POST /v1/client/sign_ins`). Chrome serialises
+    // `navigator.credentials` per page and rejects the second request with this
+    // sentence when the sign-in button is double-clicked or submitted while
+    // Clerk's conditional passkey autofill is still open. Both value shapes:
+    // production carried the bare sentence with `type: 'Error'`, and some
+    // engines fold the type into the value.
+    ['OperationError: A request is already pending.', 'Error'],
+    ['Error: OperationError: A request is already pending.', 'Error'],
   ];
 
   for (const [msg, type] of zeroFrameErrors) {
@@ -468,6 +498,14 @@ describe('zero-frame async-rejection patterns (timeout / DOMException / OOM / DO
       [{ filename: '<anonymous>', lineno: 1 }, { filename: '<anonymous>', lineno: 1 }],
     );
     assert.equal(beforeSend(event), null);
+  });
+
+  it('keeps a pending-request message that is not the whole browser sentence', () => {
+    // The entry is anchored at both ends precisely so a first-party message
+    // that merely CONTAINS the phrase still reports, even with no frames at all
+    // — the blind spot an unanchored substring would open.
+    const event = makeEvent('Checkout aborted: a request is already pending. Retry in 5s', 'Error', []);
+    assert.ok(beforeSend(event) !== null);
   });
 
   it('lets through an appendChild parse failure attributed to a first-party script loader', () => {
@@ -1848,5 +1886,177 @@ describe('host-attributed fetch failures are fingerprinted by host (WORLDMONITOR
     const unrelated = beforeSend(makeEvent('Something else broke', 'Error', zgStack));
     assert.ok(unrelated !== null);
     assert.equal(unrelated.fingerprint, undefined);
+  });
+});
+
+// ─── WORLDMONITOR-117 / -YN: Android WebView Java-bridge envelope ─────────
+//
+// Chromium's `android_webview` wraps a failed `@JavascriptInterface` call as
+// `Error invoking <method>: <GinJavaBridgeError>`. The two bare substring
+// entries this replaced (`/Java object is gone/`, `/Java bridge method
+// invocation error/`) matched the reason ANYWHERE in a message, and
+// `ignoreErrors` is frame-blind — so a first-party error merely containing the
+// phrase was dropped with an `/assets/*.js` frame on the stack.
+describe('ignoreErrors — Android WebView Java bridge (WORLDMONITOR-117, -YN)', () => {
+  const JAVA_BRIDGE_PATTERN = ignoreErrors.find(
+    (p) => p instanceof RegExp && p.source.includes('Error invoking'));
+
+  it('the anchored envelope entry exists', () => {
+    assert.ok(JAVA_BRIDGE_PATTERN, 'an anchored `Error invoking …` pattern must exist');
+  });
+
+  it('drops both verbatim production values', () => {
+    // WORLDMONITOR-117 — Instagram 415 / Android 13, marketing document.
+    assert.ok(isIgnored('Error invoking enableButtonsClickedMetaDataLogging: Java object is gone'));
+    // WORLDMONITOR-YN — Chrome Mobile 150 / Android 10, dashboard bundle.
+    assert.ok(isIgnored('Error invoking process: Java bridge method invocation error'));
+  });
+
+  it('drops the envelope with any host-app bridge method name', () => {
+    // The method is whichever `@JavascriptInterface` the host called, so the
+    // slot is matched by shape rather than pinned to the two observed names.
+    assert.ok(isIgnored('Error invoking getDeviceInfo: Java object is gone'));
+    assert.ok(isIgnored('Error invoking $handler_2: Java object is gone'));
+  });
+
+  it('drops the envelope with a non-ASCII bridge method name', () => {
+    // Java identifiers are not ASCII-only — `@JavascriptInterface
+    // obtenirDonnées()` is legal and Chromium emits the same sentence for it.
+    // An `[\w$]+` slot silently misses these because JavaScript's `\w` is
+    // ASCII-only, which is what this control exists to catch (PR #7356 review).
+    assert.ok(isIgnored('Error invoking obtenirDonnées: Java object is gone'));
+    assert.ok(isIgnored('Error invoking 获取设备信息: Java object is gone'));
+    assert.ok(isIgnored('Error invoking процесс: Java bridge method invocation error'));
+  });
+
+  // THE control that matters, and the one the superseded substring entries
+  // could not fail. A control that changes a word the pattern REQUIRES
+  // (`gateway` for `object`) passes against the broken pattern too, so it can
+  // never go red — these all go red against the bare substring entries.
+  it('keeps a first-party message that merely CONTAINS the reason', () => {
+    assert.ok(!isIgnored('Our Java object is gone'));
+    assert.ok(!isIgnored('Session expired: Java object is gone'));
+    assert.ok(!isIgnored('Retry failed: Java bridge method invocation error'));
+    assert.ok(!isIgnored('Error invoking foo: Java object is gone (retrying)'));
+  });
+
+  it('keeps a non-Chromium reason inside the envelope so it surfaces once', () => {
+    // Under-suppression announces itself as a new Sentry issue and gets added
+    // deliberately; over-suppression is silent. Deliberate failure direction.
+    assert.ok(!isIgnored('Error invoking process: Method not found'));
+  });
+
+  // The source-level invariant the whole entry rests on. A message-level
+  // suppression is only safe while our own bundle cannot mint the sentence.
+  it('keeps the licence true: no `Error invoking` call site in our own source', () => {
+    const offenders = [];
+    for (const rel of ['../src', '../pro-test/src', '../api']) {
+      for (const file of walkTsFiles(resolve(__dirname, rel))) {
+        // sentry-init.ts and sentry-filter-policy.ts hold the suppressors
+        // themselves; every other textual hit would be a real call site.
+        if (/sentry-init\.ts$|sentry-filter-policy\.ts$/.test(file)) continue;
+        if (/Error invoking /.test(readFileSync(file, 'utf-8'))) offenders.push(file);
+      }
+    }
+    assert.deepEqual(offenders, [],
+      `\`Error invoking\` now appears in our own source — the suppression is no longer safe:\n${offenders.join('\n')}`);
+  });
+
+  it('the licence scan actually reaches our source', () => {
+    // A source scan that matches nothing is indistinguishable from one that is
+    // silently broken (wrong path, wrong extension filter).
+    const files = walkTsFiles(resolve(__dirname, '../src'));
+    assert.ok(files.length > 100, `sanity: expected to scan src/, got ${files.length} files`);
+    assert.ok(files.some((f) => f.endsWith('sentry-init.ts')), 'scan must reach sentry-init.ts');
+  });
+});
+
+// ─── WORLDMONITOR-10W: UC Browser native JS bridge global ─────────────────
+//
+// UC Browser's in-app WebView injects `__BrowserJSBridgeObj` and its own chrome
+// script references it before (or after) the native side defines it. Observed on
+// UC Browser 12.2.1 / iOS 17.6.1 with a single `global code` frame on the
+// /dashboard document. Named vendor bridge global, same class as the
+// UCShellJava / ucapi / ucConfig / zaloJSV2 entries already in ignoreErrors.
+describe('ignoreErrors — UC Browser bridge global (WORLDMONITOR-10W)', () => {
+  const PROD_MSG = "Can't find variable: __BrowserJSBridgeObj";
+  const pattern = ignoreErrors.find(p => p instanceof RegExp && /__BrowserJSBridgeObj/.test(p.source));
+
+  it('defines a __BrowserJSBridgeObj ignore pattern', () => {
+    assert.ok(pattern, 'a /__BrowserJSBridgeObj/ ignoreErrors pattern must exist');
+  });
+
+  it('suppresses the verbatim production WebKit message', () => {
+    assert.ok(isIgnored(PROD_MSG), `ignoreErrors must drop: ${PROD_MSG}`);
+  });
+
+  it('suppresses the Chromium phrasing of the same global', () => {
+    // UC Browser ships on both engines: WebKit says `Can't find variable: X`,
+    // Chromium says `X is not defined`. Matching the identifier covers both.
+    assert.ok(isIgnored('__BrowserJSBridgeObj is not defined'),
+      'the Chromium phrasing must be dropped by the same entry');
+  });
+
+  it('does not swallow an unrelated bridge-shaped identifier', () => {
+    assert.ok(!isIgnored('BrowserJSBridgeObj is not defined'),
+      'the double-underscore vendor prefix is load-bearing');
+  });
+
+  // The source-level invariant the message-only suppression rests on.
+  it('keeps the licence true: __BrowserJSBridgeObj is absent from our own source', () => {
+    const offenders = [];
+    for (const rel of ['../src', '../api']) {
+      for (const file of walkTsFiles(resolve(__dirname, rel))) {
+        if (/sentry-init\.ts$|sentry-filter-policy\.ts$/.test(file)) continue;
+        if (/__BrowserJSBridgeObj/.test(readFileSync(file, 'utf-8'))) offenders.push(file);
+      }
+    }
+    assert.deepEqual(offenders, [],
+      `__BrowserJSBridgeObj now appears in our own source — the suppression is no longer safe:\n${offenders.join('\n')}`);
+  });
+});
+
+// ─── WORLDMONITOR-10B: SpiderMonkey malformed-numeric-literal parse error ──
+//
+// Firefox iOS 154.1 / iOS 18.7, sole frame `https://www.worldmonitor.app/:1` —
+// how Gecko/WebKit attribute a main-world injected content script. A runtime
+// parse error cannot come from our own bundle (compiled and parsed at build
+// time), so this joins the `hasAnyStack && !hasFirstParty` SyntaxError family
+// alongside Unexpected token/keyword and Invalid or unexpected token.
+describe('malformed numeric literal SyntaxError (WORLDMONITOR-10B)', () => {
+  const MSG = 'No identifiers allowed directly after numeric literal';
+  const documentFrame = { filename: 'https://www.worldmonitor.app/', lineno: 1, function: null };
+
+  it('suppresses the parse error attributed to the page document URL', () => {
+    const event = makeEvent(MSG, 'SyntaxError', [documentFrame]);
+    assert.equal(beforeSend(event), null,
+      'document-URL numeric-literal parse error must be suppressed as injected-script noise');
+  });
+
+  it('suppresses the same message with an extension-only stack', () => {
+    const event = makeEvent(MSG, 'SyntaxError', [extensionFrame()]);
+    assert.equal(beforeSend(event), null);
+  });
+
+  it('does NOT suppress the same SyntaxError with a first-party frame', () => {
+    const event = makeEvent(MSG, 'SyntaxError', [firstPartyFrame()]);
+    assert.ok(beforeSend(event) !== null,
+      'a first-party parse error must still reach Sentry');
+  });
+
+  it('does NOT suppress the same SyntaxError with an empty stack', () => {
+    const event = makeEvent(MSG, 'SyntaxError', []);
+    assert.ok(beforeSend(event) !== null,
+      'empty-stack parse error is not proven third-party and must surface');
+  });
+
+  it('is anchored so a longer first-party message still surfaces', () => {
+    const event = makeEvent(
+      `${MSG} while parsing the operator config`,
+      'SyntaxError',
+      [documentFrame],
+    );
+    assert.ok(beforeSend(event) !== null,
+      'the entry is anchored to the whole engine sentence');
   });
 });

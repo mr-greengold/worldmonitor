@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs';
 
 import { __testing__ } from '../api/health.js';
 import { BUNDLE_HEARTBEAT_TTL_SECONDS, bundleHeartbeatKey } from '../scripts/_bundle-runner.mjs';
+import { isOnDemandProblem } from '../scripts/check-seed-freshness.mjs';
 import { BOOTSTRAP_KEY as AVIATION_BOOTSTRAP_KEY, BOOTSTRAP_META_KEY as AVIATION_BOOTSTRAP_META_KEY } from '../scripts/seed-aviation.mjs';
 
 const {
@@ -40,12 +41,16 @@ const ONE_MIN_MS = 60_000;
 //   errors:     { redisDataKey -> errMsg }
 //   metaValues: { seedMetaKey  -> raw JSON string }
 //   metaErrors: { seedMetaKey  -> errMsg }
-function makeCtx({ strens = {}, errors = {}, metaValues = {}, metaErrors = {} } = {}) {
+function makeCtx({ strens = {}, errors = {}, metaValues = {}, metaErrors = {}, activationStates = null } = {}) {
   return {
     keyStrens: new Map(Object.entries(strens)),
     keyErrors: new Map(Object.entries(errors)),
     keyMetaValues: new Map(Object.entries(metaValues).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)])),
     keyMetaErrors: new Map(Object.entries(metaErrors)),
+    // Three-valued, exactly like readExistsFlags: true = marker present,
+    // false = marker READ and absent (positive proof of pre-activation),
+    // key missing = unknown.
+    ...(activationStates ? { activationStates: new Map(Object.entries(activationStates)) } : {}),
     now: NOW,
   };
 }
@@ -85,6 +90,71 @@ test('STATUS_COUNTS buckets OK/cascade to ok, empty to crit, on-demand/stale to 
   assert.equal(STATUS_COUNTS.EMPTY_DATA, 'crit');
   assert.equal(STATUS_COUNTS.EMPTY_ON_DEMAND, 'warn');
   assert.equal(STATUS_COUNTS.STALE_SEED, 'warn');
+});
+
+// Deliberately `ok`, not `warn`. Two pillars ship ~6 countries above their
+// floors today, so a warn bucket would flip fleet health to WARNING on the
+// current healthy cohort and stay lit until coverage grows — the chronically
+// red monitor that stops being read. Registration here is load-bearing on its
+// own: the summary does `STATUS_COUNTS[status] ?? 'warn'`, so an unregistered
+// status silently becomes the warn this exists to avoid.
+test('STATUS_COUNTS buckets COVERAGE_MARGIN_LOW to ok so a thin-but-passing cohort never alerts', () => {
+  assert.equal(STATUS_COUNTS.COVERAGE_MARGIN_LOW, 'ok');
+});
+
+// ── pool coverage margin (scorecardFiveFactor) ──────────────────────────────
+
+const FLOORS = SEED_META.scorecardFiveFactor.minPoolCounts;
+const COMFORTABLE = Object.fromEntries(
+  Object.entries(FLOORS).map(([pool, floor]) => [pool, floor + 50]),
+);
+const classifyScorecard = (poolCounts, over = {}) => classifyKey(
+  'scorecardFiveFactor',
+  STANDALONE_KEYS.scorecardFiveFactor,
+  { allowOnDemand: false },
+  makeCtx({
+    strens: { [STANDALONE_KEYS.scorecardFiveFactor]: 4096 },
+    metaValues: {
+      [SEED_META.scorecardFiveFactor.key]: seedMeta({ recordCount: 196, poolCounts, ...over }),
+    },
+    activationStates: { scorecardFiveFactor: true },
+  }),
+);
+
+test('a cohort clear of every floor reports OK and still publishes its headroom', () => {
+  const entry = classifyScorecard(COMFORTABLE);
+  assert.equal(entry.status, 'OK');
+  // Emitted on a healthy cohort too — trending headroom is the point, and a
+  // consumer that only ever saw the thin readings could not compute a trend.
+  assert.equal(entry.poolCoverageMargin.food.margin, 50);
+  assert.equal(entry.poolCoverageMargin.food.low, false);
+  assert.equal(entry.poolCountMargin, 10);
+});
+
+test('a pool within the margin of its floor reports COVERAGE_MARGIN_LOW, not OK', () => {
+  // Mirrors the live cohort: food passes its floor of 80 by six countries.
+  const entry = classifyScorecard({ ...COMFORTABLE, food: FLOORS.food + 6 });
+  assert.equal(entry.status, 'COVERAGE_MARGIN_LOW');
+  assert.deepEqual(entry.poolCoverageMargin.food, {
+    count: FLOORS.food + 6, floor: FLOORS.food, margin: 6, low: true,
+  });
+  assert.equal(entry.poolCoverageMargin.energy.low, false);
+});
+
+// The whole risk of adding a status late in the chain: it must never win over a
+// real fault. A thin cohort that has also stopped publishing is a stale cohort.
+test('a thin margin never masks staleness or an outright shortfall', () => {
+  const stale = classifyScorecard(
+    { ...COMFORTABLE, food: FLOORS.food + 6 },
+    { fetchedAt: NOW - (SEED_META.scorecardFiveFactor.maxStaleMin + 1) * ONE_MIN_MS },
+  );
+  assert.equal(stale.status, 'STALE_SEED');
+
+  const breached = classifyScorecard({ ...COMFORTABLE, food: FLOORS.food - 1 });
+  assert.equal(breached.status, 'COVERAGE_PARTIAL');
+  // Reported low as well, so the margin view can never read healthier than the
+  // shortfall verdict on the same counts.
+  assert.equal(breached.poolCoverageMargin.food.low, true);
 });
 
 // ── classifyKey core statuses ───────────────────────────────────────────────
@@ -2191,4 +2261,102 @@ test('china coverage: UNAVAILABLE is never debounced', () => {
     entries: [{ id: 'market.china-stock-connect', launchStatus: 'launched', status: 'unavailable', reasonCodes: [] }],
   }));
   assert.equal(projected.status, 'CHINA_UNAVAILABLE');
+});
+
+
+// ── fully unobserved on-demand adapters are dormant (imdCycloneMarine) ──────
+// imdCycloneMarine sits in BOTH ON_DEMAND_KEYS and EMPTY_DATA_OK_KEYS. The
+// EMPTY_DATA_OK arm is tested first and resolves to
+// `seedStale === true ? 'STALE_SEED' : 'OK'`; readSeedMeta initialises
+// seedStale=true and only overwrites it from a real fetchedAt. The narrow
+// pre-activation grace applies only when data and readable metadata are both
+// absent; marker absence alone can result from a failed marker write or a
+// restore and cannot override publication evidence.
+
+const IMD_MARKER_ABSENT = { imdCycloneMarine: false };
+
+test('classifyKey: an unobserved on-demand adapter reads EMPTY_ON_DEMAND, not STALE_SEED', () => {
+  const entry = classifyKey(
+    'imdCycloneMarine',
+    STANDALONE_KEYS.imdCycloneMarine,
+    { allowOnDemand: true },
+    makeCtx({ activationStates: IMD_MARKER_ABSENT }), // no data key, no seed-meta
+  );
+  assert.equal(entry.status, 'EMPTY_ON_DEMAND');
+  assert.equal(STATUS_COUNTS[entry.status], 'warn');
+  assert.ok(isOnDemandProblem({ status: entry.status, onDemand: true }),
+    'the freshness monitor must excuse it — that is the point of the change');
+});
+
+test('classifyKey: marker absence does not excuse an absent payload with stale seed metadata', () => {
+  const entry = classifyKey(
+    'imdCycloneMarine',
+    STANDALONE_KEYS.imdCycloneMarine,
+    { allowOnDemand: true },
+    makeCtx({
+      metaValues: {
+        [SEED_META.imdCycloneMarine.key]: seedMeta({ fetchedAt: NOW - 46 * ONE_MIN_MS, recordCount: 0 }),
+      },
+      activationStates: IMD_MARKER_ABSENT,
+    }),
+  );
+  assert.equal(entry.status, 'STALE_SEED');
+  assert.ok(!isOnDemandProblem({ status: entry.status, onDemand: true }));
+});
+
+test('classifyKey: marker absence preserves normal fresh and stale zero-record outcomes', () => {
+  const classifyZeroRecord = (fetchedAt) => classifyKey(
+    'imdCycloneMarine',
+    STANDALONE_KEYS.imdCycloneMarine,
+    { allowOnDemand: true },
+    makeCtx({
+      strens: { [STANDALONE_KEYS.imdCycloneMarine]: 64 },
+      metaValues: { [SEED_META.imdCycloneMarine.key]: seedMeta({ fetchedAt, recordCount: 0 }) },
+      activationStates: IMD_MARKER_ABSENT,
+    }),
+  );
+
+  assert.equal(classifyZeroRecord(NOW - ONE_MIN_MS).status, 'OK');
+  assert.equal(classifyZeroRecord(NOW - 46 * ONE_MIN_MS).status, 'STALE_SEED');
+});
+
+test('classifyKey: once ACTIVATED, the same adapter is strict again', () => {
+  // The regression this guards: softening a key that HAS published and then
+  // died would hide a real outage behind a dormancy excuse.
+  const entry = classifyKey(
+    'imdCycloneMarine',
+    STANDALONE_KEYS.imdCycloneMarine,
+    { allowOnDemand: true },
+    makeCtx({ activationStates: { imdCycloneMarine: true } }),
+  );
+  assert.equal(entry.status, 'STALE_SEED', 'an activated adapter that goes absent is stale, as before');
+  assert.ok(
+    !isOnDemandProblem({ status: entry.status, onDemand: true }),
+    'and the freshness monitor must NOT excuse it — that is the outage this change must not hide',
+  );
+});
+
+test('classifyKey: an UNREADABLE activation marker earns nothing (fails closed)', () => {
+  // readExistsFlags leaves unknown entries OUT of the map, so `get()` is
+  // undefined — never false. Grace requires positive proof (#6095).
+  const entry = classifyKey(
+    'imdCycloneMarine',
+    STANDALONE_KEYS.imdCycloneMarine,
+    { allowOnDemand: true },
+    makeCtx({ activationStates: {} }),
+  );
+  assert.equal(entry.status, 'STALE_SEED', 'unknown activation state keeps the pre-fix verdict');
+});
+
+test('classifyKey: a key with no activation marker is untouched by the change', () => {
+  // newsThreatSummary is in both sets too, but configures no marker — so it is
+  // permanently `unknown` and MUST keep EMPTY_DATA_OK_KEYS' behaviour. This is
+  // what stops the reorder from silencing producers that run and then stop.
+  const entry = classifyKey(
+    'newsThreatSummary',
+    STANDALONE_KEYS.newsThreatSummary,
+    { allowOnDemand: true },
+    makeCtx({ activationStates: IMD_MARKER_ABSENT }),
+  );
+  assert.equal(entry.status, 'STALE_SEED');
 });

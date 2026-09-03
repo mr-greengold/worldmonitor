@@ -1,5 +1,7 @@
 # World Monitor — By the time it's news, you already knew.
 
+As of 2026-08-31.
+
 World Monitor is a free real-time global intelligence dashboard. It brings ships, aircraft, conflict events, alerts, infrastructure, markets, weather, cyber signals, and curated news onto one live map. Its analysis layer helps users see when separate signals begin to converge into one event that matters.
 
 The core dashboard is open source under AGPL-3.0 and needs no signup. It runs in the browser, as an installable PWA, and as a desktop app for macOS, Windows, and Linux. World Monitor has also been [featured in WIRED](https://www.wired.com/story/world-monitor-elie-habib/).
@@ -66,6 +68,7 @@ Start with the short [llms.txt briefing](https://worldmonitor.app/llms.txt), the
 - [REST API](https://api.worldmonitor.app): structured endpoints described by the [OpenAPI contract](https://worldmonitor.app/openapi.yaml).
 - [Agent-mode homepage](https://www.worldmonitor.app/?mode=agent): a compact JSON summary of endpoints, authentication, capabilities, and discovery files.
 - [Agent Skills](https://worldmonitor.app/.well-known/agent-skills/index.json): task-focused instructions for common country, resilience, and intelligence workflows.
+- [Agent Plugin metadata](https://worldmonitor.app/plugin.json): public metadata for the Agent Plugins 1.0.0 repository package. Install from https://github.com/koala73/worldmonitor (root `plugin.json`, `mcp.json`, and `skills/*/SKILL.md` live in the repository, not as sibling HTTP files).
 - [A2A agent card](https://worldmonitor.app/.well-known/agent-card.json): service identity and protocol discovery for agent-to-agent clients.
 - [SDK guide](https://www.worldmonitor.app/docs/sdks) and [worldmonitor CLI](https://www.npmjs.com/package/worldmonitor): supported clients for applications and shell workflows.
 
@@ -77,6 +80,7 @@ World Monitor is not a general web-search engine, a complete historical archive,
 
 ## Documentation
 
+- [Brand identity](https://worldmonitor.app/world-monitor.md) — official name, canonical domain, NAP, and press mentions
 - [Product and API documentation](https://www.worldmonitor.app/docs/documentation)
 - [Source catalog](https://www.worldmonitor.app/sources/)
 - [Support and contact](https://worldmonitor.app/support.md)

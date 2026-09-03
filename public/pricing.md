@@ -33,7 +33,7 @@ These subscription licenses cover the hosted Service and its outputs. They are s
 - Annual savings: 3 months free versus monthly billing
 - Best for: Investors, analysts, researchers, traders and operators who need the decision layer on top of the free dashboard
 - Seats: 1 named user
-- Includes: WM Analyst chat across live services with citations, Scenario Engine, Route Explorer, personal AI digest, custom widget builder, the Resilience map layer, and MCP access under one key
+- Includes: WM Analyst chat across live services with citations, Scenario Engine, Route Explorer, cost-shock modelling and supply-chain stress tests (chokepoints, cascades, vulnerability rankings), intel memory with historical search and similar-event lookup, physical metals divergence, mineral production concentration, sovereign debt series, personal AI digest, custom widget builder, the Resilience map layer, uncapped panels, sources and followed countries, and MCP access under one key
 - License: Personal use
 - Limits: 10 custom dashboards, 500 dashboard-AI requests/day, MCP + SDK 50 calls/day
 - Digest cadence: Daily, twice-daily or weekly
@@ -60,7 +60,7 @@ These subscription licenses cover the hosted Service and its outputs. They are s
 - Best for: Developers and teams that want programmatic access to World Monitor intelligence data
 - Includes: REST API access, license / API key creation (the `wm_` key used by the desktop app and API), structured JSON, cache headers, OpenAPI docs, real-time data streams and webhook notifications
 - License: Commercial license for your organization — build internal tools and reporting on the data; redistributing it to your own customers requires API Business
-- Starter limit: 1,000 requests/day
+- Starter limit: 1,000 requests/day (REST + MCP combined; a live MCP call counts as 2-3)
 - Starter webhooks: 5 webhook rules
 
 ## API Business
@@ -69,9 +69,9 @@ These subscription licenses cover the hosted Service and its outputs. They are s
 - Annual price: $2,699.99/year
 - Annual savings: about 25 percent versus monthly billing
 - Best for: Teams with high-volume programmatic workloads that outgrow the Starter quota
-- Includes: Everything in API Starter, redistribution rights, 5 Pro licenses included and priority support
-- License: Commercial license for your customers — embed WorldMonitor data in what you sell; the 5 bundled Pro seats all require the same company email domain
-- Limits: 300 requests/minute, 10,000 requests/day
+- Includes: Everything in API Starter, redistribution rights, 5 Pro licenses — invite users at any corporate email domain and priority support
+- License: Commercial license for your customers — embed WorldMonitor data in what you sell; the 5 bundled Pro seats may be assigned to users at any corporate email domain
+- Limits: 300 requests/minute, 10,000 requests/day (REST + MCP combined; a live MCP call counts as 2-3)
 - Upgrading from Starter: manage the switch from the billing portal (prorated immediately); new customers can subscribe directly at https://worldmonitor.app/pro
 
 ## Enterprise
@@ -150,7 +150,7 @@ These subscription licenses cover the hosted Service and its outputs. They are s
       "features": [
         "REST API",
         "license / API key included",
-        "1,000 requests/day starter limit",
+        "1,000 requests/day starter limit (REST + MCP combined; a live MCP call counts as 2-3)",
         "1,000 dashboard-AI requests/day",
         "webhooks",
         "structured JSON",
@@ -165,10 +165,9 @@ These subscription licenses cover the hosted Service and its outputs. They are s
       "features": [
         "Everything in API Starter",
         "300 requests/minute",
-        "10,000 requests/day",
+        "10,000 requests/day (REST + MCP combined; a live MCP call counts as 2-3)",
         "10,000 dashboard-AI requests/day",
-        "5 Pro licenses included",
-        "same company email required",
+        "5 Pro licenses — invite users at any corporate email domain",
         "commercial license — for your customers",
         "priority support"
       ]

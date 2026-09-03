@@ -238,6 +238,24 @@ for (const [path, groups] of applicationJsonLdGroups) {
   transform(path, (source) => rewriteApplicationJsonLd(source, groups));
 }
 
+// Keep the hand-authored A2A routing copy's catalog total derived from the
+// registry. The rest of the description is editorial, but a stale number
+// would misrepresent what agents can discover through MCP.
+transform('public/.well-known/agent-card.json', (source) => {
+  const card = JSON.parse(source);
+  const routingSkill = card.skills?.find((skill) => skill.id === 'route-to-tool');
+  if (!routingSkill?.description) {
+    throw new Error('agent-card routing skill must have a description');
+  }
+  if ([...routingSkill.description.matchAll(/\b\d+-tool catalog\b/g)].length !== 1) {
+    throw new Error('agent-card routing skill must advertise exactly one N-tool catalog');
+  }
+  if ([...source.matchAll(/\b\d+-tool catalog\b/g)].length !== 1) {
+    throw new Error('agent-card must contain exactly one N-tool catalog claim');
+  }
+  return source.replace(/\b\d+-tool catalog\b/, `${TOOL_REGISTRY.length}-tool catalog`);
+});
+
 // The server card is the machine-readable tool catalog consumed by docs-stats
 // and external MCP discovery. Generate it from the same registry as the count
 // so adding tools cannot leave a syntactically valid but incomplete card.
@@ -350,13 +368,13 @@ function pricingSummary() {
         name: 'API',
         price_usd_monthly: byKey.api_starter.price,
         price_usd_yearly: byKey.api_starter_annual.price,
-        features: ['REST API', 'license / API key included', '1,000 requests/day starter limit', dashboardAi('api_starter'), 'webhooks', 'structured JSON', 'OpenAPI docs', 'commercial license — for your organization'],
+        features: ['REST API', 'license / API key included', '1,000 requests/day starter limit (REST + MCP combined; a live MCP call counts as 2-3)', dashboardAi('api_starter'), 'webhooks', 'structured JSON', 'OpenAPI docs', 'commercial license — for your organization'],
       },
       {
         name: 'API Business',
         price_usd_monthly: byKey.api_business.price,
         price_usd_yearly: byKey.api_business_annual.price,
-        features: ['Everything in API Starter', '300 requests/minute', '10,000 requests/day', dashboardAi('api_business'), '5 Pro licenses included', 'same company email required', 'commercial license — for your customers', 'priority support'],
+        features: ['Everything in API Starter', '300 requests/minute', '10,000 requests/day (REST + MCP combined; a live MCP call counts as 2-3)', dashboardAi('api_business'), '5 Pro licenses — invite users at any corporate email domain', 'commercial license — for your customers', 'priority support'],
       },
       {
         name: 'Enterprise',

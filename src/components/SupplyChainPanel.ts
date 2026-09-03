@@ -27,6 +27,17 @@ type TabId = 'chokepoints' | 'shipping' | 'indicators' | 'minerals' | 'stress';
 
 const FLOW_SUPPORTED_IDS = new Set(['hormuz_strait', 'malacca_strait', 'suez', 'bab_el_mandeb']);
 
+// Today's transits come from the relay's in-memory 24h AIS window, which is
+// empty far more often than it is zero-trafficked, and the relay cannot tell
+// the two apart. The RPC coerces the absent case to 0 to keep the int32 wire
+// contract, so a bare 0 is uninterpretable -- read todayCountsAvailable
+// instead (#7457). Responses cached before that field existed fall back to the
+// previous `> 0` inference rather than blanking real counts during rollout.
+function hasPublishedTransitCount(ts?: { todayTotal?: number; todayCountsAvailable?: boolean }): boolean {
+  if (!ts) return false;
+  return ts.todayCountsAvailable ?? ((ts.todayTotal ?? 0) > 0);
+}
+
 export class SupplyChainPanel extends Panel {
   private shippingData: GetShippingRatesResponse | null = null;
   private chokepointData: GetChokepointStatusResponse | null = null;
@@ -134,6 +145,11 @@ export class SupplyChainPanel extends Panel {
     this.render();
   }
 
+  public clearMineralProduction(): void {
+    this.mineralProductionData = null;
+    this.render();
+  }
+
   public updateShippingStress(data: GetShippingStressResponse): void {
     this.stressData = data;
     this.render();
@@ -178,7 +194,8 @@ export class SupplyChainPanel extends Panel {
       : this.mineralProductionData?.commodities?.length
         ? this.mineralProductionData
         : this.mineralsData;
-    const unavailableBanner = !activeHasData && activeData?.upstreamUnavailable
+    const unavailableBanner = activeData?.upstreamUnavailable
+      && (this.activeTab === 'chokepoints' || !activeHasData)
       ? `<div class="economic-warning">${t('components.supplyChain.upstreamUnavailable')}</div>`
       : '';
 
@@ -383,10 +400,18 @@ export class SupplyChainPanel extends Panel {
         const isAffectedByScenario = affectedSet.has(cp.id);
         const statusClass = cp.status === 'red' ? 'status-active' : cp.status === 'yellow' ? 'status-notified' : 'status-terminated';
         const statusDot = cp.status === 'red' ? 'sc-dot-red' : cp.status === 'yellow' ? 'sc-dot-yellow' : 'sc-dot-green';
-        const aisDisruptions = cp.aisDisruptions ?? (cp.congestionLevel === 'normal' ? 0 : 1);
+        const sourceMetrics = [
+          cp.navigationalWarningsAvailable === true
+            ? `${cp.activeWarnings} ${t('components.supplyChain.warnings')}`
+            : '',
+          cp.aisSnapshotAvailable === true
+            ? `${cp.aisDisruptions} ${t('components.supplyChain.aisDisruptions')}`
+            : '',
+        ].filter(Boolean).join(' · ');
         const ts = cp.transitSummary;
         const wowPct = ts?.wowChangePct ?? 0;
         const hasWow = ts && wowPct !== 0;
+        const hasTransitCount = hasPublishedTransitCount(ts);
         const wowSpan = hasWow ? `<span class="${wowPct >= 0 ? 'change-positive' : 'change-negative'}">${wowPct >= 0 ? '\u25B2' : '\u25BC'}${Math.abs(wowPct).toFixed(1)}%</span>` : '';
         const disruptPct = ts?.disruptionPct ?? 0;
         const disruptClass = disruptPct > 10 ? 'sc-disrupt-red' : disruptPct > 3 ? 'sc-disrupt-yellow' : 'sc-disrupt-green';
@@ -488,13 +513,13 @@ export class SupplyChainPanel extends Panel {
             ${isAffectedByScenario && scenarioResult?.template ? `<div class="sc-metric-row" style="background:#7f1d1d22;padding:4px 6px;border-radius:3px;margin-bottom:4px;font-size:calc(11px * var(--wm-panel-effective-scale, 1))">
               <span style="color:#fca5a5;font-weight:600">\u26A0 Projected under scenario: ${scenarioResult.template.disruptionPct}% closure for ${scenarioResult.template.durationDays} days${scenarioResult.template.costShockMultiplier > 1 ? ` (+${Math.round((scenarioResult.template.costShockMultiplier - 1) * 100)}% cost)` : ''}</span>
             </div>` : ''}
-            <div class="sc-metric-row">
-              <span>${cp.activeWarnings} ${t('components.supplyChain.warnings')} · ${aisDisruptions} ${t('components.supplyChain.aisDisruptions')}</span>
+            <div class="sc-metric-row"${sourceMetrics || cp.directions?.length ? '' : ' hidden'}>
+              ${sourceMetrics ? `<span>${sourceMetrics}</span>` : ''}
               ${cp.directions?.length ? `<span>${cp.directions.map(d => escapeHtml(d)).join('/')}</span>` : ''}
             </div>
             ${ts && ts.dataAvailable === false ? `<div class="sc-metric-row" style="opacity:0.5;font-size:calc(11px * var(--wm-panel-effective-scale, 1))"><span>${t('components.supplyChain.transitDataUnavailable') || 'Transit data unavailable (upstream partial)'}</span></div>` : ''}
-            ${ts && ts.dataAvailable !== false && (ts.todayTotal > 0 || hasWow || disruptPct > 0) ? `<div class="sc-metric-row">
-              ${ts.todayTotal > 0 ? `<span>${ts.todayTotal} ${t('components.supplyChain.vessels')}</span>` : ''}
+            ${ts && ts.dataAvailable !== false && (hasTransitCount || hasWow || disruptPct > 0) ? `<div class="sc-metric-row">
+              ${hasTransitCount ? `<span>${ts.todayTotal} ${t('components.supplyChain.vessels')}</span>` : ''}
               ${hasWow ? `<span>${t('components.supplyChain.wowChange')}: ${wowSpan}</span>` : ''}
               ${disruptPct > 0 ? `<span>${t('components.supplyChain.disruption')}: <span class="${disruptClass}">${disruptPct.toFixed(1)}%</span></span>` : ''}
             </div>` : ''}
@@ -557,6 +582,7 @@ export class SupplyChainPanel extends Panel {
       const ts = cp.transitSummary;
       const statusDot = cp.status === 'red' ? 'sc-dot-red' : cp.status === 'yellow' ? 'sc-dot-yellow' : 'sc-dot-green';
       const wowPct = ts?.wowChangePct ?? 0;
+      const hasTransitCount = hasPublishedTransitCount(ts);
       const wowCell = wowPct !== 0
         ? `<span class="${wowPct >= 0 ? 'change-positive' : 'change-negative'}">${wowPct >= 0 ? '\u25B2' : '\u25BC'}${Math.abs(wowPct).toFixed(1)}%</span>`
         : '-';
@@ -567,7 +593,7 @@ export class SupplyChainPanel extends Panel {
         : (riskLevel === 'elevated' || riskLevel === 'moderate') ? 'sc-disrupt-yellow' : '';
       return `<tr>
         <td><span class="sc-status-dot ${statusDot}"></span> ${escapeHtml(cp.name)}</td>
-        <td>${ts?.todayTotal ?? 0}</td>
+        <td>${hasTransitCount && ts ? ts.todayTotal : '-'}</td>
         <td>${wowCell}</td>
         <td><span class="${disruptClass}">${disruptPct > 0 ? disruptPct.toFixed(1) + '%' : '-'}</span></td>
         <td>${riskClass ? `<span class="${riskClass}">${escapeHtml(riskLevel)}</span>` : escapeHtml(riskLevel)}</td>
@@ -812,6 +838,15 @@ export class SupplyChainPanel extends Panel {
       </tr>`;
     }).join('');
 
+    // Reached whenever the production snapshot is absent — for a free viewer
+    // that is now the steady state, because the mine/refinery shares are Pro
+    // (#6439) and the loader skips the fetch. The free deposits table above is
+    // a genuine fallback, not an error, so the only addition is a line naming
+    // what the upgrade buys.
+    const productionUpsell = hasPremiumAccess(getAuthState())
+      ? ''
+      : `<p class="sc-mineral-caption">${escapeHtml(t('components.supplyChain.productionProLocked'))}</p>`;
+
     return `<div class="trade-tariffs-table">
       <table>
         <thead>
@@ -824,6 +859,7 @@ export class SupplyChainPanel extends Panel {
         </thead>
         <tbody>${rows}</tbody>
       </table>
+      ${productionUpsell}
     </div>`;
   }
 
