@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Sync upstream
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
           echo "Attempting fast-forward sync..."
           if ! gh repo sync ${{ github.repository }} -b main; then
