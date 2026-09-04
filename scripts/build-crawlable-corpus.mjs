@@ -60,6 +60,8 @@ import {
 import {
   CHOKEPOINT_CONTENT,
   CHOKEPOINT_PAGE_CONTENT_PATH,
+  CHOKEPOINT_SCORE_CONTEXT_ONLY,
+  CHOKEPOINT_SCORE_INPUTS,
   CHOKEPOINT_REGISTRY_OBSERVED_AT,
   EIA_OIL_TRANSIT_BASELINES,
   TRADE_ROUTES_OBSERVED_AT,
@@ -3164,17 +3166,39 @@ export function assertCountryDevelopmentsRendered({ pagePath, html, developments
   }
 }
 
-// Pipeline tripwire decision (#7615), exported for tests: the per-page guard
-// proves frozen items render; this proves every indexed country captured one.
+// A floor, not completeness. #7615 shipped this as
+// `developmentsPageCount !== indexedCountryPageCount` -- every indexed country
+// owed a dated development -- which no real capture can satisfy: the news cycle
+// simply does not mention most countries. A fully keyed freeze on 2026-09-04
+// covered 61 of 196 pages (54 headline-matched, 40 briefs, 18 timelines), so
+// the gate rejected every snapshot the freeze could produce. That left the
+// weekly refresh unable to publish and armed the
+// MAX_LIVE_PULSE_SNAPSHOT_AGE_DAYS fuse against the whole corpus build.
+//
+// Rendering is not this gate's job -- assertDevelopmentsRendered already fails
+// per page when a frozen item is dropped, and it compares against the same
+// snapshot rows, so demanding equality here proved nothing extra. What is worth
+// catching is a COLLAPSE: the digest matcher breaking, or a wrong-tiered key
+// leaving briefs and timelines empty. Gate on a floor that a quiet news week
+// clears and a broken pipeline does not.
+export const MIN_DEVELOPMENTS_COVERAGE_RATIO = 0.1;
+
+// Pipeline tripwire decision (#7615, retuned in #7620 follow-up), exported for
+// tests: the per-page guard proves frozen items render; this proves the capture
+// did not collapse.
 export function assertDevelopmentsCoverage({
   carriesDevelopments,
   developmentsPageCount,
   indexedCountryPageCount,
 }) {
-  if (carriesDevelopments && developmentsPageCount !== indexedCountryPageCount) {
+  if (!carriesDevelopments) return;
+  const floor = Math.max(1, Math.ceil(indexedCountryPageCount * MIN_DEVELOPMENTS_COVERAGE_RATIO));
+  if (developmentsPageCount < floor) {
     throw new Error(
       `crawlable corpus captured dated country developments for ${developmentsPageCount} `
-      + `of ${indexedCountryPageCount} indexed country pages; refusing to publish incomplete coverage`,
+      + `of ${indexedCountryPageCount} indexed country pages; expected at least ${floor}. `
+      + 'A snapshot that carries developments should cover far more than this — check the '
+      + 'digest match and the freeze service key before republishing.',
     );
   }
 }
@@ -3531,7 +3555,7 @@ function renderChokepointsIndex({ chokepoints, chokepointHubRows, livePulse, bas
     },
     {
       question: 'How does World Monitor score chokepoint status?',
-      answer: `World Monitor scores each waterway 0-100 from a configured geopolitical baseline, NGA navigational warnings, maximum AIS severity, and a qualifying traffic anomaly. AIS event counts, relay transit counts, and PortWatch movement are context rather than score inputs. Each source controls only its own values, so unavailable evidence is withheld rather than published as a measured zero or a calm reading — ${congestionCoverageClause}. The methodology documents the inputs and score bands.`,
+      answer: `World Monitor scores each waterway 0-100 from ${formatProseList(CHOKEPOINT_SCORE_INPUTS.map((input) => input.label))}. ${formatProseList(CHOKEPOINT_SCORE_CONTEXT_ONLY)} are published as context rather than score inputs. Each source controls only its own values, so unavailable evidence is withheld rather than published as a measured zero or a calm reading — ${congestionCoverageClause}. The methodology documents the inputs and score bands.`,
     },
     {
       question: 'Why do some chokepoint pages show fewer metrics than others?',
@@ -4263,7 +4287,10 @@ ${snapshotSection}
   });
 }
 
-function renderToolsIndex({ baseUrl, lastmod }) {
+// Counts come from the registries this same build renders, never a frozen
+// literal: the hub card is the one place a stale number reads as a factual
+// claim about the corpus rather than as prose.
+function renderToolsIndex({ baseUrl, lastmod, crisisCount, chokepointCount }) {
   const path = '/tools/';
   const description = 'Focused World Monitor tools for current natural hazards, country-level airspace disruption, and geographic signal convergence, backed by maintained first-party data contracts.';
   const body = `      <p class="eyebrow">Live intelligence tools</p>
@@ -4273,8 +4300,8 @@ function renderToolsIndex({ baseUrl, lastmod }) {
         <a class="card" href="/tools/natural-hazard-pulse/"><strong>Natural-hazard pulse</strong><br><span>Worldwide or approximate country filter</span></a>
         <a class="card" href="/tools/airspace-disruption-checker/"><strong>Airspace-disruption checker</strong><br><span>Commercial airport disruption and observed military flights</span></a>
         <a class="card" href="/tools/signal-convergence/"><strong>Geographic signal convergence</strong><br><span>Named multi-domain correlation score</span></a>
-        <a class="card" href="/chokepoints/"><strong>Maritime chokepoint status</strong><br><span>13 canonical waterways</span></a>
-        <a class="card" href="/crises/"><strong>Bounded crisis trackers</strong><br><span>Four curated geographic scopes</span></a>
+        <a class="card" href="/chokepoints/"><strong>Maritime chokepoint status</strong><br><span>${chokepointCount} canonical waterways</span></a>
+        <a class="card" href="/crises/"><strong>Bounded crisis trackers</strong><br><span>${crisisCount} curated geographic scopes</span></a>
       </div>
       <h2>How these tools work</h2>
       <p>Each tool asks one narrow operational question — what natural hazards are open right now, is a country's monitored airspace disrupted, where independent streams converge — and answers it from a maintained World Monitor contract. Results are labelled with their source and retrieval time, unavailable data is reported as unavailable rather than zero, and independent signals are never combined into a single opaque threat score unless the tool names that combination explicitly.</p>
@@ -4981,6 +5008,8 @@ export async function buildCorpus({
     renderToolsIndex({
       baseUrl,
       lastmod: data.lastmod.tools,
+      crisisCount: data.crises.length,
+      chokepointCount: data.chokepoints.length,
     }),
   );
   writeGeneratedFile(

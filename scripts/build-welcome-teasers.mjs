@@ -6,6 +6,12 @@
 //   node scripts/build-welcome-teasers.mjs            # write
 //   node scripts/build-welcome-teasers.mjs --check    # fail if stale
 //
+// The generator owns two committed artifacts: pro-test/src/generated/teasers.json
+// (the strip rows plus the capture date the Published-pulse badge names) and
+// the date metadata in pro-test/welcome.html (`lastmod` + `dateModified`).
+// Both refresh on this one command so a new freeze can never leave the strip
+// publishing a newer capture under an older page date (#7654).
+//
 // Why this file is generated rather than hand-curated
 // ---------------------------------------------------
 // The root welcome strip renders this fallback immediately, INCLUDING into the
@@ -14,10 +20,11 @@
 // right now?".
 //
 // Hand-curation lapsed exactly as you would expect (#7608): the headline card
-// published four invented headlines under real Reuters/FT/AP/BBC bylines, and
-// the CII/chokepoint numbers had drifted until they inverted which waterway was
-// in crisis -- the homepage showed Bab el-Mandeb red and Hormuz yellow while
-// the same day's snapshot held Hormuz Red 70 and Bab el-Mandeb Yellow 40.
+// published four invented headlines under real Reuters/FT/AP/BBC bylines, the
+// CII/chokepoint numbers had drifted until they inverted which waterway was in
+// crisis -- the homepage showed Bab el-Mandeb red and Hormuz yellow while the
+// same day's snapshot held Hormuz Red 70 and Bab el-Mandeb Yellow 40 -- and the
+// market tape quoted the S&P 22% low and Bitcoin 30% high.
 //
 // The determinism rule that kept this hand-written still holds and is not
 // relaxed here: NEVER fetch live data during `npm run build`, because the
@@ -34,18 +41,20 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { resolveLatestLivePulseSnapshotPath } from './build-crawlable-corpus.mjs';
 import { parseCiiMovement } from './crawlable-live-tools.mjs';
-import { isVerifiableArticleUrl } from './freeze-crawlable-live-pulse.mjs';
+import { QUOTE_LABELS, isVerifiableArticleUrl } from './freeze-crawlable-live-pulse.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(__filename), '..');
 
 export const TEASERS_OUTPUT_PATH = 'pro-test/src/generated/teasers.json';
+export const WELCOME_HTML_PATH = 'pro-test/welcome.html';
 
 // The strip renders five rows per data card and four headlines.
 const CHOKEPOINT_STATUSES = new Set(['green', 'yellow', 'red']);
 const CII_ROWS = 5;
 const CHOKEPOINT_ROWS = 5;
 const HEADLINE_ROWS = 4;
+const CAPTURED_AT_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const { CHOKEPOINT_REGISTRY } = await import(
   pathToFileURL(join(REPO_ROOT, 'src', 'config', 'chokepoint-registry.ts')).href
@@ -54,27 +63,6 @@ const { CHOKEPOINT_REGISTRY } = await import(
 const DISPLAY_NAME_BY_SLUG = new Map(
   CHOKEPOINT_REGISTRY.map((entry) => [entry.id, entry.displayName]),
 );
-
-// Market quotes have no frozen source: the pulse snapshot captures risk,
-// chokepoint and crisis state, not prices. These stay illustrative sample
-// values, and unlike the headline card they make no attribution claim -- no
-// exchange, vendor or masthead is named, and the card carries the SAMPLE badge
-// until the live fetch replaces it. Kept here rather than in the generated JSON
-// so `--check` covers the whole file.
-const SAMPLE_QUOTES = [
-  { symbol: '^GSPC', display: 'S&P 500', price: 6053.1, change: 0.42, sparkline: [5982, 5991, 6004, 5998, 6012, 6027, 6021, 6035, 6042, 6039, 6048, 6053] },
-  { symbol: '^IXIC', display: 'Nasdaq', price: 20231.8, change: 0.67, sparkline: [19980, 20012, 20045, 20010, 20092, 20135, 20108, 20156, 20182, 20163, 20205, 20232] },
-  { symbol: '^VIX', display: 'VIX', price: 18.42, change: -2.15, sparkline: [19.2, 19.0, 18.8, 18.9, 18.7, 18.6, 18.8, 18.5, 18.4, 18.6, 18.5, 18.4] },
-  { symbol: 'BTC', display: 'Bitcoin', price: 104850, change: -1.23, sparkline: [106900, 106400, 106800, 106100, 105600, 105900, 105200, 104800, 105100, 104600, 104900, 104850] },
-  { symbol: 'ETH', display: 'Ethereum', price: 2524, change: -0.74, sparkline: [2580, 2564, 2571, 2550, 2541, 2555, 2538, 2526, 2535, 2518, 2527, 2524] },
-  { symbol: 'CL=F', display: 'WTI crude', price: 72.44, change: 1.18, sparkline: [71.2, 71.4, 71.1, 71.6, 71.9, 71.7, 72.1, 72.3, 72.0, 72.5, 72.2, 72.4] },
-  { symbol: 'BZ=F', display: 'Brent', price: 76.18, change: 1.04, sparkline: [75.0, 75.2, 75.1, 75.5, 75.7, 75.6, 75.9, 76.1, 75.8, 76.2, 76.0, 76.2] },
-  { symbol: 'GC=F', display: 'Gold', price: 3312.4, change: 0.31, sparkline: [3295, 3298, 3301, 3299, 3304, 3308, 3306, 3310, 3307, 3311, 3309, 3312] },
-  { symbol: 'HG=F', display: 'Copper', price: 4.91, change: 1.46, sparkline: [4.78, 4.80, 4.79, 4.83, 4.86, 4.85, 4.88, 4.90, 4.87, 4.92, 4.90, 4.91] },
-  { symbol: 'NG=F', display: 'Nat gas', price: 3.18, change: -0.58, sparkline: [3.24, 3.22, 3.25, 3.21, 3.20, 3.23, 3.19, 3.17, 3.18, 3.16, 3.19, 3.18] },
-  { symbol: 'EURUSD=X', display: 'EUR/USD', price: 1.08, change: 0.12, sparkline: [1.076, 1.077, 1.077, 1.078, 1.079, 1.078, 1.080, 1.081, 1.080, 1.082, 1.081, 1.082] },
-  { symbol: 'USDJPY=X', display: 'USD/JPY', price: 144.2, change: -0.21, sparkline: [144.8, 144.6, 144.7, 144.5, 144.4, 144.6, 144.3, 144.1, 144.2, 144.0, 144.3, 144.2] },
-];
 
 // The snapshot stores CII movement as operator prose ("Rising +12"); the strip
 // renders a trend glyph keyed off the proto enum suffix.
@@ -114,7 +102,44 @@ function headlineRow(headline, index) {
   return { title, source, url, publishedAt };
 }
 
+// The tape names real instruments, so a row that cannot be sourced is dropped
+// rather than defaulted. Until #7608 these twelve rows were hand-written and had
+// drifted to a 22% error on the S&P and a 30% error on Bitcoin -- crawlable,
+// specific, and false, under a heading asking what live data the page shows.
+function quoteRow(quote, index, snapshotPath) {
+  const symbol = String(quote?.symbol || '').trim();
+  const price = Number(quote?.price);
+  const change = Number(quote?.change);
+  const sparkline = Array.isArray(quote?.sparkline) ? quote.sparkline.map(Number) : [];
+  if (!QUOTE_LABELS[symbol]) {
+    throw new Error(
+      `${snapshotPath} holds quote "${symbol}" at index ${index}, which the strip does not render`,
+    );
+  }
+  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(change)) {
+    throw new Error(
+      `${snapshotPath} holds quote "${symbol}" with price ${quote?.price} / change ${quote?.change}; `
+      + 'the tape would publish a made-up number for a real instrument',
+    );
+  }
+  if (!sparkline.every((value) => Number.isFinite(value))) {
+    throw new Error(`${snapshotPath} holds quote "${symbol}" with a non-numeric sparkline point`);
+  }
+  return { symbol, display: QUOTE_LABELS[symbol], price, change, sparkline };
+}
+
 export function buildWelcomeTeasers(snapshot, snapshotPath) {
+  // The badge names the freeze behind the rows ("Published pulse Sep 4,
+  // 2026"), so the capture date is output, not decoration. A missing or
+  // misshapen date reds the generator rather than publishing undated fact
+  // claims — the same fail-closed contract as an unpublishable headline.
+  const capturedAt = String(snapshot?.capturedAt || '').trim();
+  if (!CAPTURED_AT_RE.test(capturedAt)) {
+    throw new Error(
+      `${snapshotPath} holds capturedAt ${JSON.stringify(snapshot?.capturedAt)}, `
+      + 'which is not a YYYY-MM-DD date — the strip badge cannot attribute the rows without it',
+    );
+  }
   // An empty capture publishes an empty card. That is the honest degradation:
   // the freeze records and warns about a shortfall rather than throwing (a news
   // outage must not cost the corpus its country refresh), and showing nothing
@@ -167,6 +192,7 @@ export function buildWelcomeTeasers(snapshot, snapshotPath) {
   });
 
   return {
+    capturedAt,
     headlines: headlines.slice(0, HEADLINE_ROWS).map(headlineRow),
     cii,
     chokepoints: [...chokepointRows]
@@ -178,7 +204,12 @@ export function buildWelcomeTeasers(snapshot, snapshotPath) {
     // in teasers.ts, which counts across the full set).
     chokepointDisrupted: chokepointRows.filter((row) => row.status !== 'green').length,
     chokepointTotal: chokepointRows.length,
-    quotes: SAMPLE_QUOTES,
+    // Same fail-soft contract as the headline card: publish exactly what the
+    // capture vouched for, including nothing. The live fetch replaces the tape
+    // a moment later for a real visitor; a crawler reads frozen real prices or
+    // no prices, never invented ones.
+    quotes: (Array.isArray(snapshot?.quotes) ? snapshot.quotes : [])
+      .map((quote, index) => quoteRow(quote, index, snapshotPath)),
   };
 }
 
@@ -204,23 +235,49 @@ export async function renderWelcomeTeasers({ rootDir = REPO_ROOT } = {}) {
   return `${JSON.stringify({ _comment: comment(snapshotPath, snapshot.capturedAt), ...teasers }, null, 2)}\n`;
 }
 
+// The homepage is the strip's host page, so its crawler-facing dates track
+// the same freeze the strip reads. Exactly one lastmod meta and one
+// dateModified JSON-LD node exist in the template; anything else (zero, two)
+// is a template edit this sync must not silently reinterpret — fail closed.
+export function renderWelcomeHtml({ rootDir = REPO_ROOT, capturedAt } = {}) {
+  const htmlPath = join(rootDir, WELCOME_HTML_PATH);
+  const html = readFileSync(htmlPath, 'utf8');
+  const lastmodMatches = html.match(/<meta name="lastmod" content="\d{4}-\d{2}-\d{2}" \/>/g) || [];
+  const dateModifiedMatches = html.match(/"dateModified": "\d{4}-\d{2}-\d{2}"/g) || [];
+  if (lastmodMatches.length !== 1 || dateModifiedMatches.length !== 1) {
+    throw new Error(
+      `${WELCOME_HTML_PATH} must carry exactly one lastmod meta and one dateModified node `
+      + `(found ${lastmodMatches.length} / ${dateModifiedMatches.length}) — refusing to guess which one tracks the strip snapshot`,
+    );
+  }
+  return html
+    .replace(/<meta name="lastmod" content="\d{4}-\d{2}-\d{2}" \/>/, `<meta name="lastmod" content="${capturedAt}" />`)
+    .replace(/"dateModified": "\d{4}-\d{2}-\d{2}"/, `"dateModified": "${capturedAt}"`);
+}
+
 const isMain = process.argv[1] && resolve(process.argv[1]) === __filename;
 if (isMain) {
   const check = process.argv.includes('--check');
+  const snapshotPath = resolveLatestLivePulseSnapshotPath(REPO_ROOT);
+  const snapshot = JSON.parse(readFileSync(join(REPO_ROOT, snapshotPath), 'utf8'));
+  const teasers = buildWelcomeTeasers(snapshot, snapshotPath);
+  const expectedTeasers = `${JSON.stringify({ _comment: comment(snapshotPath, snapshot.capturedAt), ...teasers }, null, 2)}\n`;
+  const expectedHtml = renderWelcomeHtml({ rootDir: REPO_ROOT, capturedAt: teasers.capturedAt });
   const outPath = join(REPO_ROOT, TEASERS_OUTPUT_PATH);
-  const expected = await renderWelcomeTeasers();
+  const htmlPath = join(REPO_ROOT, WELCOME_HTML_PATH);
   if (check) {
-    const actual = readFileSync(outPath, 'utf8');
-    if (actual !== expected) {
-      console.error(
-        `[build-welcome-teasers] ${TEASERS_OUTPUT_PATH} is stale. Run \`npm run teasers:welcome\`.`,
-      );
+    const stale = [];
+    if (readFileSync(outPath, 'utf8') !== expectedTeasers) stale.push(TEASERS_OUTPUT_PATH);
+    if (readFileSync(htmlPath, 'utf8') !== expectedHtml) stale.push(WELCOME_HTML_PATH);
+    if (stale.length > 0) {
+      console.error(`[build-welcome-teasers] stale: ${stale.join(', ')}. Run \`npm run teasers:welcome\`.`);
       process.exitCode = 1;
     } else {
-      console.log(`[build-welcome-teasers] ${TEASERS_OUTPUT_PATH} is current`);
+      console.log(`[build-welcome-teasers] ${TEASERS_OUTPUT_PATH} and ${WELCOME_HTML_PATH} are current`);
     }
   } else {
-    writeFileSync(outPath, expected, 'utf8');
-    console.log(`[build-welcome-teasers] wrote ${TEASERS_OUTPUT_PATH}`);
+    writeFileSync(outPath, expectedTeasers, 'utf8');
+    writeFileSync(htmlPath, expectedHtml, 'utf8');
+    console.log(`[build-welcome-teasers] wrote ${TEASERS_OUTPUT_PATH} and ${WELCOME_HTML_PATH}`);
   }
 }
