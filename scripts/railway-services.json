@@ -1289,7 +1289,8 @@
       "scripts/package.json",
       "scripts/seed-fire-detections.mjs",
       "scripts/wildfire/bc-fire-points.mjs",
-      "scripts/wildfire/cwfis-wfs.mjs"
+      "scripts/wildfire/cwfis-wfs.mjs",
+      "scripts/wildfire/firms-area.mjs"
     ],
     "cronSchedule": "*/10 * * * *",
     "documentedAt": "docs/railway-seed-consolidation-runbook.md#standalone-seed-crons-43-not-bundled"
@@ -1469,6 +1470,7 @@
       "scripts/seed-insights.mjs",
       "scripts/shared/brief-llm-core.js",
       "scripts/shared/country-names.json",
+      "scripts/shared/digest-acceptance.mjs",
       "scripts/shared/diplomacy-keywords.json",
       "scripts/shared/geo-extract.mjs",
       "scripts/shared/publisher-families.js",
