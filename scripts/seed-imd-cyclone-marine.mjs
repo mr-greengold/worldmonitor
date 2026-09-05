@@ -2,8 +2,7 @@
 /**
  * IMD cyclone, port, coastal, and marine seeder (#7005).
  *
- * Planned Railway service for cyclone/port/coastal/marine products only.
- * Does not write the NWS/ECCC/SWIC weather-alerts key. Live fetch requires IMD_API_KEY.
+ * Does not write the NWS/ECCC/SWIC weather-alerts key.
  */
 
 import { loadEnvFile, CHROME_UA, readCanonicalValue, runSeed } from './_seed-utils.mjs';
@@ -12,6 +11,7 @@ import {
   IMD_CANONICAL_KEY,
   IMD_MAX_CONTENT_AGE_MIN,
   IMD_SOURCE_VERSION,
+  createImdProxyFetch,
   declareImdRecords,
   fetchImdCycloneMarine,
   imdAfterPublish,
@@ -46,7 +46,8 @@ async function fetchSnapshot() {
   } catch (err) {
     console.warn(`imd-cyclone-marine: last-good read failed: ${err.message || err}`);
   }
-  return fetchImdCycloneMarine({ userAgent: CHROME_UA, previous });
+  const fetchFn = createImdProxyFetch(process.env.PROXY_URL);
+  return fetchImdCycloneMarine({ userAgent: CHROME_UA, previous, fetchFn });
 }
 
 runSeed('weather', 'imd-cyclone-marine', IMD_CANONICAL_KEY, fetchSnapshot, {
