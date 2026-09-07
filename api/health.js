@@ -623,10 +623,15 @@ const SEED_META = {
   wildfires:        {
     key: 'seed-meta:wildfire:fires',
     maxStaleMin: 360,
-    sourceFailure: {
-      warnAfterConsecutive: 2,
-      failureCodePattern: /^FIRMS_PARTIAL_COVERAGE$/,
-    },
+    sourceFailure: [
+      { warnAfterConsecutive: 2, failureCodePattern: /^FIRMS_PARTIAL_COVERAGE$/ },
+      {
+        warnAfterConsecutive: 2, maxPendingMin: 15,
+        successAtField: 'lastSourceSuccessAt',
+        sources: ['cwfis', 'firms', 'bc'],
+        failureCodePattern: /^CWFIS_SOURCE_FAILED$/,
+      },
+    ],
   }, // FIRMS NRT resets at midnight UTC; new-day data takes 3-6h to accumulate
   wildfiresBootstrap: { key: 'seed-meta:wildfire:fires-bootstrap', maxStaleMin: 360 }, // Compact CDN payload is a distinct publish target; monitor it so canonical fallback cannot hide transform/write failures.
   outages:          { key: 'seed-meta:infra:outages',           maxStaleMin: 30 },
@@ -643,7 +648,16 @@ const SEED_META = {
   etfFlows:         { key: 'seed-meta:market:etf-flows',        maxStaleMin: 60 },
   gulfQuotes:       { key: 'seed-meta:market:gulf-quotes',      maxStaleMin: 30 },
   stablecoinMarkets:{ key: 'seed-meta:market:stablecoins',      maxStaleMin: 60 },
-  naturalEvents:    { key: 'seed-meta:natural:events',          maxStaleMin: 540 }, // 3h Railway climate bundle; 3x cadence preserves a full missed run.
+  naturalEvents:    {
+    key: 'seed-meta:natural:events',
+    maxStaleMin: 540, // 3h Railway climate bundle; 3x cadence preserves a full missed run.
+    sourceFailure: {
+      warnAfterConsecutive: 2,
+      maxPendingMin: 210,
+      successAtField: 'lastSourceSuccessAt',
+      failureCodePattern: /^NHC_(POINT_REQUEST_FAILED|POINT_RESPONSE_INVALID)$/,
+    },
+  },
   hkoWarnings:      { key: 'seed-meta:weather:hko-warnings',    maxStaleMin: 540 }, // successful HKO responses publish a snapshot even when no tropical-cyclone warning is active.
   // #6987: moved off seed-meta:aviation:faa, which carries the FAA-ONLY alert
   // count. This probe's data key is the combined page-load aggregate, so a quiet
@@ -879,7 +893,15 @@ const SEED_META = {
   defensePatents:   { key: 'seed-meta:military:defense-patents',  maxStaleMin: 25200 },
   satellites:       { key: 'seed-meta:intelligence:satellites',    maxStaleMin: 240 }, // CelesTrak every 120min; 240min = absorbs one missed cycle
   temporalAnomalies:{ key: 'seed-meta:temporal:anomalies',          maxStaleMin: 45 }, // rebuild-stamped ONLY (TEMPORAL_ANOMALIES_REBUILD_AFTER_MS=20min in infrastructure/v1/_shared.ts) — only producer-route traffic can rebuild and refresh this request-driven stamp, so a traffic lull can age it past 45min; 45min leaves ~2.25x margin. Data TTL is 60min so health reaches STALE_SEED before EMPTY. Content freshness is a separate clock: the producer stamps newestItemAt/maxContentAgeMin from all five COUNT_SOURCE_KEYS payloads (news, FIRMS, military flights, theater-posture vessels, AIS gaps — TEMPORAL_ANOMALIES_MAX_CONTENT_AGE_MIN); a frozen-but-200 upstream keeps fetchedAt fresh and reads STALE_CONTENT.
-  weatherAlerts:    { key: 'seed-meta:weather:alerts',             maxStaleMin: 45 }, // relay loop every 15min; 45 = 3× interval (was 30 = 2×, too tight on relay hiccup)
+  weatherAlerts: {
+    key: 'seed-meta:weather:alerts', maxStaleMin: 45,
+    sourceFailure: {
+      warnAfterConsecutive: 2, maxPendingMin: 20,
+      successAtField: 'lastSourceSuccessAt',
+      failureCodePattern: /^WEATHER_ALERT_SOURCE_INCOMPLETE$/,
+      sources: ['nws', 'eccc', 'swic'],
+    },
+  },
   // Credential-gated seeder (#7005). This is an activation-marker cutover
   // rather than a 24h expiring acknowledgement.
   // Softening stays on-demand until the durable marker is written.
@@ -959,6 +981,7 @@ const SEED_META = {
     maxStaleMin: 45, // seed-alberta-emergency-alert cron */15; 45 = 3× interval
     cutover: { mode: 'expiring-ack', fromKey: null, issue: 6659, status: 'EMPTY' },
   },
+  // Event modification dates do not expire BC orders; fetchedAt ages active-list verification.
   canadaAlertsBcSource: {
     key: 'seed-meta:alerts:bc-emergency-info',
     maxStaleMin: 45,
@@ -1986,6 +2009,7 @@ const MISSING_DATA_IS_FAILURE_KEYS = new Set([
 // key itself must still exist. Do not use this set in the missing-key branch.
 const ZERO_RECORD_DATA_OK_KEYS = new Set([
   ...EMPTY_DATA_OK_KEYS,
+  'naturalEvents',
   // A current List query can validly return no Posts. The relay still writes
   // the canonical snapshot, so a missing xFeed key remains a hard failure.
   'xFeed',
@@ -2235,7 +2259,27 @@ function parseFiniteRecordCount(raw) {
 }
 
 function projectSourceFailure(meta, policy, now, maxStaleMin) {
+  if (Array.isArray(policy)) policy = policy.find(candidate => candidate.failureCodePattern.test(meta?.errorCode));
   if (!policy || meta?.sourceState !== 'degraded') return null;
+  let retainedUntil = Infinity;
+  if (policy.sources) {
+    const failed = meta.failedSources;
+    const states = Array.isArray(failed) && failed.length > 0 && failed.length < policy.sources.length
+      && new Set(failed).size === failed.length && failed.every((source) => policy.sources.includes(source))
+      ? failed.map((source) => meta.sourceHealth?.[source]) : [];
+    const valid = states.length > 0 && states.every((state) =>
+      Number.isSafeInteger(state?.consecutiveFailures) && state.consecutiveFailures >= 1
+      && [state.lastSuccessAt, state.firstFailureAt, state.retainedUntil].every((value) => Number.isSafeInteger(value) && value > 0)
+      && state.lastSuccessAt <= state.firstFailureAt && state.firstFailureAt <= meta.lastSourceAttemptAt);
+    retainedUntil = valid ? Math.min(...states.map((state) => state.retainedUntil)) : NaN;
+    meta = {
+      ...meta,
+      consecutiveSourceFailures: valid ? Math.max(...states.map((state) => state.consecutiveFailures)) : null,
+      firstSourceFailureAt: valid ? Math.min(...states.map((state) => state.firstFailureAt)) : null,
+      lastSourceSuccessAt: valid ? Math.min(...states.map((state) => state.lastSuccessAt)) : null,
+      lastSourceFailureCode: meta.errorCode,
+    };
+  }
   const errorCode = typeof meta?.errorCode === 'string'
     && policy.failureCodePattern.test(meta.errorCode)
     ? meta.errorCode
@@ -2261,7 +2305,7 @@ function projectSourceFailure(meta, policy, now, maxStaleMin) {
     const validEpisode = [first, attempt, success].every((value) => Number.isSafeInteger(value) && value > 0)
       && success <= first && first <= attempt && attempt <= now;
     const deadline = validEpisode
-      ? Math.min(first + policy.maxPendingMin * 60_000, success + maxStaleMin * 60_000)
+      ? Math.min(first + policy.maxPendingMin * 60_000, success + maxStaleMin * 60_000, retainedUntil)
       : NaN;
     pending = pending && parseFiniteRecordCount(meta.count ?? meta.recordCount) > 0
       && Number.isFinite(deadline) && now < deadline;
@@ -2718,7 +2762,7 @@ function classifyKey(name, redisKey, opts, ctx) {
     // A producer-failure warning describes degraded-BUT-SERVING — the LKG is
     // still on the page while generation retries.
     else if (synthesisFailure?.warning) fault = 'SEED_ERROR';
-    else if (seedError) fault = 'SEED_ERROR';
+    else if (seedError || (sourceFailure?.pendingUntil && !hasData)) fault = 'SEED_ERROR';
   }
 
   let status;
