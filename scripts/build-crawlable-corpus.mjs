@@ -3147,22 +3147,14 @@ export function renderCountryDevelopments({ countryCode = '', countryName, devel
   if (brief) assertDevelopmentsBrief(brief);
   for (const event of timeline) assertDevelopmentsTimelineEvent(event);
 
-  const movementSentence = describeDevelopmentsMovement({ countryName: name, ciiEntry, pulse });
+  const movementSentence = developmentsHasDatedItem(rows)
+    ? describeDevelopmentsMovement({ countryName: name, ciiEntry, pulse }) : '';
   const briefExtraSources = brief
     ? (Array.isArray(brief.sources) ? brief.sources : [])
       .filter((source) => source && typeof source.url === 'string'
         && !headlines.some((headline) => headline.url === source.url))
     : [];
   for (const source of briefExtraSources) assertDevelopmentsHeadline(source);
-  const itemCount = headlines.length + briefExtraSources.length + timeline.length + (brief ? 1 : 0);
-
-  // Zero items render nothing at all — not an absence note. A "no items"
-  // paragraph would stamp ~140 pages with the same boilerplate sentence and
-  // push the template share the enrichment is meant to reduce (#7615). The
-  // gap stays visible where it belongs: developments:null in resilience.json,
-  // the post-enrichment input to residual hub consolidation.
-  if (itemCount === 0) return '';
-
   const parts = [];
   if (movementSentence) parts.push(`        <p>${movementSentence}</p>`);
   if (headlines.length > 0 || briefExtraSources.length > 0) {
@@ -3178,6 +3170,19 @@ export function renderCountryDevelopments({ countryCode = '', countryName, devel
     const briefHtml = formatCrawlableIntelBrief(brief.text, name);
     const generatedLine = `Brief generated <time datetime="${escapeHtml(brief.generatedAt)}">${escapeHtml(formatStaticDateTime(brief.generatedAt))}</time>`;
     parts.push(`        <div data-intel-brief>\n          <h3>Country brief</h3>\n${briefHtml}\n          <p class="source">${generatedLine}${brief.model ? ` by ${escapeHtml(brief.model)}` : ''} from ${brief.sources.length} grounding sources.</p>\n        </div>`);
+  } else {
+    const reasons = {
+      'no-grounding': 'No country-specific grounding sources were captured.',
+      'thin-grounding': 'The grounding sources did not include at least two distinct publishers.',
+      'uncurated-grounding': 'The grounding sources did not include a curated news source.',
+      'unsupported-citation': 'The brief was withheld because its citations did not pass the source-grounding checks.',
+      'no-service-key': 'Brief generation was unavailable when this snapshot was captured.',
+      failed: 'The brief request failed when this snapshot was captured.',
+      empty: 'The brief service returned no usable brief for this snapshot.',
+    };
+    const reason = Object.hasOwn(reasons, rows?.briefSkipped)
+      ? reasons[rows.briefSkipped] : 'No brief was captured for this snapshot.';
+    parts.push(`        <p data-brief-unavailable>No country brief is available for ${escapeHtml(name)} in this snapshot. ${reason}</p>`);
   }
   if (timeline.length > 0) {
     const events = timeline
@@ -5047,38 +5052,14 @@ export async function buildCorpus({
   }
 
   // Flagship downloadable datasets for the /sources/ DataCatalog node: every
-  // entry resolves to a generated download the corpus writes, so the catalog
-  // never advertises a dataset without a distribution.
-  const convergenceMetricName = data.livePulse.signalConvergence.metricName || 'Geographic Convergence Score';
+  // entry references the detail-page Dataset with its generated download.
+  // Keep the body on that page so shared identities cannot diverge.
   const sourcesCatalogDatasets = [
-    ...data.crises.map((crisis) => {
-      const pagePath = `/crises/${crisis.slug}/`;
-      return {
-        '@type': 'Dataset',
-        '@id': `${absoluteUrl(baseUrl, pagePath)}#crisis-dataset`,
-        name: crisis.title,
-        description: crisis.description,
-        url: absoluteUrl(baseUrl, pagePath),
-        keywords: ['crisis tracker', 'armed conflict', 'humanitarian response'],
-        creator: { ...WORLD_MONITOR_ORG },
-        license: DATASET_LICENSE,
-        distribution: [
-          dataDownload(absoluteUrl(baseUrl, datasetDownloadHref(pagePath, CRISIS_DATASET_DOWNLOAD))),
-        ],
-      };
-    }),
+    ...data.crises.map((crisis) => ({
+      '@id': `${absoluteUrl(baseUrl, `/crises/${crisis.slug}/`)}#crisis-dataset`,
+    })),
     {
-      '@type': 'Dataset',
-      name: `${convergenceMetricName} reference`,
       '@id': `${absoluteUrl(baseUrl, '/tools/signal-convergence/')}#signal-convergence-dataset`,
-      description: `World Monitor's ${convergenceMetricName} (0-100) names when protests, military flights, naval vessels, and earthquakes co-occur in the same 1° cell.`,
-      url: absoluteUrl(baseUrl, '/tools/signal-convergence/'),
-      keywords: ['signal convergence', 'geographic correlation', 'early warning'],
-      creator: { ...WORLD_MONITOR_ORG },
-      license: DATASET_LICENSE,
-      distribution: [
-        dataDownload(absoluteUrl(baseUrl, datasetDownloadHref('/tools/signal-convergence/', CONVERGENCE_DATASET_DOWNLOAD))),
-      ],
     },
   ];
 

@@ -6377,6 +6377,9 @@
           "path": "scripts/validate-rss-feeds.mjs"
         },
         {
+          "path": "server/worldmonitor/intelligence/v1/_country-coverage-feeds.ts"
+        },
+        {
           "path": "server/worldmonitor/market/v1/stock-news-search.ts"
         },
         {
@@ -13570,6 +13573,9 @@
       "attribution": "Credit www.szse.cn and link to the original upstream API/dataset.",
       "status": "terms-review",
       "references": [
+        {
+          "path": "scripts/china-corporate-disclosures/adapters.mjs"
+        },
         {
           "path": "scripts/china-stock-connect/adapters.mjs"
         }
