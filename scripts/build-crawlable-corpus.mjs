@@ -1480,6 +1480,7 @@ function addCountryContext(countries, regionsByCode, crises) {
 
 function stripMarkdownInline(value) {
   return String(value || '')
+    .replace(/<((?:https?:\/\/|mailto:)[^<>\s]+|[^<>\s@]+@[^<>\s@]+)>/gi, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
@@ -1489,7 +1490,7 @@ function stripMarkdownInline(value) {
     .trim();
 }
 
-function parseChangelog(source) {
+export function parseChangelog(source) {
   const matches = [...source.matchAll(/^## \[([^\]]+)\](?: - ([0-9-]+))?\s*$/gm)];
   return matches.map((match, index) => {
     const next = matches[index + 1];
@@ -3355,8 +3356,8 @@ function corpusMainHtml(html) {
   const match = source.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
   const main = match ? match[1] : source;
   return main
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script(?:[\t\n\f\r ][^>]*|\/[^>]*)?>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style(?:[\t\n\f\r ][^>]*|\/[^>]*)?>/gi, '');
 }
 
 function corpusVisibleText(html) {
@@ -3372,7 +3373,7 @@ function intelBriefHtml(html) {
 // crawlers saw literal `**` and `WHAT THIS MEANS FOR NO`. Fail the build
 // when either artifact reaches <main>, including section titles that are
 // still plain text rather than <h*> tags.
-const MEANS_FOR_ISO_RE = /\bwhat this means for [a-z]{2}\b/i;
+const MEANS_FOR_ISO_RE = /^\s*what this means for [a-z]{2}(?=\s*(?::|$))/im;
 
 export function assertCountryBriefPresentation({ pagePath, html, sources }) {
   const main = corpusMainHtml(html);
@@ -3398,7 +3399,10 @@ export function assertCountryBriefPresentation({ pagePath, html, sources }) {
       throw new Error(`${pagePath} heading leaks ISO code: ${text}`);
     }
   }
-  if (MEANS_FOR_ISO_RE.test(corpusVisibleText(brief ?? html))) {
+  const briefLines = corpusMainHtml(brief ?? html)
+    .replace(/<br\b[^>]*>|<\/(?:p|h[1-6]|li|div)>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ');
+  if (MEANS_FOR_ISO_RE.test(briefLines)) {
     throw new Error(`${pagePath} brief heading leaks an ISO-3166 alpha-2 code`);
   }
 }
