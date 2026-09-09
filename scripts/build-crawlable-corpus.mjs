@@ -26,7 +26,8 @@ import {
   USE_CASES_CONTENT_VERSION,
   writeUseCasesSection,
 } from './build-use-cases.mjs';
-import { buildSourceCatalog, renderSourcesIndex } from './crawlable-sources-page.mjs';
+import { buildSourceCatalog, buildSourcePages, renderSourcesIndex, sourceCardAnchors } from './crawlable-sources-page.mjs';
+import { sourceOriginFilterValue } from './source-origin.mjs';
 import {
   attachCoverageToCatalog,
   FEED_DECLARATION_FILES,
@@ -124,6 +125,7 @@ const SOURCE_PAGE_RENDERER_PATH = 'scripts/crawlable-sources-page.mjs';
 const SOURCE_ORIGIN_PATH = 'scripts/source-origin.mjs';
 const SHARED_PAGE_TEMPLATE_PATH = 'scripts/build-crawlable-corpus.mjs';
 export const SOURCE_CATALOG_LASTMOD_PATHS = Object.freeze([
+  'scripts/crawlable-sources-search.mjs',
   'scripts/source-catalog-identity.mjs',
   'shared/source-geography.json',
   'shared/publisher-families.js',
@@ -3383,7 +3385,8 @@ export function assertCountryBriefPresentation({ pagePath, html, sources }) {
     // must not add an entity or change a citation after publish-time validation.
     const claims = [...brief.matchAll(/<(p|li)\b([^>]*)>([\s\S]*?)<\/\1>/gi)]
       .filter((match) => !/\bclass="source"/.test(match[2]))
-      .map((match) => corpusVisibleText(match[3]));
+      .map((match) => corpusVisibleText(match[3]).replace(/&(amp|lt|gt|quot|#39);/g,
+        (entity) => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" })[entity]));
     const gap = briefCitationGroundingGap({ text: claims.join('\n'), sources });
     if (gap) throw new Error(`${pagePath} brief has unsupported citation: ${gap}`);
   }
@@ -5023,9 +5026,9 @@ function buildManifest({ data, baseUrl, changelogPageCount }) {
         routes: COMPARISON_PAGES.map((page) => page.path),
       },
       sources: {
-        count: 1,
+        count: buildSourcePages(data.sourceCatalog).length + 1,
         index: '/sources/',
-        routes: [],
+        routes: buildSourcePages(data.sourceCatalog).map((page) => page.path),
       },
       glossary: {
         count: glossaryRoutes.length,
@@ -5063,6 +5066,9 @@ export async function buildCorpus({
     },
   ];
 
+  const sourcePages = buildSourcePages(data.sourceCatalog);
+  const catalogAnchors = sourceCardAnchors(data.sourceCatalog);
+  const sourceHelpers = { absoluteUrl, breadcrumbLd, dataCatalogLd, escapeHtml, pageDocument, withUtmSource };
   writeGeneratedFile(
     outDir,
     'sources/index.html',
@@ -5072,16 +5078,35 @@ export async function buildCorpus({
       catalogDatasets: sourcesCatalogDatasets,
       baseUrl,
       lastmod: data.lastmod.sources,
-      helpers: {
-        absoluteUrl,
-        breadcrumbLd,
-        dataCatalogLd,
-        escapeHtml,
-        pageDocument,
-        withUtmSource,
-      },
+      helpers: sourceHelpers,
+      directoryPages: sourcePages,
+      catalogAnchors,
     }),
   );
+  for (const sourcePage of sourcePages) {
+    writeGeneratedFile(outDir, routeFile(sourcePage.path), renderSourcesIndex({
+      sourceStats: data.sourceStats,
+      sourceCatalog: sourcePage.providers,
+      baseUrl,
+      lastmod: data.lastmod.sources,
+      helpers: sourceHelpers,
+      sourcePage,
+      catalogAnchors,
+      siblingPages: sourcePages.filter((page) => page.domainId === sourcePage.domainId),
+    }));
+  }
+  writeGeneratedFile(outDir, 'sources/search-index.json', JSON.stringify(sourcePages.flatMap((page) => (
+    page.providers.map((provider) => ({
+      name: provider.displayName,
+      hosts: provider.hosts,
+      search: [provider.displayName, provider.provider, ...provider.hosts].join(' ').toLowerCase(),
+      domain: provider.domainId,
+      kinds: provider.kinds,
+      country: sourceOriginFilterValue(provider.originCountry),
+      coverage: (provider.coveredCountries || []).map(sourceOriginFilterValue),
+      url: `${page.path}#${catalogAnchors.get(provider.provider)}`,
+    }))
+  ))));
 
   writeGeneratedFile(
     outDir,
