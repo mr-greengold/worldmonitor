@@ -85,7 +85,7 @@ function samIpv4ResponseTransport(httpsGetFn = httpsGet) {
 // Callers with a long per-attempt timeout must lower maxRetries accordingly.
 // Sources run in parallel, so the section pays the slowest source, not the sum.
 async function fetchResponse(url, options = {}, transport = fetchResponseTransport) {
-  const { timeoutMs = 20_000, maxRetries = 2, retry429 = true, ...fetchOptions } = options;
+  const { timeoutMs = 20_000, maxRetries = 2, retryDelayMs = 1000, retry429 = true, ...fetchOptions } = options;
   return withRetry(async () => {
     const response = await transport(url, {
       ...fetchOptions,
@@ -103,7 +103,7 @@ async function fetchResponse(url, options = {}, transport = fetchResponseTranspo
       throw error;
     }
     return response;
-  }, maxRetries, 1000);
+  }, maxRetries, retryDelayMs);
 }
 
 async function fetchJson(url, options = {}) {
@@ -221,10 +221,16 @@ export async function fetchContractsFinder({ now = Date.now(), fetchJsonFn = fet
   url.searchParams.set('publishedTo', new Date(now).toISOString());
   url.searchParams.set('stages', 'tender');
   url.searchParams.set('limit', String(MAX_PER_SOURCE));
-  const payload = await fetchJsonFn(url);
+  // The documented 100-release query has returned valid data after 24s to
+  // first byte. Two 45s attempts (plus bounded backoff) fit the 180s section.
+  const payload = await fetchJsonFn(url, { timeoutMs: 45_000, maxRetries: 1 });
   const releases = payload?.releases ?? payload?.records;
   if (!Array.isArray(releases)) throw new Error('Contracts Finder response is missing releases');
-  const records = releases.map(normalizeContractsFinderRelease).filter((tender) => isOpenOpportunity(tender, now));
+  const normalized = releases.map(normalizeContractsFinderRelease);
+  if (normalized.some((tender) => !tender || (['active', 'open'].includes(tender.status) && !tender.deadline))) {
+    throw new Error('Contracts Finder response contains malformed releases');
+  }
+  const records = normalized.filter((tender) => isOpenOpportunity(tender, now));
   return { records, status: sourceStatus('contracts-finder', 'ok', records, '', now) };
 }
 
@@ -319,7 +325,7 @@ export async function fetchWorldBank({ now = Date.now(), fetchJsonFn = fetchJson
   url.searchParams.set('srce', 'both');
   url.searchParams.set('notice_type_exact', 'Invitation for Bids^Invitation for Prequalification^Request for Expression of Interest');
   url.searchParams.set('deadline_strdate', new Date(now).toISOString().slice(0, 10));
-  const payload = await fetchJsonFn(url);
+  const payload = await fetchJsonFn(url, { retryDelayMs: 5000 });
   const rawNotices = payload?.procnotices;
   if (!rawNotices || (typeof rawNotices !== 'object' && !Array.isArray(rawNotices))) {
     throw new Error('World Bank response is missing procnotices');
@@ -378,18 +384,32 @@ async function recordUnavailableSourceHealth(snapshot) {
   await Promise.all((snapshot?.sourceStatuses || []).map(writeSourceStatus));
 }
 
-async function writeSourceStatus(status) {
-  const key = `economic:global-tenders:v1:source:${status.source}`;
-  const metaKey = `seed-meta:economic:global-tenders:${status.source}`;
-  const successfulAt = Date.parse(status.lastSuccessfulAt || status.fetchedAt || '');
+export function sourceHealthMeta(status) {
+  const contractsFinder = status.source === 'contracts-finder';
+  const successTime = status.lastSuccessfulAt || ((!contractsFinder || status.state === 'ok') ? status.fetchedAt : '');
+  const successfulAt = Date.parse(successTime || '');
   const failed = status.state !== 'ok';
-  await writeExtraKey(key, status, SOURCE_STATUS_TTL_SECONDS);
-  await writeExtraKey(metaKey, {
+  return {
     fetchedAt: Number.isFinite(successfulAt) ? successfulAt : 0,
     recordCount: status.recordCount || 0,
     sourceState: status.state,
     stale: Boolean(status.stale || failed),
-  }, SOURCE_STATUS_TTL_SECONDS);
+    ...(contractsFinder ? {
+      lastAttemptAt: status.fetchedAt,
+      lastSuccessfulAt: status.lastSuccessfulAt || '',
+      consecutiveFailures: status.consecutiveFailures,
+      firstFailureAt: status.firstFailureAt,
+      ...(status.confirmedEmpty === true ? { confirmedEmpty: true } : {}),
+      ...(status.error ? { error: status.error } : {}),
+    } : {}),
+  };
+}
+
+async function writeSourceStatus(status) {
+  const key = `economic:global-tenders:v1:source:${status.source}`;
+  const metaKey = `seed-meta:economic:global-tenders:${status.source}`;
+  await writeExtraKey(key, status, SOURCE_STATUS_TTL_SECONDS);
+  await writeExtraKey(metaKey, sourceHealthMeta(status), SOURCE_STATUS_TTL_SECONDS);
 }
 
 async function main() {

@@ -2068,7 +2068,7 @@ export const CACHE_TOOLS: ToolDef[] = [
     ],
     _freshnessChecks: [
       { key: 'seed-meta:energy:eia-petroleum',                  maxStaleMin: 4320 },   // daily bundle; 72h = 3× interval
-      { key: 'seed-meta:energy:electricity-prices',             maxStaleMin: 2880 },   // daily cron (14:00 UTC); 48h = 2× interval
+      { key: 'seed-meta:energy:electricity-prices',             maxStaleMin: 3000 },   // daily 14:00 UTC; two intervals + 2h completion margin
       { key: 'seed-meta:energy:ember',                          maxStaleMin: 2880 },   // daily cron (08:00 UTC); 48h = 2× interval
       { key: 'seed-meta:energy:gas-storage-countries',          maxStaleMin: 2880 },   // daily cron at 10:30 UTC; 48h = 2× interval
       { key: 'seed-meta:energy:fuel-shortages',                 maxStaleMin: 2880 },   // 2d — daily cron × 2 headroom
@@ -2499,7 +2499,8 @@ export const CACHE_TOOLS: ToolDef[] = [
             todayCargo: { type: ['number', 'null'] }, todayOther: { type: ['number', 'null'] },
             wowChangePct: { type: ['number', 'null'] }, riskLevel: { type: 'string' },
             incidentCount7d: { type: ['number', 'null'] }, disruptionPct: { type: ['number', 'null'] },
-            riskSummary: { type: 'string' }, riskReportAction: { type: 'string' },
+            riskSummary: { type: 'string', description: 'Generated prose is withheld as an empty string. This does not indicate low risk.' },
+            riskReportAction: { type: 'string', description: 'Operational advice is withheld as an empty string because it has no verified routing basis.' },
             anomaly: { type: 'object' }, dataAvailable: { type: 'boolean' },
             // null todayTotal means the relay's 24h AIS window was empty --
             // unsupplied, not a measured zero (#7457). dataAvailable is
@@ -2598,12 +2599,20 @@ export const CACHE_TOOLS: ToolDef[] = [
           }
         }
       }
+      mapNested(data, 'transit-summaries', 'summaries', (summaries) => {
+        if (!summaries || typeof summaries !== 'object' || Array.isArray(summaries)) return summaries;
+        return Object.fromEntries(Object.entries(summaries).map(([id, entry]) => [id,
+          entry && typeof entry === 'object'
+            ? { ...entry, riskSummary: '', riskReportAction: '' }
+            : entry,
+        ]));
+      });
       const cp = argStr(params.chokepoint);
       if (cp) {
         mapNested(data, 'transit-summaries', 'summaries', (m) => pickMapKeysLike(m, cp));
         mapNested(data, 'chokepoint_transits', 'transits', (m) => pickMapKeysLike(m, cp));
         data['chokepoint-flows'] = pickMapKeysLike(data['chokepoint-flows'], cp);
-        narrowNested(data, 'chokepoint-baselines', 'chokepoints', (c) => ciIncludes(c.id, cp) || ciIncludes(c.relayId, cp) || ciIncludes(c.name, cp));
+        narrowNested(data, 'chokepoint-baselines', 'chokepoints', (c) => ciIncludes(c?.id, cp) || ciIncludes(c?.relayId, cp) || ciIncludes(c?.name, cp));
       }
       const limit = argNum(params.limit) ?? DEFAULT_LIST_LIMIT;
       capNested(data, 'chokepoint-baselines', 'chokepoints', limit);
