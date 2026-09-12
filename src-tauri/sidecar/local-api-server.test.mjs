@@ -26,6 +26,10 @@ test('bundles the shared LLM health provider registry with the sidecar (#7126)',
   assert.match(dockerfile, /^ENV LOCAL_API_RESOURCE_DIR=\/app$/m);
 });
 
+test('keeps seed-owned WSB snapshots cloud-preferred', () => {
+  assert.equal(__testing__.isCloudPreferred('/api/intelligence/v1/list-wsb-tickers'), true);
+});
+
 test('keeps seed-owned defense snapshots cloud-preferred regardless of relay configuration', () => {
   assert.equal(__testing__.isCloudPreferred('/api/bootstrap'), true);
   assert.equal(__testing__.isCloudPreferred('/api/military/v1/get-defense-industrial-base'), true);
@@ -78,6 +82,41 @@ test('keeps seed-owned commodity vulnerability snapshots cloud-preferred', async
     await app.close();
     await localApi.cleanup();
     await remote.close();
+  }
+});
+
+test('routes seed-only displacement requests to cloud before a local empty 200', async () => {
+  const endpoint = '/api/displacement/v1/get-displacement-summary';
+  const seeded = { summary: { year: 2025, countries: [{ code: 'SYR' }], topFlows: [] }, fetchedAt: 123456, dataAvailable: true };
+  const hits = [];
+  const remote = createServer((req, res) => {
+    hits.push(req.url);
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(seeded));
+  });
+  const remotePort = await listen(remote);
+  const localApi = await setupApiDir({
+    'displacement/v1/get-displacement-summary.js': `export default async function handler() {
+      return Response.json({ dataAvailable: false, fetchedAt: 0 });
+    }`,
+  });
+  const app = await createLocalApiServer({
+    port: 0, apiDir: localApi.apiDir,
+    remoteBase: `http://127.0.0.1:${remotePort}`, cloudFallback: 'true', allowPrivateRemoteBase: true,
+    logger: { log() {}, warn() {}, error() {} },
+  });
+  const { port } = await app.start();
+  try {
+    const query = '?year=0&flow_limit=50';
+    const response = await authFetch(`http://127.0.0.1:${port}${endpoint}${query}`);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), seeded);
+    assert.deepEqual(hits, [`${endpoint}${query}`]);
+    assert.equal(__testing__.isCloudPreferred(endpoint), true);
+  } finally {
+    await app.close();
+    await localApi.cleanup();
+    await new Promise((resolve, reject) => remote.close(error => error ? reject(error) : resolve()));
   }
 });
 
