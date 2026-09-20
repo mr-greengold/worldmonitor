@@ -9773,6 +9773,9 @@
       "references": [
         {
           "path": "scripts/audit-sentry-resolve-pins.mjs"
+        },
+        {
+          "path": "scripts/sync-sentry-convex-probe-filters.mjs"
         }
       ]
     },
@@ -10012,7 +10015,7 @@
       "status": "excluded",
       "references": [
         {
-          "path": "src/components/PinnedWebcamsPanel.ts"
+          "path": "shared/pinned-webcams.ts"
         }
       ]
     },
