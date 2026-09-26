@@ -38,6 +38,7 @@ import { LlmStatusIndicator } from '@/components/LlmStatusIndicator';
 import type { PredictionPanel } from '@/components/PredictionPanel';
 import {
   buildMapUrl,
+  withUrlFragment,
   debounce,
   loadFromStorage,
   saveToStorage,
@@ -114,7 +115,7 @@ import { resolveGateAction, type PanelGateReason } from '@/services/panel-gating
 import { ExportGateControl } from '@/components/ExportGateControl';
 import { h, setTrustedHtml, trustedHtml } from '@/utils/dom-utils';
 import { scheduleAfterFirstPaint } from '@/utils/after-paint';
-import { RELOAD_SAFE_ATTR } from '@/utils/open-modal';
+import { declareOverlay } from '@/utils/open-modal';
 import {
   isAgentAnalyticsSuppressed,
   isAgentPanelViewSuppressed,
@@ -348,7 +349,7 @@ export class EventHandlerManager implements AppModule {
     if (!shareUrl) return;
     // Preserve the shared mobile-overlay marker while syncing map URL state;
     // replacing it with null makes Android Back skip the open sheet.
-    try { history.replaceState(history.state, '', shareUrl); } catch { }
+    try { history.replaceState(history.state, '', withUrlFragment(shareUrl, window.location.hash)); } catch { }
   };
   private readonly debouncedUrlSync = debounce(this.writeUrlState, 250);
 
@@ -997,8 +998,9 @@ export class EventHandlerManager implements AppModule {
     // entered state — it re-appears on the next load. Without this, the
     // automatic reload guards treated it as work worth protecting and
     // deferred stale-bundle reloads for a broad population
-    // (WORLDMONITOR-15X). Accessibility still sees a dialog.
-    popover.setAttribute(RELOAD_SAFE_ATTR, '');
+    // (WORLDMONITOR-15X). Read-only on every `trigger`, so one declaration
+    // covers all three paths. Accessibility still sees a dialog.
+    declareOverlay(popover, { reload: 'safe' });
     popover.tabIndex = -1;
 
     const cards = getMissionPresetsForVariant(SITE_VARIANT).map((preset) => {
@@ -1567,6 +1569,10 @@ export class EventHandlerManager implements AppModule {
     dialog.className = 'embed-modal';
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
+    // Generated snippets only; nothing is typed here, so a reload loses nothing.
+    // The outer overlay is role="presentation"; this inner element is the one
+    // the reload guard sees.
+    declareOverlay(dialog, { reload: 'safe' });
     dialog.setAttribute('aria-labelledby', 'embedModalTitle');
 
     const header = document.createElement('div');
