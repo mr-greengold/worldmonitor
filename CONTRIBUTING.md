@@ -320,6 +320,10 @@ by PR activity. Pushes to `main` scan all six only when the CodeQL workflow itse
 changes, so default-branch findings can lag by one day for JS/TS and one week for
 the other languages, plus runner delays.
 
+After each default-branch scan, the `prune-overlay-bases` job deletes every CodeQL
+overlay-base cache except the newest per workflow/job/language group, because
+CodeQL saves a new base under a unique key on every run and never removes old ones.
+
 The repository owner must coordinate activation with the approved merge:
 
 1. Keep default setup enabled while reviewing this workflow. Advanced analysis
@@ -511,7 +515,9 @@ The repository owner's push must create a `pull_request` `synchronize` event. CI
 
 If `make generate` produces no diff, create an owner-pushed empty commit on the original fork branch. The empty commit creates the required `synchronize` event.
 
-If maintainer edits are disabled, move the commit to a trusted internal branch. Dependabot codegen changes remain blocked and use the internal branch process.
+If maintainer edits are disabled, move the commit to a trusted internal branch.
+
+For Dependabot pull requests from this repository, use the same owner-review and generation procedure on the existing branch. An owner push creates the required `synchronize` event and permits read-only validation of the exact head and merge result. CI does not publish generated patches or write to the Dependabot branch. A later Dependabot push revokes trust; an owner rerun or reopen does not restore it. Commit any required generated artifacts locally before the owner push.
 
 ### OpenAPI Output
 
