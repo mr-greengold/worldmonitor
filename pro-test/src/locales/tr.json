@@ -485,7 +485,7 @@
       "positioningLink": "WorldMonitor açık kaynaklı bir Palantir değil",
       "asOf": "{{date}} itibarıyla",
       "whatIsTitle": "World Monitor Nedir?",
-      "whatIsBody": "World Monitor, 2 milyon kişiden fazlası tarafından kullanılan ücretsiz, açık kaynaklı (AGPL-3.0) bir paneldir. {{feeds}} haber ve OSINT akışını {{providers}} atfedilmiş sağlayıcıdan tek bir canlı dünya haritasına aktarır; {{mapLayers}} harita katmanı türü ile jeopolitika, piyasalar, gemi taşımacılığı, havacılık ve siber alanları kapsar. Bunları ilişkilendirerek yakınsayan olayları manşetlerden önce ortaya çıkarır. Her rakam kaynaklı ve her yöntem belgelenmiştir."
+      "whatIsBody": "World Monitor, 2M+ kişi tarafından kullanılan ücretsiz ($0), açık kaynaklı (AGPL-3.0) bir paneldir. {{feeds}} haber ve OSINT akışını {{providers}} atfedilen sağlayıcıdan {{mapLayers}} harita katmanı türüyle tek bir canlı dünya haritasına aktarır; jeopolitik, piyasalar, denizcilik, havacılık ve siber alanları kapsar. Bunları ilişkilendirerek yakınsayan olayları başlıklardan önce ortaya çıkarır. Her rakam kaynaklıdır ve her yöntem belgelenmiştir."
     },
     "live": {
       "eyebrow": "Şu anda canlı",
@@ -578,13 +578,13 @@
       "f1Title": "Harita zaten hareket ediyor",
       "f1Desc": "Çatışmalar, gemiler, uçaklar, yangınlar ve kesintiler sayfa yüklenirken render edilir. Önce yapılandırılacak bir şey yok.",
       "f2Title": "Herhangi bir ülkeyi tıkla",
-      "f2Desc": "Tam bir dosya açılır: bileşenleriyle istikrarsızlık puanı, alıntılanan başlıkları içeren AI özeti, aktif sinyaller, 7 günlük zaman çizelgesi.",
+      "f2Desc": "O ülke için tam bir dosya açılır: istikrarsızlık puanı bunu oluşturan bileşenlere ayrılmış, kullandığı başlıkları alıntılayan bir yapay zeka özeti, haritadaki aktif sinyaller ve değişenlerin 7 günlük zaman çizelgesi. Öncesinde bir şey kurulması gerekmez; bir tıkla hepsi açılır.",
       "f3Title": "⌘K / Ctrl-K tuşuna bas",
       "f3Desc": "{{commands}} komut. Arayüzü öğrenmeden herhangi bir katmana, panele veya ülkeye atlayın.",
       "f4Title": "Lensini seç",
       "f4Desc": "Dünya, Teknoloji, Finans, Emtia, Enerji veya Happy — aynı motor, altı ayarlanmış monitor, bir tık uzakta.",
       "f5Title": "Belki onda birini gördün",
-      "f5Desc": "{{mapLayers}} harita katmanı türünün çoğu dünya hareket ettikçe ortaya çıkar — uydu geçişleri, GPS karıştırması, karanlık gemiler, protesto kümeleri, siren uyarıları.",
+      "f5Desc": "Harita masaüstünde açıldığında, {{defaultOnLayers}} / {{mapLayers}} harita katmanı türünden, yaklaşık {{defaultOnLayerPct}}% açık duruma getirilir. Geri kalanlar dünya hareket ettikçe ortaya çıkar: uydu geçişleri, GPS jamming, AIS boşluklarından işaretlenen karanlık gemiler, protesto kümeleri ve sivil savunma siren uyarıları. Çoğu katman menüsünden veya ⌘K paletinden açılabilir.",
       "cta": "Kronometreyi başlat"
     },
     "depth": {
@@ -609,7 +609,7 @@
       "n1Title": "Uydu izleme",
       "n1Desc": "SGP4 ile tarayıcıda hesaplanan canlı yörünge konumları her 3 saniyede güncelleniyor — CelesTrak'tan askeri ve Yer gözlem uyduları, 2 saatte bir yenileniyor.",
       "n2Title": "GPS müdahale bölgeleri",
-      "n2Desc": "Uçak raporlarından günlük RF-parazit haritası: uçakların en az %2'sinin bozulmuş GPS gördüğü hücreler işaretlenir, %10'un üzerindekiler yüksek olarak işaretlenir.",
+      "n2Desc": "Uçak raporlarından günlük RF-parazit haritası: en az 2% oranında uçağın bozulmuş GPS gördüğü hücreler işaretlenir, 10% üzerindekiler yüksek olarak işaretlenir. Hücreler bu raporlardan günde bir kez yeniden oluşturulan altıgenlerdir; bu nedenle harita uçuşların son gün içinde karıştırma veya yanıltmaya maruz kaldığı yerleri gösterir, bu dakikayı değil.",
       "n3Title": "Boğaz geçiş istihbaratı",
       "n3Desc": "Hormuz, Süveyş, Bab el-Mendeb ve 10 kanaldan daha fazlasından geçen gemi sayıları — kesinti puanlaması ile.",
       "n4Title": "AI veri merkezi haritası",
@@ -625,7 +625,7 @@
     "agents": {
       "eyebrow": "İnşaatçılar & AI ajanları için",
       "title": "World Monitor'ı kendi yığınımdan nasıl geliştirim?",
-      "sub": "Haritadaki her şey aynı zamanda bir API'dir. MCP ile Claude'a {{mcpTools}} canlı araç kullanarak entegre edin, REST uç noktalarını herhangi bir yerden çağırın veya Python, Ruby, Go ya da JavaScript için yerel bir istemci yükleyin — kodunuz eğitim verisi hafızası yerine canlı verilerle araştırma yapar.",
+      "sub": "Haritadaki her şey aynı zamanda bir API'dir. MCP üzerinden Claude'a {{mcpTools}} canlı araçla bağlayın, herhangi bir yerden REST uç noktalarını çağırın veya Python, Ruby, Go ya da JavaScript için yerel bir istemci yükleyin — kodunuz eğitim verisi anıları yerine canlı verilerle araştırma yapar. MCP erişimi Pro ile gelir, ${{proMonthlyPrice}}/ay'dan.",
       "b1": "{{mcpTools}} MCP aracı — risk puanları, dar geçitler, çatışmalar, pazar, kısa raporlar",
       "b2": "Belgelenmiş REST API — bir OpenAPI 3.1 spec'i, bir anahtarla",
       "b3": "npm, PyPI, RubyGems ve Go'da resmi SDK'lar — sıfır bağımlılık, MCP-first",
@@ -689,11 +689,12 @@
       "q10": "World Monitor neden Palantir değil?",
       "a10": "Palantir, bir kurumun kendi verilerini o kurum içinde operasyonel hale getirir. World Monitor ise ters yönden başlar: halka açık verileri toplar, normalleştirir, ilişkilendirir ve izler, ardından bu istihbarat katmanını ücretsiz bir pano ve açık kaynak kod aracılığıyla yayınlar. Farklı görev, farklı ürün.",
       "q11": "Which World Monitor license do I need?",
-      "a11": "Choose based on who will use the output. Pro's Personal license is for one person using World Monitor for their own research and decisions. Pro Business lets one licensed user use it for company or client work, internal tools, and reports. API Starter covers API use inside one organization, with no customer redistribution. API Business lets that organization embed World Monitor data in products and services for its customers. Enterprise covers custom seats, white-labeling, and deployments. These subscription licenses are separate from the AGPL/MIT source-code licenses. Full terms: worldmonitor.app/docs/terms."
+      "a11": "Choose based on who will use the output. Pro's Personal license is for one person using World Monitor for their own research and decisions. Pro Business lets one licensed user use it for company or client work, internal tools, and reports. API Starter covers API use inside one organization, with no customer redistribution. API Business lets that organization embed World Monitor data in products and services for its customers. Enterprise covers custom seats, white-labeling, and deployments. These subscription licenses are separate from the AGPL/MIT source-code licenses. Full terms: worldmonitor.app/docs/terms.",
+      "sub": "{{answers}} fiyat, veri, uyarılar ve AI erişimi hakkında net cevaplar. Kısa versiyonu: dashboard $0 tutarındadır, hesap gerektirmez ve kod AGPL-3.0 altında açık kaynaktır."
     },
     "cta": {
       "title": "Dünya haritasını izlemeye nasıl başlarım?",
-      "subtitle": "Herhangi bir tarayıcıda hesap olmadan worldmonitor.app/dashboard'ı açın: {{mapLayers}} harita katmanı türü, Dayanıklılık hariç hepsi ücretsiz olarak açılabilir. Kısa durum raporu için herhangi bir ülkeye tıklayın veya komut paletine ulaşmak için ⌘K / Ctrl-K tuşlarına basın. Harita bu sayfayı okurken güncellenmesini sürdürdü.",
+      "subtitle": "worldmonitor.app/dashboard'u herhangi bir tarayıcıda $0'a, hesap olmadan açın: {{mapLayers}} harita katmanı türü, Resilience dışında hepsi ücretsiz olarak açılabilir. Herhangi bir ülkenin brifingini görmek için tıklayın veya komut paletine erişmek için ⌘K / Ctrl-K tuşlarına basın. Harita bu sayfayı okurken güncellenmeye devam etmiştir.",
       "button": "İlk olarak bul",
       "note": "Ücretsiz · Kaydolmaya gerek yok · Saniyeler içinde yüklenir",
       "secondary": "Veya Pro planlarını görmek →"

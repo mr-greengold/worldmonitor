@@ -485,7 +485,7 @@
       "positioningLink": "WorldMonitor não é um Palantir de código aberto",
       "asOf": "Em {{date}}",
       "whatIsTitle": "O que é World Monitor?",
-      "whatIsBody": "O World Monitor é um dashboard gratuito e de código aberto (AGPL-3.0) usado por mais de 2 milhões de pessoas. Ele transmite {{feeds}} feeds de notícias e inteligência de {{providers}} provedores atribuídos em um único mapa-múndi ao vivo com {{mapLayers}} tipos de camada de mapa, abrangendo geopolítica, mercados, navegação marítima, aviação e cibersegurança. Correlaciona-os para que eventos convergentes apareçam antes das manchetes. Cada dado é rastreado e cada método documentado."
+      "whatIsBody": "World Monitor é um dashboard gratuito ($0), open-source (AGPL-3.0) usado por 2M+ pessoas. Ele transmite {{feeds}} feeds de notícias e OSINT de {{providers}} provedores atribuídos em um único mapa-múndi ao vivo com {{mapLayers}} tipos de camada de mapa, abrangendo geopolítica, mercados, navegação marítima, aviação e cibersegurança. Ele correlaciona-os para que eventos convergentes apareçam antes dos destaques. Cada dado é rastreado e cada método documentado."
     },
     "live": {
       "eyebrow": "Ao vivo agora",
@@ -578,13 +578,13 @@
       "f1Title": "O mapa já está se movendo",
       "f1Desc": "Conflitos, embarcações, voos, incêndios e interrupções renderizam conforme a página carrega. Nada para configurar antes.",
       "f2Title": "Clique em qualquer país",
-      "f2Desc": "Um dossiê completo abre: pontuação de instabilidade com seus componentes, resumo de IA com manchetes citadas, sinais ativos, cronograma de 7 dias.",
+      "f2Desc": "Um dossiê completo se abre para esse país: sua pontuação de instabilidade decomposta nos componentes que a formam, um briefing de IA que cita as manchetes em que se baseou, os sinais ativos no mapa e uma linha do tempo de 7 dias do que mudou. Nada precisa ser configurado antes; um clique abre tudo.",
       "f3Title": "Pressione ⌘K / Ctrl-K",
       "f3Desc": "{{commands}} comandos. Acesse qualquer camada, painel ou país sem aprender a UI primeiro.",
       "f4Title": "Escolha sua lente",
       "f4Desc": "Mundo, Tech, Finanças, Commodities, Energia ou Happy — mesmo motor, seis monitores ajustados, um clique de distância.",
       "f5Title": "Você viu talvez um décimo disso",
-      "f5Desc": "A maioria dos {{mapLayers}} tipos de camadas de mapa aparecem conforme o mundo se move — passagens de satélite, interferência de GPS, navios fantasmas, aglomerados de protestos, alertas de sirene.",
+      "f5Desc": "Quando o mapa abre no desktop, {{defaultOnLayers}} dos {{mapLayers}} tipos de camada do mapa, aproximadamente {{defaultOnLayerPct}}%, estão ligados. Os demais aparecem conforme o mundo se move: passagens de satélites, interferência GPS, navios encobertos sinalizados por lacunas de AIS, aglomerados de protestos e alertas de sirenes de proteção civil. A maioria pode ser ativada no menu de camadas ou na paleta ⌘K.",
       "cta": "Comece a contagem"
     },
     "depth": {
@@ -609,7 +609,7 @@
       "n1Title": "Rastreamento de satélites",
       "n1Desc": "Posições orbitais ao vivo calculadas no navegador com SGP4 e atualizadas a cada 3 segundos — satélites militares e de observação da Terra da CelesTrak, atualizados a cada 2 horas.",
       "n2Title": "Zonas de interferência GPS",
-      "n2Desc": "Mapa diário de interferência de RF a partir de relatórios de aeronaves: células onde pelo menos 2% das aeronaves apresentam GPS degradado são sinalizadas, acima de 10% marcadas como altas.",
+      "n2Desc": "Mapa diário de interferência de RF de relatórios de aeronaves: células onde pelo menos 2% das aeronaves detectam GPS degradado são sinalizadas, acima de 10% marcadas como altas. As células são hexágonos reconstruídos uma vez por dia desses relatórios, então o mapa mostra onde voos encontraram jamming ou spoofing ao longo do último dia, não neste minuto.",
       "n3Title": "Inteligência de trânsito em pontos críticos",
       "n3Desc": "Contagem de embarcações através de Hormuz, Suez, Bab el-Mandeb e 10 outros estreitos — com pontuação de disrupção.",
       "n4Title": "Mapa de datacenters de IA",
@@ -625,7 +625,7 @@
     "agents": {
       "eyebrow": "Para construtores & agentes de IA",
       "title": "Como construo sobre World Monitor a partir da minha própria stack?",
-      "sub": "Tudo no mapa também é uma API. Integre ao Claude via MCP com {{mcpTools}} ferramentas live, chame os endpoints REST de qualquer lugar, ou instale um cliente nativo para Python, Ruby, Go ou JavaScript — seu código pesquisa com dados live em vez de memórias de treinamento.",
+      "sub": "Tudo no mapa também é uma API. Integre-o ao Claude via MCP com {{mcpTools}} ferramentas ao vivo, chame os endpoints REST de qualquer lugar, ou instale um cliente nativo para Python, Ruby, Go ou JavaScript — seu código pesquisa com dados ao vivo em vez de memórias de dados de treinamento. O acesso MCP vem com Pro, a partir de ${{proMonthlyPrice}}/mês.",
       "b1": "{{mcpTools}} ferramentas MCP — pontuações de risco, gargalos, conflitos, mercados, briefings",
       "b2": "REST API documentada — uma especificação OpenAPI 3.1, uma chave",
       "b3": "SDKs oficiais no npm, PyPI, RubyGems e Go — sem dependências, MCP-first",
@@ -689,11 +689,12 @@
       "q10": "Por que o World Monitor não é Palantir?",
       "a10": "Palantir torna os dados próprios de uma instituição operacionais dentro dessa instituição. World Monitor começa do outro lado: reúne, normaliza, correlaciona e monitora dados do mundo público, depois publica essa camada de inteligência por meio de um painel gratuito e código aberto. Trabalho diferente, produto diferente.",
       "q11": "Which World Monitor license do I need?",
-      "a11": "Choose based on who will use the output. Pro's Personal license is for one person using World Monitor for their own research and decisions. Pro Business lets one licensed user use it for company or client work, internal tools, and reports. API Starter covers API use inside one organization, with no customer redistribution. API Business lets that organization embed World Monitor data in products and services for its customers. Enterprise covers custom seats, white-labeling, and deployments. These subscription licenses are separate from the AGPL/MIT source-code licenses. Full terms: worldmonitor.app/docs/terms."
+      "a11": "Choose based on who will use the output. Pro's Personal license is for one person using World Monitor for their own research and decisions. Pro Business lets one licensed user use it for company or client work, internal tools, and reports. API Starter covers API use inside one organization, with no customer redistribution. API Business lets that organization embed World Monitor data in products and services for its customers. Enterprise covers custom seats, white-labeling, and deployments. These subscription licenses are separate from the AGPL/MIT source-code licenses. Full terms: worldmonitor.app/docs/terms.",
+      "sub": "{{answers}} respostas diretas sobre preço, dados, alertas e acesso a IA. Em resumo: o dashboard custa $0, não requer conta, e o código é open source sob AGPL-3.0."
     },
     "cta": {
       "title": "Como começo a monitorar o mapa do mundo?",
-      "subtitle": "Abra worldmonitor.app/dashboard em qualquer navegador, sem conta: {{mapLayers}} tipos de camadas de mapa, todos exceto Resilience são livres para alternar. Clique em qualquer país para seu resumo, ou pressione ⌘K / Ctrl-K para a paleta de comandos. O mapa continuou atualizando enquanto você lia esta página.",
+      "subtitle": "Abra worldmonitor.app/dashboard em qualquer navegador por $0, sem conta: {{mapLayers}} tipos de camada de mapa, todos exceto Resilience livres para ativar. Clique em qualquer país para seu briefing, ou pressione ⌘K / Ctrl-K para a paleta de comandos. O mapa continuou atualizando enquanto você lia esta página.",
       "button": "Encontre primeiro",
       "note": "Gratuito · Sem inscrição · Carrega em segundos",
       "secondary": "Ou veja planos Pro →"

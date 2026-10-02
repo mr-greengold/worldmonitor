@@ -485,7 +485,7 @@
       "positioningLink": "WorldMonitor एक ओपन-सोर्स Palantir नहीं है",
       "asOf": "{{date}} तक",
       "whatIsTitle": "World Monitor क्या है?",
-      "whatIsBody": "World Monitor एक मुफ्त, ओपन-सोर्स (AGPL-3.0) डैशबोर्ड है जिसे 2M+ लोग उपयोग करते हैं। यह {{feeds}} समाचार और OSINT फीड्स को {{providers}} श्रेय प्राप्त प्रदाताओं से एक लाइव विश्व मानचित्र पर {{mapLayers}} मानचित्र परत प्रकारों के साथ स्ट्रीम करता है, जो भू-राजनीति, बाजार, शिपिंग, विमानन और साइबर को कवर करता है। यह उन्हें सहसंबंधित करता है ताकि अभिसारी घटनाएं हेडलाइन्स से पहले सामने आएं। प्रत्येक आंकड़े का स्रोत है और प्रत्येक पद्धति दस्तावेज़ित है।"
+      "whatIsBody": "World Monitor एक मुफ़्त ($0), ओपन-सोर्स (AGPL-3.0) डैशबोर्ड है जिसे 2M+ लोग उपयोग करते हैं। यह {{feeds}} समाचार और OSINT फीड को {{providers}} श्रोत प्रदाताओं से एक लाइव विश्व मानचित्र पर {{mapLayers}} मानचित्र परत प्रकारों के साथ स्ट्रीम करता है, जो भू-राजनीति, बाजार, शिपिंग, विमानन और साइबर को कवर करता है। यह उन्हें सहसंबंधित करता है ताकि अभिसारी घटनाएं सुर्खियों से पहले सामने आएँ। हर आँकड़ा स्रोत-युक्त है और हर विधि प्रलेखित है।"
     },
     "live": {
       "eyebrow": "अभी लाइव",
@@ -578,13 +578,13 @@
       "f1Title": "मानचित्र पहले से ही चल रहा है",
       "f1Desc": "संघर्ष, जहाज, उड़ानें, आग और आउटेज पृष्ठ लोड होने पर प्रदर्शित होते हैं। पहले कुछ भी कॉन्फ़िगर करने के लिए कुछ नहीं।",
       "f2Title": "कोई भी देश क्लिक करें",
-      "f2Desc": "एक पूर्ण डोजिएर खुलता है: इसके घटकों के साथ अस्थिरता स्कोर, उद्धृत हेडलाइनों के साथ एक AI संक्षिप्त, सक्रिय संकेत, एक 7-दिन की समयरेखा।",
+      "f2Desc": "उस देश के लिए एक संपूर्ण डोसियर खुलता है: इसका अस्थिरता स्कोर उसके घटकों में विभाजित, एक AI ब्रीफिंग जो जिन सुर्खियों पर आधारित है उन्हें उद्धृत करता है, मानचित्र पर सक्रिय सिग्नल, और एक 7-दिवसीय टाइमलाइन जो दिखाता है कि क्या बदला। पहले कुछ भी सेट अप करने की जरूरत नहीं है; एक क्लिक सब कुछ खोल देता है।",
       "f3Title": "⌘K / Ctrl-K दबाएँ",
       "f3Desc": "{{commands}} कमांड। UI सीखे बिना किसी भी लेयर, पैनल या देश पर जाएँ।",
       "f4Title": "अपने लेंस को चुनें",
       "f4Desc": "विश्व, तकनीक, वित्त, कमोडिटी, ऊर्जा या खुशहाल — समान इंजन, छह ट्यून किए गए मॉनिटर, एक क्लिक दूर।",
       "f5Title": "आपने शायद दसवां हिस्सा देखा है",
-      "f5Desc": "{{mapLayers}} मानचित्र परत प्रकारों में से अधिकांश दुनिया के बदलते ही सामने आते हैं — उपग्रह पास, GPS जैमिंग, डार्क शिप्स, विरोध समूह, साइरन अलर्ट।",
+      "f5Desc": "जब डेस्कटॉप पर मैप खुलता है, तो इसकी {{mapLayers}} मैप लेयर प्रकारों में से {{defaultOnLayers}}, लगभग {{defaultOnLayerPct}}%, चालू होती हैं। बाकी दुनिया के आगे बढ़ने के साथ सामने आते हैं: उपग्रह पास, GPS जैमिंग, AIS अंतराल से फ्लैग किए गए डार्क शिप, प्रदर्शन क्लस्टर और नागरिक-रक्षा साइरन सतर्कताएं। अधिकांश को लेयर मेनू या ⌘K पैलेट से चालू किया जा सकता है।",
       "cta": "घड़ी शुरू करें"
     },
     "depth": {
@@ -609,7 +609,7 @@
       "n1Title": "सैटेलाइट ट्रैकिंग",
       "n1Desc": "ब्राउज़र में SGP4 के साथ कंप्यूट किए गए लाइव कक्षीय स्थान, हर 3 सेकंड में अपडेट किए गए — CelesTrak से सैन्य और पृथ्वी-अवलोकन उपग्रह, हर 2 घंटे में ताज़ा किए गए।",
       "n2Title": "GPS जैमिंग जोन",
-      "n2Desc": "विमान रिपोर्ट से दैनिक RF-हस्तक्षेप मानचित्र: ऐसे क्षेत्र जहाँ कम से कम 2% विमान को GPS में गिरावट दिखाई देती है, 10% से अधिक को उच्च के रूप में चिह्नित किया जाता है।",
+      "n2Desc": "विमान रिपोर्टों से दैनिक RF-व्यतिक्रमण मानचित्र: कोशिकाएँ जहाँ कम से कम 2% विमान GPS क्षरण देखते हैं, चिह्नित हैं, 10% से अधिक उच्च चिह्नित हैं। कोशिकाएँ षट्भुज हैं जो उन रिपोर्टों से दिन में एक बार पुनर्निर्मित होती हैं, इसलिए मानचित्र दिखाता है कि उड़ानें इस मिनट में नहीं, बल्कि नवीनतम दिन में जैमिंग या स्पूफिंग के साथ कहाँ मिलीं।",
       "n3Title": "चोकपॉइंट ट्रांजिट इंटेल",
       "n3Desc": "हॉर्मुज़, स्वेज़, बाब अल-मंडेब और 10 और जलडमरूमध्य के माध्यम से जहाज की संख्या — विघ्न स्कोरिंग के साथ।",
       "n4Title": "AI डेटासेंटर मानचित्र",
@@ -625,7 +625,7 @@
     "agents": {
       "eyebrow": "बिल्डर्स और AI एजेंट्स के लिए",
       "title": "मैं अपने स्वयं के स्टैक से World Monitor पर कैसे निर्माण करूं?",
-      "sub": "मैप पर सब कुछ एक API भी है। {{mcpTools}} लाइव टूल्स के साथ इसे Claude पर MCP के माध्यम से कनेक्ट करें, कहीं भी REST एंडपॉइंट्स को कॉल करें, या Python, Ruby, Go, या JavaScript के लिए नेटिव क्लाइंट इंस्टॉल करें — आपका कोड लाइव डेटा के साथ रिसर्च करता है, प्रशिक्षण-डेटा मेमोरी से नहीं।",
+      "sub": "मानचित्र पर सब कुछ एक API भी है। इसे Claude पर {{mcpTools}} लाइव उपकरणों के साथ MCP पर जोड़ें, कहीं से भी REST एंडपॉइंट्स को कॉल करें, या Python, Ruby, Go, या JavaScript के लिए एक नेटिव क्लाइंट इंस्टॉल करें — आपका कोड प्रशिक्षण-डेटा स्मृतियों के बजाय लाइव डेटा के साथ शोध करता है। MCP एक्सेस Pro के साथ आता है, ${{proMonthlyPrice}}/माह से।",
       "b1": "{{mcpTools}} MCP उपकरण — जोखिम स्कोर, अड़चनें, संघर्ष, बाजार, ब्रीफ़िंग",
       "b2": "प्रलेखित REST API — एक OpenAPI 3.1 spec, एक कुंजी",
       "b3": "npm, PyPI, RubyGems, और Go पर आधिकारिक SDK — शून्य-निर्भरता, MCP-पहले",
@@ -689,11 +689,12 @@
       "q10": "World Monitor Palantir क्यों नहीं है?",
       "a10": "Palantir किसी संस्था के अपने डेटा को उस संस्था के अंदर operational बनाता है। World Monitor दूसरे छोर से शुरू करता है: यह सार्वजनिक दुनिया के डेटा को इकट्ठा करता है, सामान्य करता है, सहसंबंधित करता है, और निगरानी करता है, फिर इस intelligence layer को एक मुफ्त dashboard और open-source code के माध्यम से प्रकाशित करता है। अलग काम, अलग उत्पाद।",
       "q11": "Which World Monitor license do I need?",
-      "a11": "Choose based on who will use the output. Pro's Personal license is for one person using World Monitor for their own research and decisions. Pro Business lets one licensed user use it for company or client work, internal tools, and reports. API Starter covers API use inside one organization, with no customer redistribution. API Business lets that organization embed World Monitor data in products and services for its customers. Enterprise covers custom seats, white-labeling, and deployments. These subscription licenses are separate from the AGPL/MIT source-code licenses. Full terms: worldmonitor.app/docs/terms."
+      "a11": "Choose based on who will use the output. Pro's Personal license is for one person using World Monitor for their own research and decisions. Pro Business lets one licensed user use it for company or client work, internal tools, and reports. API Starter covers API use inside one organization, with no customer redistribution. API Business lets that organization embed World Monitor data in products and services for its customers. Enterprise covers custom seats, white-labeling, and deployments. These subscription licenses are separate from the AGPL/MIT source-code licenses. Full terms: worldmonitor.app/docs/terms.",
+      "sub": "{{answers}} सीधे जवाब कीमत, डेटा, अलर्ट और AI एक्सेस के बारे में। संक्षिप्त संस्करण: डैशबोर्ड $0 की कीमत में है, किसी खाते की जरूरत नहीं, और कोड AGPL-3.0 के तहत ओपन सोर्स है।"
     },
     "cta": {
       "title": "मैं विश्व मानचित्र देखना कैसे शुरू करूं?",
-      "subtitle": "किसी भी ब्राउज़र में worldmonitor.app/dashboard खोलें, कोई खाता नहीं: {{mapLayers}} मैप लेयर प्रकार, Resilience को छोड़कर प्रत्येक स्विच करने के लिए मुक्त है। किसी देश के लिए उसका ब्रीफ़िंग के लिए क्लिक करें, या कमांड पैलेट के लिए ⌘K / Ctrl-K दबाएं। जब आप यह पृष्ठ पढ़ रहे हैं तब से मैप अपडेट होता रहा है।",
+      "subtitle": "किसी भी ब्राउज़र में worldmonitor.app/dashboard खोलें $0 के लिए, कोई खाता नहीं: {{mapLayers}} मानचित्र परत प्रकार, Resilience को छोड़कर हर एक मुफ़्त में स्विच करने के लिए। किसी भी देश को अपनी ब्रीफ के लिए क्लिक करें, या कमांड पैलेट के लिए ⌘K / Ctrl-K दबाएँ। मानचित्र इस पृष्ठ को पढ़ते समय अपडेट होता रहा है।",
       "button": "पहले यह खोजें",
       "note": "मुफ्त · कोई साइनअप नहीं · सेकंड में लोड होता है",
       "secondary": "या Pro योजनाएं देखें →"

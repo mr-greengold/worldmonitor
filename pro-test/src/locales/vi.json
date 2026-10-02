@@ -485,7 +485,7 @@
       "positioningLink": "WorldMonitor không phải là Palantir mã nguồn mở",
       "asOf": "Tính đến {{date}}",
       "whatIsTitle": "World Monitor là gì?",
-      "whatIsBody": "World Monitor là một dashboard miễn phí, mã nguồn mở (AGPL-3.0) được sử dụng bởi hơn 2 triệu người. Nó phát trực tiếp {{feeds}} nguồn tin tức và OSINT từ {{providers}} nhà cung cấp được xác định trên một bản đồ thế giới trực tiếp với {{mapLayers}} loại lớp bản đồ, bao gồm địa chính trị, thị trường, vận tải biển, hàng không và an ninh mạng. Nó tương quan chúng để các sự kiện hội tụ nổi bật trước khi các tiêu đề xuất hiện. Mọi con số đều có nguồn và mọi phương pháp đều được ghi chép."
+      "whatIsBody": "World Monitor là một dashboard miễn phí ($0), mã nguồn mở (AGPL-3.0) được sử dụng bởi hơn 2 triệu người. Nó phát trực tiếp {{feeds}} nguồn tin tức và OSINT từ {{providers}} nhà cung cấp được ghi nguồn lên một bản đồ thế giới trực tiếp với {{mapLayers}} loại lớp bản đồ, bao gồm địa chính trị, thị trường, vận tải biển, hàng không và mạng. Nó tương quan chúng để các sự kiện hội tụ được nổi lên trước khi có tiêu đề. Mỗi con số đều có nguồn gốc và mỗi phương pháp đều được ghi chép."
     },
     "live": {
       "eyebrow": "Trực tiếp ngay bây giờ",
@@ -578,13 +578,13 @@
       "f1Title": "Bản đồ đang chuyển động",
       "f1Desc": "Xung đột, tàu, chuyến bay, cháy và mất điện hiển thị khi trang tải. Không cần cấu hình trước.",
       "f2Title": "Nhấp vào bất kỳ quốc gia nào",
-      "f2Desc": "Một hồ sơ đầy đủ sẽ mở ra: điểm số bất ổn định với các thành phần của nó, tóm tắt AI có trích dẫn tiêu đề, tín hiệu hoạt động, dòng thời gian 7 ngày.",
+      "f2Desc": "Một hồ sơ đầy đủ mở ra cho quốc gia đó: điểm số bất ổn định được chia thành các thành phần đằng sau nó, một bản tóm tắt AI trích dẫn từ các tiêu đề nó được rút ra, các tín hiệu hoạt động trên bản đồ, và một dòng thời gian 7 ngày về những gì đã thay đổi. Không cần phải thiết lập gì trước; một cú nhấp chuột mở tất cả.",
       "f3Title": "Nhấn ⌘K / Ctrl-K",
       "f3Desc": "{{commands}} lệnh. Nhảy đến bất kỳ lớp, bảng điều khiển hoặc quốc gia nào mà không cần học UI trước.",
       "f4Title": "Chọn lăng kính của bạn",
       "f4Desc": "Thế giới, Công nghệ, Tài chính, Hàng hóa, Năng lượng hoặc Vui vẻ — cùng một động cơ, sáu màn hình được tinh chỉnh, cách nhau một clic.",
       "f5Title": "Bạn có thể đã thấy khoảng một phần mười",
-      "f5Desc": "Hầu hết {{mapLayers}} loại lớp bản đồ hiển thị khi thế giới chuyển động — các vòng quỹ đạo vệ tinh, gây nhiễu GPS, tàu tối (dark ships), các cụm biểu tình, cảnh báo còi.",
+      "f5Desc": "Khi bản đồ mở trên máy tính để bàn, {{defaultOnLayers}} trong số {{mapLayers}} loại lớp bản đồ, khoảng {{defaultOnLayerPct}}%, được bật. Phần còn lại xuất hiện khi thế giới chuyển động: các lượt vệ tinh đi qua, gây nhiễu GPS, tàu tối được đánh dấu từ khoảng trống AIS, các cụm biểu tình và cảnh báo còi báo động phòng vệ dân sự. Hầu hết có thể được bật từ menu lớp hoặc bảng lệnh ⌘K.",
       "cta": "Bắt đầu tính giờ"
     },
     "depth": {
@@ -609,7 +609,7 @@
       "n1Title": "Theo dõi vệ tinh",
       "n1Desc": "Vị trí quỹ đạo trực tiếp được tính trong trình duyệt bằng SGP4 và cập nhật mỗi 3 giây — vệ tinh quân sự và quan sát Trái Đất từ CelesTrak, làm mới mỗi 2 giờ.",
       "n2Title": "Vùng gây nhiễu GPS",
-      "n2Desc": "Bản đồ nhiễu RF hàng ngày từ báo cáo của máy bay: các ô nơi ít nhất 2% máy bay ghi nhận GPS suy giảm được đánh dấu, trên 10% được đánh dấu cao.",
+      "n2Desc": "Bản đồ nhiễu RF hàng ngày từ báo cáo của máy bay: các ô nơi ít nhất 2% máy bay phát hiện GPS suy giảm được đánh dấu, trên 10% được đánh dấu cao. Các ô này là hình lục giác được xây dựng lại một lần mỗi ngày từ những báo cáo đó, do đó bản đồ hiển thị nơi các chuyến bay gặp gây nhiễu hoặc giả mạo trong ngày gần nhất, không phải phút này.",
       "n3Title": "Thông tin chuyên chở tại điểm nghẽn",
       "n3Desc": "Số lượng tàu thuyền qua Hormuz, Suez, Bab el-Mandeb và 10 eo biển khác — kèm theo chỉ số gián đoạn.",
       "n4Title": "Bản đồ trung tâm dữ liệu AI",
@@ -625,7 +625,7 @@
     "agents": {
       "eyebrow": "Cho những người xây dựng & tác nhân AI",
       "title": "Làm cách nào tôi xây dựng trên World Monitor từ ngăn xếp của riêng tôi?",
-      "sub": "Mọi thứ trên bản đồ đều là API. Kết nối nó với Claude qua MCP với {{mcpTools}} công cụ live, gọi các endpoint REST từ bất kỳ đâu, hoặc cài đặt native client cho Python, Ruby, Go, hoặc JavaScript — mã của bạn nghiên cứu với dữ liệu live thay vì bộ nhớ training-data.",
+      "sub": "Mọi thứ trên bản đồ cũng là một API. Kết nối nó vào Claude qua MCP với {{mcpTools}} công cụ trực tiếp, gọi các điểm cuối REST từ bất kỳ đâu, hoặc cài đặt ứng dụng khách gốc cho Python, Ruby, Go hoặc JavaScript — mã của bạn nghiên cứu với dữ liệu trực tiếp thay vì bộ nhớ dữ liệu huấn luyện. Truy cập MCP đi kèm với Pro, từ ${{proMonthlyPrice}}/tháng.",
       "b1": "{{mcpTools}} công cụ MCP — điểm số rủi ro, điểm thắt cổ chai, xung đột, thị trường, bản tin",
       "b2": "REST API được ghi chép — một thông số kỹ thuật OpenAPI 3.1, một khóa",
       "b3": "SDK chính thức trên npm, PyPI, RubyGems và Go — không phụ thuộc, MCP-first",
@@ -689,11 +689,12 @@
       "q10": "Tại sao World Monitor không phải là Palantir?",
       "a10": "Palantir làm cho dữ liệu riêng của một tổ chức hoạt động bên trong tổ chức đó. World Monitor bắt đầu từ phía khác: nó sắp xếp, chuẩn hóa, tương quan và giám sát dữ liệu công cộng trên thế giới, sau đó công bố lớp tình báo đó thông qua một bảng điều khiển miễn phí và mã nguồn mở. Công việc khác nhau, sản phẩm khác nhau.",
       "q11": "Which World Monitor license do I need?",
-      "a11": "Choose based on who will use the output. Pro's Personal license is for one person using World Monitor for their own research and decisions. Pro Business lets one licensed user use it for company or client work, internal tools, and reports. API Starter covers API use inside one organization, with no customer redistribution. API Business lets that organization embed World Monitor data in products and services for its customers. Enterprise covers custom seats, white-labeling, and deployments. These subscription licenses are separate from the AGPL/MIT source-code licenses. Full terms: worldmonitor.app/docs/terms."
+      "a11": "Choose based on who will use the output. Pro's Personal license is for one person using World Monitor for their own research and decisions. Pro Business lets one licensed user use it for company or client work, internal tools, and reports. API Starter covers API use inside one organization, with no customer redistribution. API Business lets that organization embed World Monitor data in products and services for its customers. Enterprise covers custom seats, white-labeling, and deployments. These subscription licenses are separate from the AGPL/MIT source-code licenses. Full terms: worldmonitor.app/docs/terms.",
+      "sub": "{{answers}} câu trả lời trực tiếp về giá cả, dữ liệu, cảnh báo và truy cập AI. Tóm lại: dashboard có giá $0, không cần tài khoản, và mã nguồn mở theo AGPL-3.0."
     },
     "cta": {
       "title": "Làm cách nào tôi bắt đầu theo dõi bản đồ thế giới?",
-      "subtitle": "Mở worldmonitor.app/dashboard trên bất kỳ trình duyệt nào, không cần tài khoản: {{mapLayers}} loại lớp bản đồ, mọi loại ngoại trừ Resilience đều miễn phí chuyển đổi. Nhấp vào bất kỳ quốc gia nào để xem bản tóm tắt của nó, hoặc nhấn ⌘K / Ctrl-K để mở bảng lệnh. Bản đồ đã tiếp tục cập nhật trong khi bạn đọc trang này.",
+      "subtitle": "Mở worldmonitor.app/dashboard trong bất kỳ trình duyệt nào với $0, không cần tài khoản: {{mapLayers}} loại lớp bản đồ, mỗi loại ngoại trừ Resilience đều có thể bật. Nhấp vào bất kỳ quốc gia nào để xem bản tóm tắt của nó, hoặc nhấn ⌘K / Ctrl-K để mở bảng lệnh. Bản đồ đã tiếp tục cập nhật trong khi bạn đọc trang này.",
       "button": "Tìm thấy nó trước",
       "note": "Miễn phí · Không đăng ký · Tải trong vài giây",
       "secondary": "Hoặc xem các gói Pro →"

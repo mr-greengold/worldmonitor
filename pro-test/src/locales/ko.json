@@ -485,7 +485,7 @@
       "positioningLink": "WorldMonitor는 오픈소스 Palantir이 아닙니다",
       "asOf": "{{date}} 기준",
       "whatIsTitle": "World Monitor란 무엇인가요?",
-      "whatIsBody": "World Monitor는 200만 명 이상이 사용하는 무료 오픈소스(AGPL-3.0) 대시보드입니다. {{feeds}}개의 뉴스 및 OSINT 피드를 {{providers}}개의 출처로부터 수집하여 {{mapLayers}}개 유형의 지도 레이어로 하나의 실시간 세계 지도에 표시합니다. 지정학, 시장, 해운, 항공, 사이버 분야를 아우르며, 수렴하는 사건들이 헤드라인이 나오기 전에 드러나도록 연관시킵니다. 모든 데이터는 출처가 명시되어 있고 모든 방법론이 문서화되어 있습니다."
+      "whatIsBody": "World Monitor는 2백만 명 이상이 사용하는 무료($0), 오픈소스(AGPL-3.0) 대시보드입니다. {{feeds}}개의 뉴스와 OSINT 피드를 {{providers}}개 출처에서 가져와 {{mapLayers}}가지 지도 레이어 유형으로 하나의 실시간 세계 지도에 스트리밍합니다. 지정학, 시장, 해상 운송, 항공, 사이버 분야를 아우르며, 수렴하는 사건들이 헤드라인보다 먼저 드러나도록 상관관계를 분석합니다. 모든 수치는 출처가 명시되고 모든 방법론은 문서화되어 있습니다."
     },
     "live": {
       "eyebrow": "지금 실시간",
@@ -578,13 +578,13 @@
       "f1Title": "맵이 이미 움직이고 있습니다",
       "f1Desc": "분쟁, 선박, 항공편, 화재 및 장애가 페이지 로드 시 렌더링됩니다. 먼저 설정할 것이 없습니다.",
       "f2Title": "아무 국가나 클릭하세요",
-      "f2Desc": "전체 정보가 표시됩니다. 구성 요소를 포함한 불안정성 지수, 인용된 헤드라인이 있는 AI 요약, 활성 신호, 7일 타임라인.",
+      "f2Desc": "해당 국가의 전체 도시어 파일이 열립니다: 불안정성 점수가 그 뒤에 있는 구성 요소로 분류되어, 인용한 헤드라인을 언급하는 AI 브리핑, 맵의 활성 신호, 지난 7일간의 변화 타임라인이 포함됩니다. 미리 설정할 필요가 없습니다: 한 번의 클릭으로 모든 정보를 열 수 있습니다.",
       "f3Title": "⌘K / Ctrl-K 누르세요",
       "f3Desc": "{{commands}}개 명령어. UI를 먼저 배울 필요 없이 어떤 레이어, 패널, 국가로든 이동합니다.",
       "f4Title": "시점 선택하기",
       "f4Desc": "World, Tech, Finance, Commodity, Energy 또는 Happy — 같은 엔진, 6개의 맞춤형 모니터, 한 번의 클릭으로 전환됩니다.",
       "f5Title": "전체의 10분의 1 정도만 봤습니다",
-      "f5Desc": "대부분의 {{mapLayers}} 지도 레이어 타입은 세계가 움직이면서 나타납니다 — 위성 궤도, GPS 재밍, 암흑선박, 시위 군집, 사이렌 경보.",
+      "f5Desc": "데스크톱에서 맵이 열릴 때 {{mapLayers}}개의 맵 레이어 유형 중 {{defaultOnLayers}}개(약 {{defaultOnLayerPct}}%)가 켜져 있습니다. 나머지는 세계가 움직이면서 나타납니다: 위성 패스, GPS 재밍, AIS 신호 끊김으로 감지된 암흑함, 시위 클러스터 및 민방위 사이렌 경보. 대부분 레이어 메뉴 또는 ⌘K 팔레트에서 켤 수 있습니다.",
       "cta": "시작하기"
     },
     "depth": {
@@ -609,7 +609,7 @@
       "n1Title": "위성 추적",
       "n1Desc": "SGP4로 브라우저에서 계산된 실시간 궤도 위치이며 3초마다 업데이트됩니다 — CelesTrak의 군사 및 지구관측 위성, 2시간마다 새로고침.",
       "n2Title": "GPS 재밍 존",
-      "n2Desc": "항공기 보고서의 일일 RF 간섭 지도: GPS 성능 저하를 감지한 항공기가 2% 이상인 셀은 표시되고, 10% 초과인 셀은 높음으로 표시됩니다.",
+      "n2Desc": "항공기 보고에서 추출한 일일 RF 간섭 지도: 항공기의 최소 2% 이상이 GPS 성능 저하를 감지한 셀은 표시되고, 10%를 초과하는 셀은 높음으로 표시됩니다. 셀은 하루에 한 번 해당 보고들로부터 재구축되는 육각형이므로, 지도는 지난 하루 동안 비행기가 재밍이나 스푸핑을 만난 지역을 보여주며, 현 시각의 상황이 아닙니다.",
       "n3Title": "병목 지점 통과 인텔",
       "n3Desc": "Hormuz, Suez, Bab el-Mandeb 및 10개 이상의 해협을 통한 선박 수 — 중단 점수 포함.",
       "n4Title": "AI 데이터센터 맵",
@@ -625,7 +625,7 @@
     "agents": {
       "eyebrow": "빌더 & AI 에이전트용",
       "title": "자신의 스택에서 World Monitor를 기반으로 구축하려면 어떻게 하나요?",
-      "sub": "지도의 모든 요소는 API로도 이용할 수 있습니다. MCP를 통해 Claude에 연결하고 {{mcpTools}}개의 라이브 도구를 사용하거나, 어디서나 REST 엔드포인트를 호출하거나, Python, Ruby, Go, JavaScript용 네이티브 클라이언트를 설치하세요 — 코드가 학습 데이터 기억 대신 라이브 데이터로 조사합니다.",
+      "sub": "지도의 모든 것은 API로도 사용 가능합니다. MCP를 통해 Claude에 {{mcpTools}}개의 라이브 도구로 연결하거나, 어디서나 REST 엔드포인트를 호출하거나, Python, Ruby, Go, JavaScript용 네이티브 클라이언트를 설치하세요. 코드가 학습 데이터 기억 대신 라이브 데이터로 조사합니다. MCP 접근은 Pro에 포함되며, ${{proMonthlyPrice}}/월부터 시작합니다.",
       "b1": "{{mcpTools}}개 MCP 도구 — 위험 점수, 병목 지점, 분쟁, 시장, 상황 보고",
       "b2": "문서화된 REST API — OpenAPI 3.1 스펙 1개, 키 1개",
       "b3": "npm, PyPI, RubyGems 및 Go의 공식 SDK — 종속성 없음, MCP 우선",
@@ -689,11 +689,12 @@
       "q10": "World Monitor가 Palantir가 아닌 이유는?",
       "a10": "Palantir는 기관의 자체 데이터를 그 기관 내에서 운영 가능하게 만듭니다. World Monitor는 반대편에서 시작합니다. 공개 세계 데이터를 수집, 정규화, 상관관계 파악, 모니터링한 후 무료 대시보드와 오픈소스 코드를 통해 인텔리전스 계층을 발행합니다. 다른 역할, 다른 제품입니다.",
       "q11": "Which World Monitor license do I need?",
-      "a11": "Choose based on who will use the output. Pro's Personal license is for one person using World Monitor for their own research and decisions. Pro Business lets one licensed user use it for company or client work, internal tools, and reports. API Starter covers API use inside one organization, with no customer redistribution. API Business lets that organization embed World Monitor data in products and services for its customers. Enterprise covers custom seats, white-labeling, and deployments. These subscription licenses are separate from the AGPL/MIT source-code licenses. Full terms: worldmonitor.app/docs/terms."
+      "a11": "Choose based on who will use the output. Pro's Personal license is for one person using World Monitor for their own research and decisions. Pro Business lets one licensed user use it for company or client work, internal tools, and reports. API Starter covers API use inside one organization, with no customer redistribution. API Business lets that organization embed World Monitor data in products and services for its customers. Enterprise covers custom seats, white-labeling, and deployments. These subscription licenses are separate from the AGPL/MIT source-code licenses. Full terms: worldmonitor.app/docs/terms.",
+      "sub": "가격, 데이터, 알림 및 AI 접근에 대한 {{answers}}가지 직답. 요약하자면: 대시보드는 $0이며, 계정이 필요 없고, 코드는 AGPL-3.0 오픈소스입니다."
     },
     "cta": {
       "title": "월드맵 모니터링을 시작하려면 어떻게 하나요?",
-      "subtitle": "브라우저에서 worldmonitor.app/dashboard를 열기만 하면 됩니다(계정 필요 없음): {{mapLayers}}종의 지도 레이어, 복원력 레이어를 제외한 모두가 자유롭게 전환 가능합니다. 어떤 국가든 클릭하면 상황 보고를 볼 수 있고, ⌘K / Ctrl-K를 눌러 명령어 팔레트를 열 수 있습니다. 지도는 당신이 이 페이지를 읽는 동안에도 계속 업데이트되고 있습니다.",
+      "subtitle": "worldmonitor.app/dashboard를 아무 브라우저에서 무료($0)로 열 수 있으며, 계정이 필요 없습니다: {{mapLayers}}가지 지도 레이어 유형이 있고, Resilience를 제외한 모든 것이 무료로 활성화할 수 있습니다. 어느 국가든 클릭하면 해당 국가의 상황 보고를 보거나, ⌘K / Ctrl-K를 눌러 명령 팔레트를 열 수 있습니다. 이 페이지를 읽는 동안에도 지도는 계속 업데이트되고 있습니다.",
       "button": "먼저 찾기",
       "note": "무료 · 가입 불필요 · 몇 초 안에 로드",
       "secondary": "또는 Pro 요금제 보기 →"

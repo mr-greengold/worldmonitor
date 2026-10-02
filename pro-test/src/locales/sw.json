@@ -485,7 +485,7 @@
       "positioningLink": "WorldMonitor si Palantir ya chanzo wazi",
       "asOf": "Kufikia {{date}}",
       "whatIsTitle": "World Monitor ni nini?",
-      "whatIsBody": "World Monitor ni dashboard ya bure, ya chanzo wazi (AGPL-3.0) inayotumiwa na watu 2M+. Inatiririsha vyanzo {{feeds}} vya habari na OSINT kutoka kwa watoa huduma {{providers}} waliotajwa, kwenye ramani moja hai ya dunia yenye aina {{mapLayers}} za tabaka za ramani, ikijumuisha siasa za kijiografia, masoko, usafirishaji wa baharini, usafiri wa anga na usalama wa mtandao. Inaviunganisha ili matukio yanayokutana yaonekane kabla ya vichwa vya habari. Kila takwimu ina chanzo na kila mbinu imeandikwa."
+      "whatIsBody": "World Monitor ni dashibodi ya bure ($0), yenye chanzo wazi (AGPL-3.0) inayotumiwa na watu 2M+. Inatiririsha {{feeds}} milisho ya habari na OSINT kutoka kwa watoa huduma {{providers}} waliotajwa kwenye ramani moja hai ya dunia yenye aina {{mapLayers}} za tabaka za ramani, ikishughulikia jiopolitiki, masoko, usafirishaji wa baharini, usafiri wa anga na mtandao. Inazilinganisha ili matukio yanayokutana yajitokeze kabla ya vichwa vya habari. Kila takwimu ina chanzo na kila mbinu imeandikwa."
     },
     "live": {
       "eyebrow": "Moja kwa moja sasa sasa",
@@ -578,13 +578,13 @@
       "f1Title": "Ramani tayari inakwenda",
       "f1Desc": "Mgogoro, meli, ndege, moto na kusimama hutolewa kadri ukurasa unavyopakia. Hakuna kitu cha kusanidi kwanza.",
       "f2Title": "Bofya nchi yoyote",
-      "f2Desc": "Karatasi kamili inafungua: alama ya tokuwa na utulivu na sehemu zake, muhtasari wa AI na kichwa cha habari, ishara zinazofanya kazi, muda wa siku 7.",
+      "f2Desc": "Dosia kamili hufunguka kwa nchi hiyo: alama yake ya kutokuwa thabiti ikiwa imegawanywa katika vipengele vilivyo nyuma yake, muhtasari wa AI unaonukuu vichwa vya habari ulivyotegemea, ishara amilifu kwenye ramani, na ratiba ya siku 7 ya kilichobadilika. Hakuna kinachohitaji kusanidiwa kwanza; mbofyo mmoja hufungua yote.",
       "f3Title": "Bonyeza ⌘K / Ctrl-K",
       "f3Desc": "{{commands}} amri. Ruka kwa safu yoyote, paneli au nchi bila kujifunza UI kwanza.",
       "f4Title": "Chagua mtazamo wako",
       "f4Desc": "Dunia, Teknolojia, Fedha, Bidhaa, Nishati au Happy — injini ileile, mitazamo sita iliyopangwa, kwa mbofyo mmoja.",
       "f5Title": "Umeoona huenda kama sehemu ya kumi tu",
-      "f5Desc": "Aina nyingi za tabaka za ramani za {{mapLayers}} hujitokeza kadiri dunia inavyosonga — mipito ya satelaiti, uvurugaji wa GPS, meli zisizotangaza utambulisho, makundi ya maandamano, arifa za ving'ora.",
+      "f5Desc": "Ramani inapofunguliwa kwenye desktop, {{defaultOnLayers}} kati ya aina {{mapLayers}} za safu za ramani, takriban {{defaultOnLayerPct}}%, huwa zimewashwa. Zilizosalia hujitokeza kadiri dunia inavyosonga: mipito ya satelaiti, kuvurugwa kwa GPS, meli zisizoonekana zinazoashiriwa kutokana na mapengo ya AIS, makundi ya maandamano na arifa za ving'ora vya ulinzi wa raia. Nyingi zinaweza kuwashwa kutoka kwenye menyu ya safu au paleti ya ⌘K.",
       "cta": "Anza saa"
     },
     "depth": {
@@ -609,7 +609,7 @@
       "n1Title": "Kufuatilia satelaiti",
       "n1Desc": "Nafasi za obiti za moja kwa moja zinazokokotolewa ndani ya kivinjari kwa SGP4 na kusasishwa kila sekunde 3 — satelaiti za kijeshi na za uchunguzi wa Dunia kutoka CelesTrak, zikisasishwa kila saa 2.",
       "n2Title": "Sehemu za kuingiliwa kwa GPS",
-      "n2Desc": "Ramani ya kila siku ya mwingiliano wa RF kutoka ripoti za ndege: seli ambapo angalau 2% ya ndege huona GPS iliyoharibika huwekewa alama, zaidi ya 10% huwekwa alama kuwa juu.",
+      "n2Desc": "Ramani ya kila siku ya mwingiliano wa RF kutoka ripoti za ndege: seli ambapo angalau 2% ya ndege huona GPS iliyoharibika huwekewa alama, na zaidi ya 10% huwekwa alama kuwa juu. Seli hizo ni hexagons zinazojengwa upya mara moja kwa siku kutoka ripoti hizo, kwa hivyo ramani inaonyesha mahali ambapo safari za ndege zilikutana na jamming au spoofing katika siku ya karibuni, si dakika hii.",
       "n3Title": "Akhabar ya kupitia sehemu nyingi",
       "n3Desc": "Idadi ya meli kupitia Hormuz, Suez, Bab el-Mandeb na kumega nyingine 10 — na alama ya usumbufu.",
       "n4Title": "Ramani ya kituo cha AI",
@@ -625,7 +625,7 @@
     "agents": {
       "eyebrow": "Kwa wajenzi & wakalishi wa AI",
       "title": "Ninajenga vipi kwenye World Monitor kutoka kwenye stack yangu?",
-      "sub": "Kila kitu kwenye ramani pia ni API. Unganisha kwenye Claude kupitia MCP na {{mcpTools}} zana hai, piga simu endpoints za REST kutoka mahali popote, au sakinisha mteja asilia kwa Python, Ruby, Go, au JavaScript — msimbo wako unafanya utafiti na data hai badala ya kumbukumbu za data za mafunzo.",
+      "sub": "Kila kitu kwenye ramani pia ni API. Iunganishe na Claude kupitia MCP pamoja na {{mcpTools}} zana za moja kwa moja, ita endpoints za REST kutoka mahali popote, au sakinisha mteja asili wa Python, Ruby, Go, au JavaScript — msimbo wako unatafiti kwa data ya moja kwa moja badala ya kumbukumbu za data ya mafunzo. Ufikiaji wa MCP unakuja na Pro, kuanzia ${{proMonthlyPrice}}/mwezi.",
       "b1": "{{mcpTools}} zana za MCP — alama za hatari, njia zenye kizuizi, migogoro, soko, muhtasari",
       "b2": "REST API iliyoandaliwa — kielezo kimoja cha OpenAPI 3.1, ufunguo mmoja",
       "b3": "SDKs rasmi kwenye npm, PyPI, RubyGems, na Go — hakuna utegemezi, MCP kwanza",
@@ -689,11 +689,12 @@
       "q10": "Kwa nini World Monitor si Palantir?",
       "a10": "Palantir inafanya data ya taasisi operative ndani ya taasisi hiyo. World Monitor inaanza kutoka upande mwingine: inakusanya, kurekezesha, kuhusiana, na kufuatilia data ya dunia nyingi, kisha kuchapisha tabaka hilo la akili kupitia dasibodi ya bure na nambari wazi. Kazi tofauti, bidhaa tofauti.",
       "q11": "Ni leseni gani ya World Monitor ninayohitaji?",
-      "a11": "Chagua kulingana na nani atakayetumia matokeo. Leseni ya Personal ya Pro ni kwa mtu mmoja anayetumia World Monitor kwa utafiti na maamuzi yao. Pro Business inaruhusu mtumiaji mmoja aliyepewa leseni kuutumia kwa kazi ya kampuni au mteja, zana za ndani, na ripoti. API Starter inakamatia matumizi ya API ndani ya taasisi moja, bila kusambaza mteja. API Business inaruhusu taasisi hiyo kuingeza data ya World Monitor katika bidhaa na huduma kwa wateja wake. Enterprise inakamatia viti vya kaida, kuweka lebo, na usambazaji. Leseni hizi za usomaji wa sukari ni tofauti na leseni za nambari ya AGPL/MIT. Masharti kamili: worldmonitor.app/docs/terms."
+      "a11": "Chagua kulingana na nani atakayetumia matokeo. Leseni ya Personal ya Pro ni kwa mtu mmoja anayetumia World Monitor kwa utafiti na maamuzi yao. Pro Business inaruhusu mtumiaji mmoja aliyepewa leseni kuutumia kwa kazi ya kampuni au mteja, zana za ndani, na ripoti. API Starter inakamatia matumizi ya API ndani ya taasisi moja, bila kusambaza mteja. API Business inaruhusu taasisi hiyo kuingeza data ya World Monitor katika bidhaa na huduma kwa wateja wake. Enterprise inakamatia viti vya kaida, kuweka lebo, na usambazaji. Leseni hizi za usomaji wa sukari ni tofauti na leseni za nambari ya AGPL/MIT. Masharti kamili: worldmonitor.app/docs/terms.",
+      "sub": "{{answers}} majibu ya moja kwa moja kuhusu bei, data, arifa na upatikanaji wa AI. Muhtasari: dashboard hiyo inagharimu $0, haihitaji akaunti, na msimbo ni open source chini ya AGPL-3.0."
     },
     "cta": {
       "title": "Ninaanzia vipi kuangalia ramani ya dunia?",
-      "subtitle": "Fungua worldmonitor.app/dashboard katika kivinjari yoyote, bila akaunti: {{mapLayers}} aina za tabaka la ramani, kila moja isipokuwa Resilience inaweza kuwashwa bure. Bofya nchi yoyote kwa muhtasari wake, au bonyeza ⌘K / Ctrl-K kwa palet ya amri. Ramani imebaki ikiingia habari wakati unasoma ukurasa huu.",
+      "subtitle": "Fungua worldmonitor.app/dashboard katika kivinjari chochote kwa $0, bila akaunti: aina {{mapLayers}} za tabaka za ramani, kila moja isipokuwa Resilience ni bure kuwasha. Bofya nchi yoyote ili kuona muhtasari wake, au bonyeza ⌘K / Ctrl-K kwa paleti ya amri. Ramani imeendelea kusasishwa ulipokuwa ukisoma ukurasa huu.",
       "button": "Itafuta kwanza",
       "note": "Bure · Hakuna kuweka akaunti · Inapakia kwa sekunde",
       "secondary": "Au ona mipango ya Pro →"
