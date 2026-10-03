@@ -1,6 +1,6 @@
 import { IS_EMBEDDED_PREVIEW } from '@/utils/embedded-preview';
 import type { createHostCountryFetch } from './country-brief-host-transport';
-import { IntelligenceServiceClient, MarketServiceClient, MilitaryServiceClient, EconomicServiceClient, TradeServiceClient, SupplyChainServiceClient, ResilienceServiceClient, ScorecardServiceClient, PredictionServiceClient } from '@/services/generated-rpc-clients';
+import { IntelligenceServiceClient, MarketServiceClient, MilitaryServiceClient, MaritimeServiceClient, EconomicServiceClient, TradeServiceClient, SupplyChainServiceClient, ResilienceServiceClient, ScorecardServiceClient, PredictionServiceClient } from '@/services/generated-rpc-clients';
 import { getRpcBaseUrl } from '@/services/rpc-client';
 import { premiumFetch } from '@/services/premium-fetch';
 import { hasPremiumAccess } from '@/services/panel-gating';
@@ -23,8 +23,26 @@ function createCountryBriefSource(fetcher: typeof fetch & { clear?: () => void }
     economic: new EconomicServiceClient(base, options),
     trade: new TradeServiceClient(base, options),
     military: new MilitaryServiceClient(base, options),
+    vessels: new MaritimeServiceClient(base, options),
     prediction: new PredictionServiceClient(base, options),
     supply,
+    atlas: (code: string, signal: AbortSignal) => {
+      const detailClient = new SupplyChainServiceClient(base, { fetch: (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : String(input), base);
+        if (mode === 'host') url.searchParams.set('country_code', code);
+        return fetcher(url, { ...init, signal });
+      } });
+      return {
+        getPipelineDetail: (args: Parameters<typeof supply.getPipelineDetail>[0]) => detailClient.getPipelineDetail(args, { signal }),
+        getStorageFacilityDetail: (args: Parameters<typeof supply.getStorageFacilityDetail>[0]) => detailClient.getStorageFacilityDetail(args, { signal }),
+        getFuelShortageDetail: (args: Parameters<typeof supply.getFuelShortageDetail>[0]) => detailClient.getFuelShortageDetail(args, { signal }),
+        listEnergyDisruptions: async (args: Parameters<typeof supply.listEnergyDisruptions>[0]) => {
+          const result = await supply.listEnergyDisruptions({ assetId: '', assetType: '', ongoingOnly: false }, { signal });
+          if (result.upstreamUnavailable) throw new Error('Disruption timeline is unavailable.');
+          return { ...result, events: result.events.filter(event => event.assetId === args.assetId && event.assetType === args.assetType && event.countries.includes(code)) };
+        },
+      };
+    },
     food: async (code: string, signal: AbortSignal) => mode === 'website' ? (await import('@/services/resilience')).getFoodStocks({ countryCode: code, signal }) : resilience.getFoodStocks({ countryCode: code, commodity: '' }, { signal }),
     demographics: async (code: string, signal: AbortSignal) => mode === 'website' ? (await import('@/services/resilience')).getDemographicsCapability({ countryCode: code, signal }) : resilience.getDemographicsCapability({ countryCode: code }, { signal }),
     factors: async (code: string, signal: AbortSignal) => mode === 'website' ? (await import('@/services/scorecard')).getFiveFactorScorecard(code, signal) : (await import('@/services/scorecard')).withScorecardDeadline(requestSignal => scorecard.getFiveFactorScorecard({ countryCode: code }, { signal: requestSignal }), signal),
