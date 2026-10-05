@@ -125,6 +125,7 @@ const SHARED_BRIDGE_HEAD = `
 (function () {
   "use strict";
   var parentWin = window.parent;
+  var hostCapabilities = {};
 
   function post(msg) {
     try { parentWin.postMessage(msg, "*"); } catch (e) { /* host gone */ }
@@ -314,6 +315,7 @@ function renderBridgeTail(appName: string): string {
     if (!msg || typeof msg !== "object" || msg.jsonrpc !== "2.0") return;
 
     if (msg.id === 1 && msg.result) {
+      hostCapabilities = msg.result.hostCapabilities && typeof msg.result.hostCapabilities === "object" ? msg.result.hostCapabilities : {};
       applyTheme(msg.result.hostContext);
       notify("ui/notifications/initialized", {});
       reportSize();
@@ -325,7 +327,7 @@ function renderBridgeTail(appName: string): string {
         var result = msg.params && msg.params.result ? msg.params.result : msg.params;
         showPanelUsage(result);
         var data = extractToolData(result);
-        if (data) safeRender(data);
+        safeRender(data);
         break;
       }
       case "ui/notifications/tool-input":
