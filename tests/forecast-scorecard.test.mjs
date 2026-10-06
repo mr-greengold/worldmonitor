@@ -112,6 +112,40 @@ describe('computeScorecard', () => {
     assert.deepEqual(scorecard.skill.excludedOrigins, ['bet_engine', 'state_derived']);
     // Brier over the two detector entries only: ((0.8-1)^2 + (0.4-0)^2)/2 = 0.1
     assert.equal(scorecard.skill.brier, 0.1);
+    // The cohort's base rate is yesCount / count. The synthetic YES (c) must
+    // not leak in, or the headline would be compared against the wrong null.
+    assert.equal(scorecard.skill.yesCount, 1);
+  });
+
+  it('holds entries with no recorded origin out of the headline but keeps them in overall and byGenerationOrigin', () => {
+    // Rows written before origin tagging carry no origin, or the resolver's
+    // literal 'unknown'. They cannot be attributed to a generator (#5240).
+    const absent = resolved({ probability: 0.9, outcome: 'NO' });
+    delete absent.generationOrigin;
+    const scorecard = computeScorecard({
+      a: resolved({ probability: 0.8, outcome: 'YES', generationOrigin: 'legacy_detector' }),
+      b: absent,
+      c: resolved({ probability: 0.1, outcome: 'YES', generationOrigin: 'unknown' }),
+    }, NOW);
+
+    assert.equal(scorecard.overall.count, 3);
+    assert.equal(scorecard.skill.count, 1);
+    assert.equal(scorecard.skill.yesCount, 1);
+    assert.equal(scorecard.skill.excludedScored, 2);
+    assert.deepEqual(scorecard.skill.excludedOrigins, ['unknown']);
+    assert.equal(scorecard.skill.brier, 0.04);
+    const unknownRow = scorecard.byGenerationOrigin.find((row) => row.generationOrigin === 'unknown');
+    assert.equal(unknownRow.scored, 2);
+  });
+
+  it('reports skill.yesCount as 0, not absent, when nothing real in the cohort came true', () => {
+    const scorecard = computeScorecard({
+      a: resolved({ probability: 0.4, outcome: 'NO', generationOrigin: 'detector' }),
+      b: resolved({ probability: 0.9, outcome: 'YES', generationOrigin: 'state_derived' }),
+    }, NOW);
+
+    assert.equal(scorecard.skill.count, 1);
+    assert.equal(scorecard.skill.yesCount, 0);
   });
 
   it('always emits skill.excludedOrigins as an array (empty on a healthy scorecard)', () => {

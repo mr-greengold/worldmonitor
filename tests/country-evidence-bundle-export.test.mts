@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { createCountryDeepDivePanelHarness } from './helpers/country-deep-dive-panel-harness.mjs';
 import { createBrowserEnvironment } from './helpers/runtime-config-panel-harness.mjs';
+import { countrySignalsFromMilitary } from '../src/services/country-signals';
 
 type ExportUtils = typeof import('../src/utils/export.ts');
 type GlobalSnapshot = { exists: boolean; value: unknown };
@@ -178,6 +179,7 @@ async function loadCountryBriefPage(options: CountryBriefHarnessOptions = {}) {
       export function exportCountryBriefJSON(data) { state.jsonExports.push(data); }
       export function exportCountryBriefCSV(data) { state.csvExports.push(data); }
       export function exportCountryEvidenceMarkdown(data) { state.evidenceExports.push(data); }
+      export function countryEvidenceMarkdownArtifact(data) { return { filename: 'fixture.md', mimeType: 'text/markdown;charset=utf-8', content: JSON.stringify(data) }; }
     `],
     ['country-geometry-stub', `export const ME_STRIKE_BOUNDS = {};`],
     ['country-flag-stub', `export function toFlagEmoji(code, fallback = ':world:') { return code ? ':' + code + ':' : fallback; }`],
@@ -410,6 +412,34 @@ function dispatchDelegatedClick(delegateRoot: HTMLElement, target: HTMLElement):
 }
 
 describe('country evidence bundle export', () => {
+  it('keeps cyber unknown without an admitted source and separates retained generation from export time', async () => {
+    const signals = countrySignalsFromMilitary('FR');
+    assert.equal(signals.cyberThreats, null);
+    const { buildCountryEvidenceBundle, renderCountryEvidenceMarkdown } = await loadExportUtils();
+    const originalClock = '2026-10-05T01:00:00.000Z';
+    const exportedAt = '2026-10-06T01:00:00.000Z';
+    const bundle = buildCountryEvidenceBundle({ country: 'France', code: 'FR',
+      signals: { cyberThreats: signals.cyberThreats }, generatedAt: originalClock,
+      briefGeneratedAt: originalClock, briefCached: true, exportedAt });
+    assert.deepEqual(bundle.signals, [{ label: 'Cyber threats', value: 'unavailable' }]);
+    assert.equal(bundle.generatedAt, originalClock);
+    assert.equal(bundle.briefGeneratedAt, originalClock);
+    assert.equal(bundle.exportedAt, exportedAt);
+    assert.equal(bundle.briefCacheStatus, 'cached');
+    assert.ok(renderCountryEvidenceMarkdown(bundle).includes('Cyber threats: unavailable'));
+  });
+
+  it('preserves unavailable cyber counts and explicit zero separately in portable evidence', async () => {
+    const { buildCountryEvidenceBundle, renderCountryEvidenceMarkdown } = await loadExportUtils();
+    for (const [count, expected] of [[null, 'unavailable'], [0, '0'], [2, '2']] as const) {
+      const bundle = buildCountryEvidenceBundle({ country: 'France', code: 'FR',
+        signals: { cyberThreats: count }, exportedAt: '2026-10-06T01:00:00Z' });
+      assert.deepEqual(bundle.signals, [{ label: 'Cyber threats', value: expected }]);
+      assert.ok(renderCountryEvidenceMarkdown(bundle).includes(`Cyber threats: ${expected}`));
+    }
+    assert.deepEqual(buildCountryEvidenceBundle({ country: 'France', code: 'FR' }).signals, []);
+  });
+
   it('builds a portable bundle with active signals, sources, freshness, and disclaimer', async () => {
     const { buildCountryEvidenceBundle, COUNTRY_EVIDENCE_PROVENANCE_DISCLAIMER } = await loadExportUtils();
 
@@ -639,12 +669,12 @@ describe('country evidence bundle export', () => {
     assert.match(legacySource, /data-format="csv"/);
     assert.match(legacySource, /trackGateHit\('evidence-export'\)/);
 
-    assert.match(dossierSource, /exportCountryEvidenceMarkdown/);
+    assert.match(dossierSource, /countryEvidenceMarkdownArtifact/);
     assert.match(dossierSource, /cdp-evidence-export-btn/);
     assert.match(dossierSource, /if \(!this\.canRequestPremium\(\)\)/);
     assert.match(dossierSource, /trackGateHit\('evidence-export'\)/);
-    assert.match(dossierSource, /this\.exportEvidenceBundle\(\)/);
-    assert.match(dossierSource, /exportCountryEvidenceMarkdown\(data\)/);
+    assert.match(dossierSource, /this\.exportEvidenceBundle\(signal\)/);
+    assert.match(dossierSource, /this\.downloadText\(countryEvidenceMarkdownArtifact\(data\), signal\)/);
   });
 
   it('blocks country brief evidence export for free users', async () => {
@@ -666,6 +696,27 @@ describe('country evidence bundle export', () => {
     } finally {
       harness.cleanup();
     }
+  });
+
+  it('uses one Evidence snapshot, disables duplicate clicks and suppresses status after country close', async () => {
+    const harness = await createCountryDeepDivePanelHarness({ premiumAccess: true });
+    try {
+      let settle!: (value: { state: 'host-accepted' }) => void;
+      const delivered: Array<{ artifact: { content: string }; signal: AbortSignal }> = [];
+      const panel = harness.createPanel((artifact: { content: string }, signal: AbortSignal) => {
+        delivered.push({ artifact, signal });
+        return new Promise(resolve => { settle = resolve; });
+      });
+      panel.show('France', 'FR', null, zeroCountryBriefSignals());
+      for (let attempt = 0; attempt < 25 && !harness.getPanelRoot()?.querySelector('.cdp-evidence-export-btn'); attempt++) await new Promise(resolve => setTimeout(resolve, 0));
+      const button = harness.getPanelRoot()!.querySelector('.cdp-evidence-export-btn') as HTMLButtonElement;
+      button.dispatchEvent(new Event('click')); button.dispatchEvent(new Event('click'));
+      assert.equal(delivered.length, 1); assert.equal(button.disabled, true);
+      assert.equal(JSON.parse(delivered[0]!.artifact.content).code, 'FR');
+      panel.hide(); assert.equal(delivered[0]!.signal.aborted, true);
+      settle({ state: 'host-accepted' }); await new Promise(resolve => setImmediate(resolve));
+      assert.deepEqual(harness.getToasts(), []);
+    } finally { harness.cleanup(); }
   });
 
   it('renders the World Monitor data footer from the brief evidence', async () => {
@@ -846,6 +897,8 @@ describe('country evidence bundle export', () => {
       assert.ok(button, 'expected evidence export button');
       button.dispatchEvent(new Event('click'));
 
+      await new Promise(resolve => setImmediate(resolve));
+
       const exports = harness.getEvidenceExports();
       assert.equal(exports.length, 1);
       assert.equal(exports[0].country, 'France');
@@ -998,4 +1051,15 @@ describe('CSV military vessel class', () => {
       URL.revokeObjectURL = originalRevoke;
     }
   });
+});
+
+
+it('preserves bounded sanitized Signals coverage notes beside counts in the existing evidence export', async () => {
+  const { buildCountryEvidenceBundle, renderCountryEvidenceMarkdown } = await loadExportUtils();
+  const bundle = buildCountryEvidenceBundle({ country: 'United States', code: 'US', signals: { outages: 1 }, signalCoverageNotes: ['<script>bad()</script><SCRIPT>bad()</SCRIPT><ScRiPt>bad()</ScRiPt>Returned sample; snapshot unknown; these counts are not fresh.', ...Array.from({ length: 20 }, () => 'x'.repeat(2000))] });
+  assert.ok(bundle.freshnessNotes.some(note => note.includes('these counts are not fresh')));
+  assert.ok(bundle.freshnessNotes.every(note => note.length <= 1600));
+  assert.ok(bundle.freshnessNotes.length <= 15);
+  assert.match(renderCountryEvidenceMarkdown(bundle), /Returned sample/);
+  assert.doesNotMatch(renderCountryEvidenceMarkdown(bundle), /<script\b/i);
 });
