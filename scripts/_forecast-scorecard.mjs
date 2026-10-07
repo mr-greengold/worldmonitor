@@ -7,10 +7,17 @@ export const DEFAULT_ROLLING_WINDOW_DAYS = 180;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EPSILON = 1e-6;
 
-// Service level for the judged lane (#7068): how long after its deadline a
-// judged entry may take to reach a terminal state and still count as on time.
-// Two days leaves room for one retry cycle on the daily cadence while staying
-// well inside the archive horizon.
+// Reports published up to 18h after a judged deadline are admissible, and an
+// entry is not judged before they can exist (#8990). Of the 23 post-deadline
+// citations in the scored judged rows, 11 were 2-14h late; the next was 30h
+// late and reported a later development.
+export const JUDGED_EVIDENCE_GRACE_MS = 18 * 60 * 60 * 1000;
+
+// Service level for the judged lane (#7068): how long after it becomes
+// judgeable (deadline plus the reporting grace) a judged entry may take to
+// reach a terminal state and still count as on time. The clock starts at the
+// first instant the lane may judge, so the grace never eats the retry room:
+// two days is two daily runs, a first attempt and one retry, at any deadline.
 export const DEFAULT_JUDGED_SLA_MS = 2 * DAY_MS;
 
 // Origins whose scored entries are held OUT of the headline skill Brier:
@@ -384,7 +391,7 @@ function summarizeJudgedLane(entries, resolved, pendingJudge, nowMs, options = {
     const deadline = entryDeadline(entry);
     const resolvedAt = Number(entry?.resolvedAt);
     if (!Number.isFinite(deadline) || !Number.isFinite(resolvedAt)) return false;
-    return resolvedAt - deadline <= slaMs;
+    return resolvedAt - (deadline + JUDGED_EVIDENCE_GRACE_MS) <= slaMs;
   };
   const scoredWithinSla = judgedResolved.filter((entry) => isScoredEntry(entry) && withinSla(entry)).length;
   const voidWithinSla = judgedResolved.filter((entry) => entry?.outcome === 'VOID' && withinSla(entry)).length;
@@ -400,7 +407,7 @@ function summarizeJudgedLane(entries, resolved, pendingJudge, nowMs, options = {
 
   const pendingPastDeadline = pendingJudge.filter((entry) => {
     const deadline = entryDeadline(entry);
-    return Number.isFinite(deadline) && nowMs >= deadline;
+    return Number.isFinite(deadline) && nowMs >= deadline + JUDGED_EVIDENCE_GRACE_MS;
   }).length;
 
   return {
@@ -575,7 +582,23 @@ function summarizeMarketSkill(scored) {
   };
 }
 
+// The feed a market bet settles on: its anchor is the question's own market.
+export const MARKET_SETTLEMENT_FEED = 'prediction:markets-resolution:v1';
+
+// An anchor without lineage was chosen by the pre-#7071 matcher, which paired
+// forecasts with unrelated markets ("Cyber threat concentration: Taiwan" with
+// "Will China invade Taiwan by 2027?"). Its price belongs to another question,
+// so no market comparison may read it. A market bet carries no lineage because
+// its market is the question.
+export function hasPreLineageAnchor(entry) {
+  const calibration = entry?.calibration;
+  if (!Number.isFinite(Number(calibration?.marketPrice))) return false;
+  if (entry?.spec?.sourceFeed === MARKET_SETTLEMENT_FEED) return false;
+  return !Number.isFinite(calibration.marketBlendedProbability);
+}
+
 function marketProbability(entry) {
+  if (hasPreLineageAnchor(entry)) return NaN;
   const raw = entry?.calibration?.marketPrice;
   const n = Number(raw);
   if (!Number.isFinite(n)) return NaN;
@@ -941,6 +964,9 @@ export const RECEIPT_VOID_REASON_LABELS = Object.freeze({
   resolver_envelope_bug: 'Scored against a data feed we could not read correctly',
   market_price_not_outcome: 'The feed showed the market price, not how the market resolved',
   judged_evidence_unreliable: "Held out of scoring while the judges' evidence is being fixed",
+  judged_old_selection: 'Judged with an evidence method later found unreliable',
+  late_read: 'The feed was not read close enough to the deadline',
+  feed_unavailable: 'The data feed was unavailable after the deadline',
   other: 'Could not be resolved',
 });
 const RECEIPT_OUTCOMES = new Set(['YES', 'NO', 'VOID']);

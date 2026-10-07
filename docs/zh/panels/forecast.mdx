@@ -135,7 +135,7 @@ World Monitor 还会在 `forecast:bets:history:v1` 运行一个**仅影子评估
 - **市场**：自发射时基线衡量的商品期货价格变动。
 - **预测市场**：规范仍记录市场结束日期，但结算器会以原因 `market_price_not_outcome` 将其封存为 VOID。其数据源 `prediction:markets-bootstrap:v1` 只列出未结束的市场，并把 `yesPrice` 截在 10 到 90 之间，因此在结束日期读到的是市场价格，而不是结算结果（issue #5233）。
 - **供应链**：咽喉要道中断评分。
-- **GPS 干扰**：某区域内的干扰活动计数。
+- **GPS 干扰**：截止日当天或之后日期的 gpsjam.org 快照中，航运区域框内的六边形数量。区域内仍有至少 3 个六边形时结算为 YES，这与检测器发出该预测的门槛相同。规范以 `rule: persistence` 及 `ruleVersion` 记录这一规则。按早先发射时计数阈值写入的待结算行会在结算前迁移到此规则，并以 `supersededThreshold` 保留旧值（issue #8990）。
 - **基础设施**：预测所在国家的已报告中断事件。
 
 **裁判规范**适用于信号到结果映射为编辑性或复合性的领域的预测：
@@ -170,7 +170,17 @@ World Monitor 还会在 `forecast:bets:history:v1` 运行一个**仅影子评估
 
 在 issue #8990 之前，重读历史会重新打开已经结算的窗口，每个未结窗口都按最后一次出现时的概率评分。每次运行都会在 `resolver_envelope_bug` 作废之后更正修复前写入的记录。若某窗口的发布落在同一问题更早的窗口内，它就是重复窗口：它及其时间范围窗口以原因 `duplicate_window` 封存为 VOID，在 `duplicateOf` 中指明所重复的窗口，并把原状态或原结果及证据保留在 `supersededStatus`、`supersededOutcome` 与 `supersededEvidence` 中。已经是 VOID 的重复窗口保留原因，只增加 `duplicateOf`。重复窗口从来不是一个问题，因此成绩单的任何计数、回执和卡片标记都不包含它。评分概率与首次概率不同的窗口，或旧代码再次看到过的窗口，会恢复为其首次发布的内容，原因为 `last_seen_probability`，被替换的值移入 `rescore`。若首次发布仍在历史读取范围内，窗口的来源、基础概率、集成轮次、市场锚点和混合后数值会精确恢复（`restoredFromHistory`）；每个押注窗口的首次发布都在押注历史中。否则按推断处理：之后那次出现的集成轮次、锚点和混合后数值移出，基础概率保留；首次概率等于基础概率时，说明窗口以占位值打开（`probabilitySource: 'base_rate'`）；概率未变的再次出现保留来源和集成轮次。经首次发布确认无误的记录会写入 `openingVerifiedAt`，之后的调用不会再把它误当作被覆盖的记录。只有读取了历史的调用才会改评分；结算器每次运行中的第二次读取不传入历史，记录保持原样。每次运行在打开新窗口之后会再次执行更正，因为新窗口可能早于同一问题已有的窗口。改评分的记录没有记录首次概率对应的原始值，因此校准拟合不包含它。已更正的记录保持不变，因此重复运行更正不会再改变任何内容。
 
-回执已存入 R2 之后才被更正的记录（`resolver_envelope_bug`、`duplicate_window` 或改评分）会重新写入回执。R2 写入逐条进行，每条约 450 毫秒，且在运行 150 秒的抓取阶段内完成，因此每次运行最多重写 `RECEIPT_REARCHIVE_PER_RUN`（50）条此类回执，最早的优先。积压会在之后的运行中逐步清空，在更正后的回执写入之前，清理不会删除该记录。
+在 issue #8995 之前，裁判通道按问题模板中的词语挑选存档条目，且不以截止时间为限。对以这种方式封存的 27 条裁判 YES 与 NO 结论的审计发现，其中 14 条得不到自身引用的支持，1 条可能有误。重新裁判要求存档覆盖截止前的最后 7 天，而这些窗口都在 2026-08-23 之前结束，早于保留 15 天的存档中最早的证据。因此每次运行都会把 #8995 上线（`SUBJECT_GATED_SELECTION_SINCE_MS`，2026-10-07T14:39Z）之前结算的每条裁判 YES 或 NO 以原因 `judged_old_selection` 封存为 VOID。记录保留 `resolvedAt`，把原始结果和证据保留在 `supersededOutcome` 与 `supersededEvidence` 中，并记录 `voidedAt`。该步骤在窗口更正之后运行，因此重复窗口保留 `duplicate_window`。作废的记录不再是 YES 或 NO，因此重复运行不会再改变任何内容。
+
+回执已存入 R2 之后才被更正的记录（`resolver_envelope_bug`、`duplicate_window`、`judged_old_selection`、`late_read`、改评分或迟读重新判定）会重新写入回执。R2 写入逐条进行，每条约 450 毫秒，且在运行 150 秒的抓取阶段内完成，因此每次运行最多重写 `RECEIPT_REARCHIVE_PER_RUN`（50）条此类回执，最早的优先。积压会在之后的运行中逐步清空，在更正后的回执写入之前，清理不会删除该记录。
+
+### 迟读与缺失的数据源
+
+实时数据源（大宗商品报价、咽喉要道风险）报告的是抓取时刻的数值，因此时间点问题（`at-deadline` 或 `at-endDate`）必须在截止时间附近读取。结算器每天运行一次（cron `0 6 * * *`），每次在 UTC 06:00 到 06:05 之间启动，因此截止后的第一次运行会在一个周期内读取数据源。`LATE_READ_MAX_LAG_MS` 等于这个周期再加一小时，用于吸收启动抖动。结算器按截止时间当时或之后、且在该界限内取得的第一个有限读数判定。界限过后仍没有这样的读数时，记录封存为 VOID：数据源缺失时原因为 `feed_unavailable`，数据源含有该指标但读数太迟时原因为 `late_read`，数据源不再包含该指标时原因为 `value_source_never_settled`（价格或数值）或 `no_establishable_metric`（其他指标）。因此一次漏跑会让间隔内到期的问题作废，而不是按之后的价格判定。按自身周期或场馆裁决标注读数日期的数据源（EIA、FRED、`prediction:markets-resolution:v1`）保留各自的结算宽限期，不受该界限约束；其中某个数据源缺失超过宽限期时，记录封存为 VOID `feed_unavailable`。计数数据源缺失超过其结算延迟加 `VALUE_SETTLEMENT_MAX_LAG_MS`（10 天）时，同样封存。
+
+`intelligence:gpsjam:v2` 每个 UTC 日发布一份快照，日期由其 `date` 字段标注。GPS 干扰问题按截止时间所在 UTC 日的快照判定。`seed-gpsjam` 每 8 小时运行一次，第 D 天的快照最早在 D+1 日 08:00 的运行中写入，因此结算器在 D+2 日 06:00 的运行是第一次能读到它。`GPS_JAM_SNAPSHOT_MAX_LAG_MS` 从截止日零点起算为 3 天 7 小时：包括这第一次运行、为延迟发布的快照多留的一个周期，以及一小时的启动抖动。若数据源中的快照日期晚于截止日，说明截止日的快照在结算器读取之前已被替换，记录封存为 VOID `late_read`。界限过后仍只有更早的快照时，记录封存为 VOID `value_source_never_settled`；数据源缺失时为 `feed_unavailable`。
+
+在 issue #8990 之前没有这个界限，结算器晚了数天才处理的窗口会按当天的价格判定。每次运行都会在 `duplicate_window` 作废之后更正这些记录。读取时间超过界限的实时数据源 YES 或 NO 记录，会按同一指标任一窗口采到的第一个及时读数重新判定；账本中没有这样的读数时，封存为 VOID `late_read`。被替换的结果和证据移入 `supersededOutcome` 与 `supersededEvidence`。重新判定的记录写入 `regradedAt`，作废的记录写入 `voidedAt`，`resolvedAt` 保持不变。更正后的记录要么读数及时，要么是 VOID，因此重复运行更正不会再改变任何内容。
 
 ## 层级与门控
 
