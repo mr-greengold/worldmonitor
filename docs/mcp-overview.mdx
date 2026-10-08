@@ -38,7 +38,7 @@ Pro subscribers can connect Claude Desktop / Cursor / claude.ai without ever pas
 | `https://worldmonitor.app/.well-known/oauth-protected-resource/mcp` | Resource server metadata for the MCP endpoint (RFC 9728), naming `https://worldmonitor.app/mcp`. This is where the `401` challenge points |
 | `https://worldmonitor.app/.well-known/oauth-protected-resource` | Resource server metadata for the origin (RFC 9728), kept for clients that discovered it before the path-scoped document existed |
 
-Server identifier: `worldmonitor` v1.30.0.
+Server identifier: `worldmonitor` v1.31.0.
 
 Registry listings: the server is published in the [official MCP registry](https://registry.modelcontextprotocol.io/v0/servers?search=worldmonitor) as `app.worldmonitor/mcp` — a domain-verified namespace, so clients that resolve servers through the registry get the same endpoint and metadata as the server card above — and listed on [Smithery](https://smithery.ai/servers/worldmonitor/wm-mcp) and [mcp.so](https://mcp.so/server/world-monitor).
 
@@ -516,7 +516,7 @@ The server supports [MCP Apps](https://modelcontextprotocol.io/extensions/apps/b
 | `ui://worldmonitor/chokepoint-monitor-v2.html` | `get_chokepoint_status` | Per-chokepoint rolling transit summaries (today's count, week-over-week change, tanker split) with a risk-level badge. |
 | `ui://worldmonitor/news-intelligence-v3.html` | `get_news_intelligence` | AI-classified top stories with category, alert flag, country, and source. |
 | `ui://worldmonitor/conflict-events-v2.html` | `get_conflict_events` | Active armed-conflict events (belligerents, violence type, country, fatalities, date) from the UCDP feed. |
-| `ui://worldmonitor/natural-disasters-v2.html` | `get_natural_disasters` | Recent M4.5+ earthquakes (USGS and Earthquakes Canada / NRCan: magnitude, place, time, source) and active wildfires (NASA FIRMS), grouped. |
+| `ui://worldmonitor/natural-disasters-v3.html` | `get_natural_disasters` | Recent M4.5+ earthquakes (USGS and Earthquakes Canada / NRCan: magnitude, place, time, source) and active wildfires (NASA FIRMS), grouped. |
 | `ui://worldmonitor/prediction-markets-v3.html` | `get_prediction_markets` | Active event-contract odds grouped by category (geopolitical, tech, finance) with a probability bar per market. Full-envelope projections and summary samples preserve loaded contracts and snapshot metadata. Missing or malformed categories and unknown freshness remain explicit. |
 | `ui://worldmonitor/forecasts-v4.html` | `get_forecast_predictions` | Loaded forecast cards and local filters, with original case evidence read under the same signed opening allocation. |
 | `ui://worldmonitor/news-dashboard-v3.html` | `open_news_dashboard` | Dashboard news panels and interactive map. |

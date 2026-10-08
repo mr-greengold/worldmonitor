@@ -1327,7 +1327,12 @@
         "medium": "mediu",
         "news": "Știri",
         "undisclosed": "Nedezvăluită",
-        "stake": "participație"
+        "stake": "participație",
+        "internallyDisplaced": "strămutați intern",
+        "sourceIomDtm": "Sursa: IOM DTM",
+        "sinceDate": "din {{date}}",
+        "lastMonth": "luna trecută",
+        "sourceUnhcrOdp": "Sursa: Portalul de date operaționale al UNHCR"
       },
       "layerHelp": {
         "title": "Ghid pentru straturi de hartă",
@@ -1744,6 +1749,7 @@
       "total": "Total",
       "origins": "Țări de origine",
       "hosts": "Țări gazdă",
+      "internal": "Interni",
       "badges": {
         "crisis": "CRIZĂ",
         "high": "RIDICAT",
@@ -1752,7 +1758,15 @@
       "country": "Ţară",
       "status": "Stare",
       "count": "Număr",
-      "infoTooltip": "<strong>Datele ICNUR privind strămutarea</strong> Refugiații, solicitanții de azil și IDP la nivel global de la UNHCR.<ul><li><strong>Origini</strong>: Țările din care oamenii fug</li><li><strong>Gazde</strong>: Țările care găzduiesc refugiați</li><li>Insigne de criză: >1 milion | Ridicat: >500.000 deplasați</li></ul>Datele se actualizează anual. Licență CC BY 4.0."
+      "latestRound": "Ultima rundă",
+      "internalNote": "IOM DTM: persoane strămutate intern, ultima rundă de evaluare pentru fiecare operațiune. Operațiunile dintr-o țară se pot suprapune, așa că nu sunt adunate.",
+      "infoTooltip": "<strong>Datele ICNUR privind strămutarea</strong> Refugiații, solicitanții de azil și IDP la nivel global de la UNHCR.<ul><li><strong>Origini</strong>: Țările din care oamenii fug</li><li><strong>Gazde</strong>: Țările care găzduiesc refugiați</li><li>Insigne de criză: >1 milion | Ridicat: >500.000 deplasați</li></ul>Datele se actualizează anual. Licență CC BY 4.0.",
+      "crossBorder": "Transfrontalier",
+      "situation": "Situație",
+      "latestChange": "Ultima modificare",
+      "accelerating": "În accelerare",
+      "inDays": "în {{days}} zile",
+      "crossBorderNote": "Portalul de date operaționale al UNHCR: persoane care au trecut granițele în fiecare criză, conform celor mai recente rapoarte pe țări. Situațiile se suprapun, așa că nu sunt adunate."
     },
     "climate": {
       "noAnomalies": "Nu au fost detectate anomalii semnificative",
@@ -2416,7 +2430,8 @@
           "other": "Nu a putut fi rezolvată",
           "judged_old_selection": "Evaluat cu o metodă de selectare a dovezilor considerată ulterior nesigură",
           "late_read": "Fluxul nu a fost citit suficient de aproape de termen",
-          "feed_unavailable": "Fluxul de date nu a fost disponibil după termen"
+          "feed_unavailable": "Fluxul de date nu a fost disponibil după termen",
+          "resolver_could_not_read_feed": "Sistemul nostru de soluționare nu a putut citi corect acest flux de date"
         }
       },
       "horizons": {
