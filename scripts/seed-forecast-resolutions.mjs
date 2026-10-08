@@ -21,7 +21,7 @@ import { unwrapEnvelope } from './_seed-envelope-source.mjs';
 import { resolveR2StorageConfig, putR2JsonObject } from './_r2-storage.mjs';
 import { parseMetricKey, resolveHardSpec, resolveHorizonSpec, extractMetricValue, extractMetricObservation, selectResolutionFeed, shapeResolutionFeeds, MARKET_SETTLEMENT_FEED_KEY } from './_forecast-resolution-eval.mjs';
 import { firstTimelySample, isLivePointRead, LATE_READ_MAX_LAG_MS, LATE_READ_VOID_REASON } from './_forecast-resolution-eval.mjs';
-import { CHOKEPOINT_DISRUPTED_MIN_SCORE, CHOKEPOINT_RESOLUTION_RULE, CHOKEPOINT_RESOLUTION_RULE_VERSION, CONFLICT_COUNT_FEED_AVAILABLE, UNREST_COUNT_FEED_AVAILABLE, CONFLICT_COUNT_SOURCE_FEED, CYBER_COUNT_SOURCE_FEED, UNREST_COUNT_SOURCE_FEED, scoredHorizonKeys } from './_forecast-resolution.mjs';
+import { chokepointHardContract, CONFLICT_COUNT_FEED_AVAILABLE, UNREST_COUNT_FEED_AVAILABLE, CONFLICT_COUNT_SOURCE_FEED, CYBER_COUNT_SOURCE_FEED, UNREST_COUNT_SOURCE_FEED, scoredHorizonKeys } from './_forecast-resolution.mjs';
 import { buildFamilyOutcomes, buildPublicReceipts, computeScorecard, DEFAULT_ROLLING_WINDOW_DAYS, isDuplicateWindow, isHorizonEntry, isPublishedOriginEntry, isWithheldEntry } from './_forecast-scorecard.mjs';
 import { evaluateCalibrationShadow, resolveCalibrationMapForRun } from './_forecast-calibration.mjs';
 import { BETS_HISTORY_KEY } from './_forecast-bets-keys.mjs';
@@ -208,6 +208,12 @@ export function buildScorecard(ledger, nowMs, calibrationMap = null, publication
  * rather than refitting: a refit after a transient Redis error would move
  * fittedAt and silently restart the forward cohort.
  */
+// The run's clock, so the scorecard's gate verdict is the one the map
+// resolution held or refitted on.
+export function buildScorecardForRun(ledger, runState) {
+  return buildScorecard(ledger, runState.nowMs, runState.map, runState.publication);
+}
+
 export async function resolveCalibrationMap(ledger, nowMs, readJson = readRedisJson) {
   let existing;
   try {
@@ -749,6 +755,17 @@ function collectNormalizeClasses(judgments) {
     .filter((reason) => JUDGE_ATTEMPT_CLASS_SET.has(reason));
   return classes.length ? classes : undefined;
 }
+
+// Bump whenever the judged lane changes which evidence the judges see, so a
+// later correction finds the verdicts sealed under the old selection by their
+// stamp rather than by a deploy time (#9011). Any change to which archive items
+// reach the judges (subject matching, ranking, the window, the item cap) needs
+// a bump. Every judged seal carries the stamp, VOIDs included.
+//  1: stock words from the question template, no deadline cutoff (before #8995).
+//  2: subject-gated evidence through the deadline (#8995).
+//  3: subject table, title-first ranking, event-word absence floor (#8999), and
+//     the country-match fix (#9002), which deployed before any judged YES or NO.
+export const JUDGED_EVIDENCE_SELECTION_VERSION = 3;
 
 export function selectJudgedArchiveItems(entry, archiveItems, options = {}) {
   return selectNormalizedJudgedArchiveItems(entry, normalizeJudgedArchiveItems(archiveItems), options);
@@ -1425,6 +1442,7 @@ function resolvedJudgedResult(outcome, reason, entry, judgments, archiveItems, n
       reason,
       basis: outcome === 'VOID' ? undefined : judgments[0]?.basis,
       resolvedAt: nowMs,
+      selectionVersion: JUDGED_EVIDENCE_SELECTION_VERSION,
       question: spec.question,
       deadline: Number.isFinite(Number(spec.deadline ?? entry?.deadline)) ? Number(spec.deadline ?? entry?.deadline) : undefined,
       judgedBy: judgments.map((judgment) => pruneUndefined({
@@ -1923,24 +1941,34 @@ function migratePendingCountEntry(entry, options = {}) {
 
 // The rule each detector-gated metric resolves on, keyed by metric function.
 // GPS rows emitted before the persistence rule carry the emission-day hex
-// count as their threshold, and chokepoint rows emitted before #8990 carry
-// 60 where the detector emits at the feed's red boundary. No GPS row was ever
-// scored on its old threshold (every GPS row resolved before #8990 is VOID).
+// count as their threshold. Chokepoint rows resolve through
+// chokepointHardContract, which is per route. No GPS row was ever scored on
+// its old threshold (every GPS row resolved before #8990 is VOID).
 const CURRENT_HARD_RULES = new Map([
   ['hexCount', { threshold: GPS_ZONE_MIN_HEXES, rule: GPS_RESOLUTION_RULE, ruleVersion: GPS_RESOLUTION_RULE_VERSION }],
-  ['riskScore', { threshold: CHOKEPOINT_DISRUPTED_MIN_SCORE, rule: CHOKEPOINT_RESOLUTION_RULE, ruleVersion: CHOKEPOINT_RESOLUTION_RULE_VERSION }],
 ]);
 
 // Each pending row moves to the current rule before it can resolve, and keeps
-// its first threshold for audit. A resolved row keeps the rule it was graded
+// its first threshold for audit. A chokepoint row takes the contract for its
+// route, so a war-zone route moves above its fixed base while every other
+// route stays on the red boundary. A resolved row keeps the rule it was graded
 // on. Re-running is a no-op.
 function migratePendingRule(entry) {
   const spec = entry.spec;
-  const current = CURRENT_HARD_RULES.get(parseMetricKey(spec.metricKey)?.fn);
+  const parsed = parseMetricKey(spec.metricKey);
+  const current = parsed?.fn === 'riskScore'
+    ? chokepointHardContract(parsed.value)
+    : CURRENT_HARD_RULES.get(parsed?.fn);
   if (!current) return;
-  if (spec.rule === current.rule && spec.ruleVersion === current.ruleVersion) return;
+  const operator = current.operator ?? '>=';
+  if (
+    spec.operator === operator
+    && spec.threshold === current.threshold
+    && spec.rule === current.rule
+    && spec.ruleVersion === current.ruleVersion
+  ) return;
   if (spec.supersededThreshold === undefined) spec.supersededThreshold = spec.threshold;
-  spec.operator = '>=';
+  spec.operator = operator;
   spec.threshold = current.threshold;
   spec.rule = current.rule;
   spec.ruleVersion = current.ruleVersion;
@@ -2110,13 +2138,28 @@ export function voidEnvelopeBugResolutions(ledger, nowMs) {
 // Re-running is a no-op: a voided row is no longer YES or NO.
 export const JUDGED_OLD_SELECTION_VOID_REASON = 'judged_old_selection';
 export const SUBJECT_GATED_SELECTION_SINCE_MS = Date.parse('2026-10-07T14:39:00Z');
+// Verdicts sealed under an older selection than this are voided. Raise it to
+// retire a selection; the stamp says which rows that reaches.
+export const JUDGED_MIN_TRUSTED_SELECTION_VERSION = 2;
 
-export function voidOldSelectionJudgedResolutions(ledger, nowMs) {
+// The selection a verdict was sealed under. Rows sealed before the stamp
+// existed are dated by the #8995 deploy. No judged YES or NO was sealed
+// between that deploy and #8999's, so every later unstamped row is version 3.
+export function judgedSelectionVersion(entry) {
+  const stamp = entry?.evidence?.selectionVersion ?? entry?.evidence?.supersededEvidence?.selectionVersion;
+  if (Number.isInteger(stamp)) return stamp;
+  const resolvedAt = Number(entry?.resolvedAt);
+  if (!Number.isFinite(resolvedAt)) return null;
+  return resolvedAt < SUBJECT_GATED_SELECTION_SINCE_MS ? 1 : 3;
+}
+
+export function voidOldSelectionJudgedResolutions(ledger, nowMs, minTrustedVersion = JUDGED_MIN_TRUSTED_SELECTION_VERSION) {
   let voided = 0;
   for (const entry of Object.values(ledger)) {
     if (entry?.status !== 'resolved' || entry.spec?.kind !== 'judged') continue;
     if (entry.outcome !== 'YES' && entry.outcome !== 'NO') continue;
-    if (!(Number(entry.resolvedAt) < SUBJECT_GATED_SELECTION_SINCE_MS)) continue;
+    const version = judgedSelectionVersion(entry);
+    if (version == null || version >= minTrustedVersion) continue;
     entry.evidence = {
       reason: JUDGED_OLD_SELECTION_VOID_REASON,
       resolvedAt: entry.resolvedAt,
@@ -2144,6 +2187,9 @@ export function voidOldSelectionJudgedResolutions(ledger, nowMs) {
 // The relabel keeps the outcome and resolvedAt and moves the old evidence
 // under supersededEvidence. A relabelled row no longer carries
 // no_establishable_metric, so re-running is a no-op.
+// These timestamps are Railway deploy creation times, not activation times.
+// Creation is earlier than activation, so a row sealed between creation and
+// activation is left alone. The comparison can relabel too few rows, not too many.
 export const RESOLVER_COULD_NOT_READ_FEED_VOID_REASON = 'resolver_could_not_read_feed';
 const UNREADABLE_FEED_READER_FIXED_AT = new Map([
   ['intelligence:gpsjam:v2', Date.parse('2026-10-07T19:28:03.541Z')],
@@ -2894,6 +2940,7 @@ async function buildLedgerForRun(runState) {
   console.log(`  R2 receipts archived: ${archivedReceipts.length}`);
   reportJudgedLaneObservability(result.ledger, nowMs, judgedOptions);
   const calibration = await resolveCalibrationMap(result.ledger, nowMs);
+  runState.nowMs = nowMs;
   runState.map = calibration.map;
   runState.publication = await readRedisJson(CALIBRATION_PUBLICATION_KEY)
     .then((value) => unwrapEnvelope(value).data ?? null)
@@ -2901,7 +2948,10 @@ async function buildLedgerForRun(runState) {
       console.warn(`  [forecast-resolutions] calibration publication read failed: ${err?.message || err}`);
       return null;
     });
-  console.log(`  Calibration map: ${calibration.action}${calibration.reason ? ` (${calibration.reason})` : ''}${calibration.map ? ` ${calibration.map.version}` : ''}`);
+  const trigger = calibration.held
+    ? `${calibration.held.reason}: ${calibration.held.domain}, held by the activation gate`
+    : calibration.reason && `${calibration.reason}${calibration.domain ? `: ${calibration.domain}` : ''}`;
+  console.log(`  Calibration map: ${calibration.action}${trigger ? ` (${trigger})` : ''}${calibration.map ? ` ${calibration.map.version} data v${calibration.map.dataVersion}` : ''}`);
   return result.ledger;
 }
 
@@ -3045,7 +3095,7 @@ export async function appendR2Receipts(receipts, options = {}) {
 if (DIRECT_RUN && process.argv.includes('--dry-run')) {
   await dryRun();
 } else if (DIRECT_RUN) {
-  const runState = { map: null };
+  const runState = { nowMs: Date.now(), map: null };
   await runSeed('forecast', 'resolutions', RESOLUTIONS_KEY, () => buildLedgerForRun(runState), {
     // Persistent working ledger: no ttlSeconds by design (#5007 R11).
     validateFn: (ledger) => ledger && typeof ledger === 'object' && !Array.isArray(ledger),
@@ -3059,7 +3109,7 @@ if (DIRECT_RUN && process.argv.includes('--dry-run')) {
     extraKeys: [{
       key: SCORECARD_KEY,
       ttl: SCORECARD_TTL_SECONDS,
-      transform: (ledger) => buildScorecard(ledger, Date.now(), runState.map, runState.publication),
+      transform: (ledger) => buildScorecardForRun(ledger, runState),
       declareRecords: declareScorecardRecords,
       metaKey: SCORECARD_META_KEY,
       metaCritical: true,
