@@ -134,6 +134,52 @@ function selectBlock(block: BlockName, value: unknown): unknown {
   return out;
 }
 
+// Point-in-time horizon grades (#9057). The public OpenAPI document has no
+// room for them, so only the MCP tool serves them; /accuracy/ reads them
+// through that tool. Mirrors HORIZON_GRADE_FIELDS and HORIZON_GRADE_ROW_FIELDS
+// in scripts/build-accuracy-page.mjs (a test pins the parity).
+export const HORIZON_GRADE_FIELDS = ['semantics', 'note', 'minimums', 'unversionedScored', 'rows'] as const;
+export const HORIZON_GRADE_ROW_FIELDS = [
+  'curvesVersion', 'horizon', 'scored', 'yes', 'no', 'families', 'yesFamilies', 'noFamilies', 'measurable', 'brier', 'realizedRate',
+] as const;
+// A row below the family minimums is counts only, whatever the stored row
+// carries: the minimums are checked again here from the row's counts. Mirrors
+// SKILL_MIN_FAMILIES and SKILL_MIN_OUTCOME_FAMILIES in
+// scripts/_forecast-scorecard.mjs, which reads node:fs through its imports and
+// cannot ride in the edge bundle (a test pins the parity).
+export const HORIZON_GRADE_MIN_FAMILIES = 30;
+export const HORIZON_GRADE_MIN_OUTCOME_FAMILIES = 5;
+const HORIZON_GRADE_SCORE_FIELDS = new Set<string>(['brier', 'realizedRate']);
+
+const isCount = (value: unknown): value is number => Number.isInteger(value) && (value as number) >= 0;
+
+function horizonRowMeasurable(row: Record<string, unknown>): boolean {
+  const { families, yesFamilies, noFamilies } = row;
+  return row.measurable === true
+    && isCount(families) && isCount(yesFamilies) && isCount(noFamilies)
+    && yesFamilies <= families && noFamilies <= families
+    && families >= HORIZON_GRADE_MIN_FAMILIES
+    && yesFamilies >= HORIZON_GRADE_MIN_OUTCOME_FAMILIES
+    && noFamilies >= HORIZON_GRADE_MIN_OUTCOME_FAMILIES;
+}
+
+export function selectHorizonGrades(value: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(value)) return undefined;
+  const selected = pickNonNull(value, HORIZON_GRADE_FIELDS);
+  selected.rows = Array.isArray(value.rows)
+    ? value.rows.filter(isRecord).map((row) => {
+      const measurable = horizonRowMeasurable(row);
+      const fields = measurable
+        ? HORIZON_GRADE_ROW_FIELDS
+        : HORIZON_GRADE_ROW_FIELDS.filter((field) => !HORIZON_GRADE_SCORE_FIELDS.has(field));
+      const selected = pickNonNull(row, fields);
+      if ('measurable' in selected) selected.measurable = measurable;
+      return selected;
+    })
+    : [];
+  return selected;
+}
+
 /** `extended` adds the members the seeder writes beyond the contract; only the MCP tool asks for them. */
 export function selectScorecardFields(data: Record<string, unknown>, { extended = false } = {}): Partial<ScorecardData> {
   const selected: Record<string, unknown> = {};
@@ -147,6 +193,10 @@ export function selectScorecardFields(data: Record<string, unknown>, { extended 
         ? (isRecord(data[field]) ? pickPresent(data[field] as Record<string, unknown>, memberList(objectFields, extended)) : undefined)
         : field in SCORECARD_BLOCK_FIELDS ? selectBlock(field as BlockName, data[field]) : data[field];
     if (value !== undefined) selected[field] = value;
+  }
+  if (extended) {
+    const horizonGrades = selectHorizonGrades(data.horizonGrades);
+    if (horizonGrades) selected.horizonGrades = horizonGrades;
   }
   return selected as Partial<ScorecardData>;
 }

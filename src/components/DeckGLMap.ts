@@ -62,6 +62,7 @@ import type { WeatherAlert } from '@/services/weather';
 import type { CanadaRoadRecord } from '@/services/canada-roads';
 import type { CanadaAlert } from '@/services/canada-alerts';
 import { escapeHtml } from '@/utils/sanitize';
+import { corroborationLabelHtml } from '@/utils/corroboration-flag';
 import {
   derivePipelinePublicBadge,
   type PipelineEvidenceInput,
@@ -624,6 +625,7 @@ export class DeckGLMap {
   private healthByCableId: Record<string, CableHealthRecord> = {};
   private protests: SocialUnrestEvent[] = [];
   private militaryFlights: MilitaryFlight[] = [];
+  private emergencyMarkers: import('../../shared/aircraft-emergencies').EmergencyMapMarker[] = [];
   private militaryFlightClusters: MilitaryFlightCluster[] = [];
   private activeFlightTrails = new Set<string>();
   private clearTrailsBtn: HTMLButtonElement | null = null;
@@ -2240,6 +2242,23 @@ export class DeckGLMap {
       layers.push(this.createMilitaryFlightClustersLayer(filteredMilitaryFlightClusters));
     }
 
+    // Above military flights: an emergency-squawking military aircraft is drawn
+    // in both layers, and its emergency marker must stay visible and clickable.
+    if (mapLayers.aircraftEmergencies && this.emergencyMarkers.length > 0) {
+      layers.push(new ScatterplotLayer<import('../../shared/aircraft-emergencies').EmergencyMapMarker>({
+        id: 'aircraft-emergencies', data: this.emergencyMarkers,
+        getPosition: aircraft => [aircraft.lon, aircraft.lat],
+        getFillColor: [251, 191, 36], getLineColor: [17, 24, 39],
+        getRadius: 7, radiusUnits: 'pixels', stroked: true, lineWidthMinPixels: 1,
+        pickable: true,
+        onClick: info => {
+          if (!info.object) return false;
+          this.container.dispatchEvent(new CustomEvent('aircraft-emergency-select', { detail: info.object.address }));
+          return true;
+        },
+      }));
+    }
+
     // Strategic waterways layer
     if (mapLayers.waterways) {
       layers.push(this.createWaterwaysLayer());
@@ -2296,6 +2315,9 @@ export class DeckGLMap {
     }
     if (mapLayers.displacement && this.crossBorderArrivals && this.crossBorderArrivals.points.length > 0) {
       layers.push(this.createCrossBorderPointsLayer(this.crossBorderArrivals.points));
+    }
+    if (mapLayers.displacement && this.crossBorderArrivals?.deaths?.length) {
+      layers.push(this.createCrossBorderPointsLayer(this.crossBorderArrivals.deaths, true));
     }
     if (mapLayers.displacement && this.internalDisplacement) {
       if (this.internalDisplacement.routes.length > 0) layers.push(this.createInternalDisplacementRoutesLayer(this.internalDisplacement.routes));
@@ -5138,13 +5160,14 @@ export class DeckGLMap {
       }
       case 'ais-disruptions-layer':
         return { html: `<div class="deckgl-tooltip"><strong>AIS ${text(obj.type || t('components.deckgl.tooltip.disruption'))}</strong><br/>${text(obj.severity)} ${t('popups.severity')}<br/>${text(obj.description)}</div>` };
+      case 'cross-border-deaths-layer':
       case 'cross-border-points-layer': {
         const change = obj.change !== null && obj.change !== 0
           ? `<br/>${obj.change > 0 ? '+' : ''}${numericLabel(obj.change)} ${t('components.deckgl.tooltip.sinceDate', { date: text(obj.changeSince) })}`
           : '';
-        const lastMonth = obj.lastMonth !== null ? `<br/>${numericLabel(obj.lastMonth)} ${t('components.deckgl.tooltip.lastMonth')}` : '';
+        const lastMonth = obj.period ? `<br/>${text(obj.period)}` : obj.lastMonth !== null ? `<br/>${numericLabel(obj.lastMonth)} ${t('components.deckgl.tooltip.lastMonth')}` : '';
         const accelerating = obj.accelerating ? `<br/><strong>${t('components.displacement.accelerating')}</strong>` : '';
-        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.country)}</strong><br/>${text(obj.label)}: ${numericLabel(obj.individuals)}${lastMonth}${change}${accelerating}<br/>${text(obj.situation)} · ${text(obj.date)}<br/>${t('components.deckgl.tooltip.sourceUnhcrOdp')}</div>` };
+        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.country)}</strong><br/>${text(obj.label)}: ${numericLabel(obj.individuals)}${lastMonth}${change}${accelerating}<br/>${text(obj.situation)} · ${text(obj.date)}<br/>${text(obj.source || t('components.deckgl.tooltip.sourceUnhcrOdp'))}${obj.measure ? ` · ${text(obj.measure)}` : ''}${obj.last30Days !== undefined ? ' · 30d' : ''}</div>` };
       }
       case 'internal-displacement-regions-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}, ${text(obj.countryName)}</strong><br/>${numericLabel(obj.idps)} ${t('components.deckgl.tooltip.internallyDisplaced')}<br/>${text(obj.operation)} · ${text(obj.reportingDate)}<br/>${t('components.deckgl.tooltip.sourceIomDtm')}</div>` };
@@ -5196,8 +5219,10 @@ export class DeckGLMap {
         return { html: `<div class="deckgl-tooltip"><strong>${t('popups.cyberThreat.title')}</strong><br/>${text(obj.severity || t('components.deckgl.tooltip.medium'))} · ${text(obj.country || t('popups.unknown'))}</div>` };
       case 'iran-events-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${t('components.deckgl.layers.iranAttacks')}: ${text(obj.category || '')}</strong><br/>${text((obj.title || '').slice(0, 80))}</div>` };
-      case 'news-locations-layer':
-        return { html: `<div class="deckgl-tooltip"><strong>📰 ${t('components.deckgl.tooltip.news')}</strong><br/>${text(obj.title?.slice(0, 80) || '')}</div>` };
+      case 'news-locations-layer': {
+        const coverage = corroborationLabelHtml(obj.corroboration);
+        return { html: `<div class="deckgl-tooltip"><strong>📰 ${t('components.deckgl.tooltip.news')}</strong><br/>${text(obj.title?.slice(0, 80) || '')}${coverage ? `<br/>${coverage}` : ''}</div>` };
+      }
       case 'positive-events-layer': {
         const catLabel = obj.category ? obj.category.replace(/-/g, ' & ') : 'Positive Event';
         const countInfo = obj.count > 1 ? `<br/><span style="opacity:.7">${numericLabel(obj.count)} sources reporting</span>` : '';
@@ -6657,15 +6682,17 @@ export class DeckGLMap {
 
   // UNHCR people who crossed into each receiving country. Area scales with the
   // count; an accelerating country gets a thicker ring.
-  private createCrossBorderPointsLayer(points: CrossBorderPoint[]): ScatterplotLayer<CrossBorderPoint> {
+  private createCrossBorderPointsLayer(points: CrossBorderPoint[], deaths = false): ScatterplotLayer<CrossBorderPoint> {
     const light = getCurrentTheme() === 'light';
     const fill = (d: CrossBorderPoint): [number, number, number, number] => {
+      if (deaths) return [230, 70, 70, 180];
+      if (d.changePct !== undefined) return d.changePct >= 0 ? [240, 100, 60, 140] : [60, 180, 150, 140];
       if (d.kind === 'return') return light ? [30, 130, 80, 110] : [80, 210, 140, 100];
       if (d.kind === 'arrival') return light ? [20, 110, 170, 120] : [70, 180, 240, 110];
       return light ? [120, 60, 170, 110] : [180, 130, 255, 100];
     };
     return new ScatterplotLayer<CrossBorderPoint>({
-      id: 'cross-border-points-layer',
+      id: deaths ? 'cross-border-deaths-layer' : 'cross-border-points-layer',
       data: points,
       getPosition: (d) => [d.lon, d.lat],
       getRadius: (d) => Math.sqrt(d.individuals) * 70,
@@ -7220,6 +7247,11 @@ export class DeckGLMap {
       }
       this.updateClearTrailsBtn();
     }
+    this.render();
+  }
+
+  public setAircraftEmergencies(markers: import('../../shared/aircraft-emergencies').EmergencyMapMarker[]): void {
+    this.emergencyMarkers = markers;
     this.render();
   }
 

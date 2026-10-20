@@ -1,11 +1,12 @@
 import { IS_EMBEDDED_PREVIEW } from '@/utils/embedded-preview';
+import { ZodError } from 'zod';
 import type { ChinaDecisionSignalSnapshot } from '../../shared/china-decision-signals';
 import type { ChinaCountrySummaryData, CountryBriefPanel, StockIndexData } from './CountryBriefPanel';
 import type { BriefSectionId } from '../../shared/country-brief-sections';
 import type { CountryBriefSource } from '@/services/country-brief-source';
 import { CountrySectionError } from '@/services/country-brief-error';
 import { combineAbortSignals } from '@/services/timeout-signal';
-import { getImfCountryBundle, buildImfEconomicIndicators, type ImfCountryBundle, type ImfMacroEntry, type ImfGrowthEntry, type ImfLaborEntry, type ImfExternalEntry } from '@/services/imf-country-data';
+import { getImfCountryBundle, buildImfEconomicIndicators, selectImfCountryBundle, type ImfBootstrapPayload, type ImfCountryBundle } from '@/services/imf-country-data';
 import { getCountryDefenseIndustrialBase } from '@/services/defense-industrial';
 import { fetchCountryMarkets, protoToMarket } from '@/services/prediction';
 import { iso2ToIso3, iso2ToUnCode, iso2ToComtradeReporterCode } from '@/utils/country-codes';
@@ -49,9 +50,11 @@ export class CountryBriefController {
     const current = () => !signal.aborted && revision === this.snapshot.revision && this.panel.getCode() === this.snapshot.countryCode;
     this.snapshot.sections[id] = { state: 'loading' };
     this.changed(this.snapshot);
+    let phase: 'load' | 'apply' = 'load';
     try {
       const value = await load(signal);
       if (!current()) return null;
+      phase = 'apply';
       apply(value);
       this.snapshot.sections[id] = { state: 'ready', value };
       return value;
@@ -59,6 +62,18 @@ export class CountryBriefController {
       if (!current()) return null;
       const state = error instanceof CountrySectionError ? error.state : 'unavailable';
       const reason = state === 'locked' ? 'This section is not authorized by the current connection.' : 'This section could not be loaded. Retry to refresh it.';
+      let category: 'display_failure' | 'locked' | 'unavailable_response' | 'timeout' | 'invalid_response' | 'unknown_load_failure' = phase === 'apply' ? 'display_failure' : 'unknown_load_failure';
+      try {
+        category = phase === 'apply' ? 'display_failure'
+          : state === 'locked' ? 'locked'
+          : error instanceof CountrySectionError ? 'unavailable_response'
+          : error instanceof DOMException && error.name === 'TimeoutError' ? 'timeout'
+          : error instanceof SyntaxError || error instanceof ZodError ? 'invalid_response'
+          : 'unknown_load_failure';
+      } catch {}
+      try {
+        console.warn('[CountryBriefController] section failed', { section: id, phase, category });
+      } catch {}
       this.snapshot.sections[id] = { state, reason };
       if (id !== 'stock') this.panel.setSectionFailure?.(id, state, reason);
       if (id === 'trade') this.panel.setSectionFailure?.('scenario', state, 'Trade exposure is unavailable, so this calculator cannot be loaded.');
@@ -79,20 +94,22 @@ export class CountryBriefController {
     }, stock => { latestStock = stock; this.panel.updateStock(stock); updated?.stock?.(stock); });
     const imfPromise = this.read<ImfCountryBundle & { missing?: string[] }>('economic', async signal => {
       if (this.source.mode === 'website') return getImfCountryBundle(code);
-      const body = await this.source.fetch('https://www.worldmonitor.app/api/bootstrap?keys=imfMacro,imfGrowth,imfLabor,imfExternal', { signal }).then(res => res.json()) as { data?: {
-        imfMacro?: { countries?: Record<string, ImfMacroEntry> }; imfGrowth?: { countries?: Record<string, ImfGrowthEntry> }; imfLabor?: { countries?: Record<string, ImfLaborEntry> }; imfExternal?: { countries?: Record<string, ImfExternalEntry> };
-      }; missing?: string[] };
-      return { macro: body.data?.imfMacro?.countries?.[code] ?? null, growth: body.data?.imfGrowth?.countries?.[code] ?? null, labor: body.data?.imfLabor?.countries?.[code] ?? null, external: body.data?.imfExternal?.countries?.[code] ?? null, fetchedAt: 0, missing: body.missing ?? [] };
+      const body = await this.source.fetch('https://www.worldmonitor.app/api/bootstrap?keys=imfMacro,imfGrowth,imfLabor,imfExternal', { signal }).then(res => res.json()) as { data?: ImfBootstrapPayload; missing?: string[] };
+      return { ...selectImfCountryBundle(body.data, code, 0), missing: body.missing ?? [] };
     }, bundle => { this.panel.updateEconomicIndicators?.(buildImfEconomicIndicators(bundle)); this.panel.setSectionCoverage?.('economic', bundle.missing ?? []); if (latestStock) this.panel.updateStock(latestStock); updated?.imf?.(bundle); });
     void this.read('facts', signal => this.source.intelligence.getCountryFacts({ countryCode: code }, { signal }), facts => this.panel.updateCountryFacts?.({ ...facts, population: Number(facts.population) }));
     void this.read('energy', signal => this.source.intelligence.getCountryEnergyProfile({ countryCode: code }, { signal }), energy => this.panel.updateEnergyProfile?.(energy));
     void this.read('maritime', signal => this.source.intelligence.getCountryPortActivity({ countryCode: code }, { signal }), maritime => this.panel.updateMaritimeActivity?.(maritime));
     void this.read('markets', async signal => {
-      if (this.source.mode === 'website') return fetchCountryMarkets(countryName, code);
+      if (this.source.mode === 'website') {
+        let fetchedAt: number | undefined;
+        const markets = await fetchCountryMarkets(countryName, code, metadata => { fetchedAt = metadata.fetchedAt; });
+        return { markets, fetchedAt };
+      }
       const response = await this.source.prediction.listPredictionMarkets({ category: `country:${code}`, query: '', pageSize: 5, cursor: '' }, { signal });
       if (!response.dataAvailable) throw new Error('Country markets unavailable');
-      return response.markets.map(protoToMarket).filter(m => !m.endDate || Date.parse(m.endDate) > Date.now()).slice(0, 5);
-    }, markets => this.panel.updateMarkets(markets));
+      return { markets: response.markets.map(protoToMarket).filter(m => !m.endDate || Date.parse(m.endDate) > Date.now()).slice(0, 5), fetchedAt: response.fetchedAt };
+    }, result => this.panel.updateMarkets(result.markets, { fetchedAt: result.fetchedAt }));
     if (this.source.mode === 'host' || !IS_EMBEDDED_PREVIEW) void this.read('housing', async signal => {
       const url = this.source.mode === 'host' ? 'https://www.worldmonitor.app/api/bootstrap?keys=bisDsr,bisPropertyResidential,bisPropertyCommercial' : toApiUrl('/api/bootstrap?keys=bisDsr,bisPropertyResidential,bisPropertyCommercial');
       const response = await this.source.fetch(url, { signal });

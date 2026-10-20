@@ -23,6 +23,44 @@ afterEach(() => {
 });
 
 describe('listPredictionMarkets legacy bootstrap compatibility', () => {
+  it('converts optional moves to the REST probability scale and omits unknown values', async () => {
+    const rows = [
+      { title: 'moves', yesPrice: 69, volume: 30000, url: 'https://example.test/moves', change24h: 1, change7d: -4 },
+      { title: 'zero', yesPrice: 50, volume: 20000, url: 'https://example.test/zero', change24h: 0 },
+      { title: 'unknown', yesPrice: 40, volume: 10000, url: 'https://example.test/unknown' },
+    ];
+    globalThis.fetch = async () => Response.json({ result: JSON.stringify({ geopolitical: rows, tech: [], finance: [], fetchedAt: 123 }) });
+    const response = await listPredictionMarkets({} as never, { category: '', query: '', pageSize: 10, cursor: '' });
+    const serialized = JSON.parse(JSON.stringify(response));
+    assert.equal(serialized.markets[0].yesPriceChange24h, 0.01);
+    assert.equal(serialized.markets[0].yesPriceChange7d, -0.04);
+    assert.equal(serialized.markets[1].yesPriceChange24h, 0);
+    assert.equal('yesPriceChange7d' in serialized.markets[1], false);
+    assert.equal('yesPriceChange24h' in serialized.markets[2], false);
+    assert.equal('yesPriceChange7d' in serialized.markets[2], false);
+  });
+  it('suppresses an explicitly unavailable display destination while retaining the contract ID', async () => {
+    const row = { title: 'China meeting', yesPrice: 70, volume: 30000, source: 'kalshi', url: 'https://kalshi.com/markets/KXMEETING-27-CN', displayUrl: '' };
+    globalThis.fetch = async () => Response.json({ result: JSON.stringify({ countries: { CN: [row] }, fetchedAt: 789 }) });
+    const response = await listPredictionMarkets({} as never, { category: 'country:CN', query: '', pageSize: 5, cursor: '' } as never);
+    assert.equal(response.markets[0].id, 'KXMEETING-27-CN');
+    assert.equal(response.markets[0].url, '');
+    assert.equal(response.markets[0].yesPrice, 0.7);
+  });
+  it('preserves contract IDs and separate events sharing a Kalshi series landing', async () => {
+    const first = { title: 'China meeting in 2027', yesPrice: 70, volume: 30000, source: 'kalshi', url: 'https://kalshi.com/markets/KXMEETING-27-CN', displayUrl: 'https://kalshi.com/markets/kxmeeting' };
+    const second = { ...first, title: 'China meeting in 2028', url: 'https://kalshi.com/markets/KXMEETING-28-CN', volume: 40000 };
+    const payload = { geopolitical: [first, second], tech: [], finance: [{ ...first, volume: 50000 }], countries: { CN: [first, second] }, fetchedAt: 789 };
+    globalThis.fetch = async () => Response.json({ result: JSON.stringify(payload) });
+    for (const category of ['', 'country:CN']) {
+      const response = await listPredictionMarkets({} as never, { category, query: '', pageSize: 50, cursor: '' } as never);
+      assert.deepEqual(new Set(response.markets.map(row => row.id)), new Set(['KXMEETING-27-CN', 'KXMEETING-28-CN']));
+      assert.equal(response.markets.length, 2);
+      assert.ok(response.markets.every(row => row.url === first.displayUrl));
+      if (!category) assert.equal(response.markets.find(row => row.id === 'KXMEETING-27-CN')?.volume, 50000);
+    }
+  });
+
   it('dedupes the old three-pool payload and keeps the highest-volume copy', async () => {
     const base = {
       title: 'Will Iran strike Israel?',

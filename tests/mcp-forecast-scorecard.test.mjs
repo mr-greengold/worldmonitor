@@ -4,9 +4,65 @@ import { describe, it } from 'node:test';
 import { executeTool } from '../api/mcp/dispatch.ts';
 import { CACHE_TOOLS } from '../api/mcp/registry/cache-tools.ts';
 import { projectForecastScorecard } from '../api/mcp/registry/cache-tools.ts';
-import { FORECAST_ACCURACY_AUDIT } from '../shared/forecast-accuracy-audit.js';
+import { FORECAST_ACCURACY_AUDIT_OVERRIDE, STANDING_ACCURACY_AUDIT, forecastAccuracyAudit } from '../shared/forecast-accuracy-audit.js';
 
 const tool = CACHE_TOOLS.find((entry) => entry.name === 'get_forecast_scorecard');
+
+describe('resolved archive MCP transport', () => {
+  const now = Date.now();
+  const rows = Array.from({ length: 55 }, (_, i) => ({ forecastId: `fc-${i}`, domain: i % 2 ? 'conflict' : 'market', region: 'Iran',
+    lane: 'judged', question: 'Will the event occur?', forecastAt: now - 1000, probability: 0.4,
+    outcome: i % 2 ? 'VOID' : 'YES', resolvedAt: now - i, firstSeenAt: now - 1000, lastSeenAt: now,
+    trajectory: [[new Date(now - 1000).toISOString(), 0.4]], evidence: { selectionVersion: 3, rationale: 'PRIVATE' }, internalKey: 'PRIVATE',
+  }));
+  const stored = () => ({ 'forecast:archive:v1': { generatedAt: now, rows }, 'forecast:scorecard:v1': DECLARED,
+    'seed-meta:forecast:scorecard': { fetchedAt: now }, 'seed-meta:forecast:archive': { fetchedAt: now } });
+  it('leaves the default response byte-identical with archive data present', async () => {
+    const baseline = await runTool({ 'forecast:scorecard:v1': DECLARED, 'seed-meta:forecast:scorecard': { fetchedAt: now } });
+    assert.equal(JSON.stringify((await runTool(stored())).data), JSON.stringify(baseline.data));
+  });
+  it('filters, pages, keeps the audit and withholds trajectories without a family filter', async () => {
+    const first = (await runTool(stored(), { view: 'archive', domain: 'conflict', outcome: 'VOID', limit: 10 })).data;
+    assert.equal(first.archive.rows.length, 10);
+    assert.equal(first.archive.stale, false);
+    assert.ok(first.underAudit);
+    assert.ok(first.archive.rows.every(row => row.domain === 'conflict' && row.outcome === 'VOID' && !('trajectory' in row)));
+    const next = (await runTool(stored(), { view: 'archive', before: first.archive.nextBefore, limit: 50 })).data;
+    assert.ok(next.archive.rows.every(row => row.resolvedAt < Number(first.archive.nextBefore.split(':')[0])));
+    const one = (await runTool(stored(), { view: 'archive', forecast_id: 'fc-1' })).data;
+    assert.equal(one.archive.rows[0].trajectory.length, 1);
+    assert.ok(!JSON.stringify(one).includes('PRIVATE'));
+    assert.ok(Buffer.byteLength(JSON.stringify(next)) < 65_536);
+    const missingClock = stored();
+    delete missingClock['seed-meta:forecast:archive'];
+    assert.equal((await runTool(missingClock, { view: 'archive' })).data.archive.stale, true);
+  });
+  it('pages a daily batch with identical resolution timestamps without gaps or duplicates', async () => {
+    const batch = stored();
+    batch['forecast:archive:v1'].rows = rows.map(row => ({ ...row, resolvedAt: now }));
+    const ids = [];
+    let before;
+    do {
+      const response = (await runTool(batch, { view: 'archive', limit: 10, ...(before ? { before } : {}) })).data;
+      ids.push(...response.archive.rows.map(row => row.forecastId));
+      before = response.archive.nextBefore;
+    } while (before);
+    assert.equal(ids.length, 55);
+    assert.equal(new Set(ids).size, 55);
+  });
+  it('shortens large family pages to the response budget and rejects invalid cursors', async () => {
+    const batch = stored();
+    batch['forecast:archive:v1'].rows = rows.map(row => ({ ...row, forecastId: 'fc-1',
+      question: 'Q'.repeat(240), citationTitle: 'T'.repeat(160), citationUrl: `https://example.com/${'a'.repeat(470)}`,
+      trajectory: Array.from({ length: 30 }, (_, i) => [new Date(now - i * 1000).toISOString(), 0.123456789]),
+    }));
+    const response = await runTool(batch, { view: 'archive', forecast_id: 'fc-1', limit: 50 });
+    assert.ok(response.data.archive.rows.length < 50);
+    assert.ok(response.data.archive.nextBefore);
+    assert.ok(Buffer.byteLength(JSON.stringify(response)) < 65_536);
+    await assert.rejects(runTool(batch, { view: 'archive', before: 'bad' }));
+  });
+});
 
 const DECLARED = {
   schemaVersion: 1,
@@ -32,6 +88,14 @@ const DECLARED = {
   },
   receipts: [{ question: 'Will Brent reach 104.89 USD/bbl?', forecastAt: 1, probability: 0.35, outcome: 'NO', resolvedAt: 2, sourceFeed: 'commodity-prices', observedValue: 100.75 }],
   familyOutcomes: [{ forecastId: 'fc-conflict-1', outcome: 'YES' }, { forecastId: 'fc-conflict-1', outcome: 'VOID', voidReason: 'judge_disagreement' }],
+  // MCP-only (#9057): the public OpenAPI document has no room for it.
+  horizonGrades: {
+    semantics: 'point_in_time',
+    note: 'A projection is not a probability.',
+    minimums: { families: 30, yesFamilies: 5, noFamilies: 5 },
+    unversionedScored: 0,
+    rows: [{ curvesVersion: 1, horizon: 'd7', scored: 1, yes: 1, no: 0, families: 1, yesFamilies: 1, noFamilies: 0, measurable: false }],
+  },
 };
 
 const MARKET_ALERTS_STORED = {
@@ -167,6 +231,15 @@ describe('get_forecast_scorecard MCP projection (#8892)', () => {
     assert.equal(serialized.includes('coveredFromMs'), false);
   });
 
+  it('serves a horizon row below the family minimums as counts only (#9057)', async () => {
+    const stored = { ...DECLARED, horizonGrades: { ...DECLARED.horizonGrades, rows: [{ ...DECLARED.horizonGrades.rows[0], brier: { mean: 0.1, ci95: [0, 0.2] }, realizedRate: { count: 1 }, registered: 9 }] } };
+    const result = await runTool({
+      'forecast:scorecard:v1': { _seed: { fetchedAt: Date.now() }, data: stored },
+      'seed-meta:forecast:scorecard': { fetchedAt: Date.now() },
+    });
+    assert.deepEqual(result.data.scorecard.horizonGrades, DECLARED.horizonGrades);
+  });
+
   it('withholds a median lead time built on fewer than 30 hits (#8985)', () => {
     const fewHits = { ...MARKET_ALERTS_STORED, byType: [{ ...MARKET_ALERTS_STORED.byType[0], hit: 29 }] };
     const [row] = tool._project({ scorecard: DECLARED, marketAlerts: fewHits }).marketAlerts.byType;
@@ -211,8 +284,20 @@ describe('get_forecast_scorecard under the accuracy audit (#8990)', () => {
     assert.deepEqual({ ...audited, underAudit: null }, lifted, 'the flag is the only difference');
   });
 
-  it('projects through the live switch and declares the flag in its output schema', () => {
-    assert.deepEqual(tool._project(structuredClone(data)), projectForecastScorecard(structuredClone(data), FORECAST_ACCURACY_AUDIT));
+  it('derives the flag from the scorecard it serves and declares it in its output schema', () => {
+    assert.deepEqual(tool._project(structuredClone(data)), projectForecastScorecard(structuredClone(data), forecastAccuracyAudit(data.scorecard)));
     assert.deepEqual(tool.outputSchema.properties.data.properties.underAudit.type, ['object', 'null']);
+  });
+
+  it('lifts once the seeder calls the headline measurable, and holds while it does not', () => {
+    const held = FORECAST_ACCURACY_AUDIT_OVERRIDE ?? STANDING_ACCURACY_AUDIT;
+    const withSkill = (measurable, fetchedAt = Date.now()) => ({ ...data, scorecardMeta: { fetchedAt }, scorecard: { ...data.scorecard, skill: { ...data.scorecard.skill, measurable } } });
+    assert.deepEqual(tool._project(withSkill(false)).underAudit, { since: held.since, issue: held.issue, reason: held.reason });
+    assert.deepEqual(tool._project(structuredClone(data)).underAudit, { since: held.since, issue: held.issue, reason: held.reason }, 'no verdict, no lift');
+    if (FORECAST_ACCURACY_AUDIT_OVERRIDE) return;
+    assert.equal(tool._project(withSkill(true)).underAudit, null);
+    assert.deepEqual(tool._project(withSkill(true, Date.now() - 37 * 3_600_000)).underAudit?.issue, held.issue, 'a stale seed cannot lift it');
+    assert.deepEqual(tool._project({ ...withSkill(true), scorecardMeta: null }).underAudit?.issue, held.issue, 'nor can an unknown clock');
+    assert.ok(tool._cacheKeys.includes('seed-meta:forecast:scorecard'), 'the tool reads the seed clock');
   });
 });

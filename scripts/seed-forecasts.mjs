@@ -4,16 +4,17 @@
 
 import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { loadEnvFile, runSeed, CHROME_UA, withRetry, parseRetryAfterMs, getResponseHeader, isRetryableHttpStatus } from './_seed-utils.mjs';
+import { loadEnvFile, runSeed, CHROME_UA, withRetry, parseRetryAfterMs, getResponseHeader, isRetryableHttpStatus, getDeployRevision } from './_seed-utils.mjs';
 import { compactForecastDashboardPayload } from './_forecast-dashboard.mjs';
 import { unwrapEnvelope } from './_seed-envelope-source.mjs';
+import { buildProbabilityTrail, PROBABILITY_TRAIL_KEY, PROBABILITY_TRAIL_META_KEY, PROBABILITY_TRAIL_TTL_SECONDS, PROBABILITY_TRAIL_ACTIVATION_KEY } from './_forecast-probability-trail.mjs';
 import { allBootstrapMarkets } from './_prediction-classify.mjs';
 import { subjectMatcherForRegion } from './_forecast-subject.mjs';
 import { tagRegions } from './_prediction-scoring.mjs';
-import { attachResolutionSpecs, CHOKEPOINT_MARKET_REGIONS, evaluateExtractionShadow, isChokepointDisrupted, extractionShadowFeedKeys, HORIZON_MS, scoredHorizonKeys, summarizeExtractionShadow } from './_forecast-resolution.mjs';
+import { applyExtractionGate, attachResolutionSpecs, CHOKEPOINT_MARKET_REGIONS, decideExtractionGateMode, evaluateExtractionShadow, EXTRACTION_GATE_ENFORCED, isChokepointDisrupted, extractionShadowFeedKeys, HORIZON_MS, scoredHorizonKeys, summarizeExtractionShadow } from './_forecast-resolution.mjs';
 import { assessFunnelDiversity, buildFunnelHealthMeta, NON_REAL_FUNNEL_ORIGINS } from './_forecast-funnel.mjs';
-import { alignPriorToPublication, applyPublishedCalibration, CALIBRATION_FORCE_RAW_ENV, decideCalibrationPublication, parseCalibrationMap, recordCalibrationPublication } from './_forecast-calibration.mjs';
-import { resolveR2StorageConfig, putR2JsonObject, getR2JsonObject } from './_r2-storage.mjs';
+import { alignPriorToPublication, applyPublishedCalibration, archiveCalibrationPublication, CALIBRATION_FORCE_RAW_ENV, decideCalibrationPublication, parseCalibrationMap, recordCalibrationPublication } from './_forecast-calibration.mjs';
+import { resolveR2StorageConfig, putR2JsonObject, putR2JsonBody, getR2JsonObject, serializeR2JsonBody, sha256Hex } from './_r2-storage.mjs';
 import { extractFirstJsonObject, extractFirstJsonArray, cleanJsonText } from './_llm-json.mjs';
 import {
   getLlmAttemptTimeoutMs,
@@ -784,13 +785,6 @@ function getRedisCredentials() {
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) throw new Error('Missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN');
   return { url, token };
-}
-
-function getDeployRevision() {
-  return process.env.RAILWAY_GIT_COMMIT_SHA
-    || process.env.VERCEL_GIT_COMMIT_SHA
-    || process.env.GITHUB_SHA
-    || '';
 }
 
 async function redisCommand(url, token, command) {
@@ -2819,6 +2813,15 @@ async function readPriorPredictions() {
     const { url, token } = getRedisCredentials();
     return await redisGet(url, token, PRIOR_KEY);
   } catch { return null; }
+}
+
+export async function readProbabilityTrailInputs() {
+  const { url, token } = getRedisCredentials();
+  const prior = await redisGetOrThrow(url, token, PROBABILITY_TRAIL_KEY);
+  if (prior) return { prior, history: [] };
+  const response = await redisCommand(url, token, ['LRANGE', HISTORY_KEY, 0, HISTORY_MAX_RUNS - 1]);
+  if (!Array.isArray(response?.result)) throw new Error('Probability trail backfill read failed');
+  return { prior: null, history: response.result.map(row => JSON.parse(row)) };
 }
 
 function computeTrends(predictions, prior) {
@@ -5011,8 +5014,16 @@ function buildHistoryForecastEntry(pred) {
 function buildHistorySnapshot(data, options = {}) {
   const maxForecasts = options.maxForecasts || HISTORY_MAX_FORECASTS;
   const predictions = Array.isArray(data?.predictions) ? data.predictions : [];
+  // The run's id and the digest of its archived input snapshot (#9058). The
+  // resolver copies both onto each ledger window this run opens, with the
+  // deploy commit (#7072).
+  const emission = options.emission || {};
+  const codeVersion = options.codeVersion ?? getDeployRevision();
   return {
     generatedAt: data?.generatedAt || Date.now(),
+    ...(emission.runId ? { runId: String(emission.runId) } : {}),
+    ...(emission.snapshotSha256 ? { snapshotSha256: emission.snapshotSha256 } : {}),
+    ...(codeVersion && { codeVersion }),
     predictions: predictions.slice(0, maxForecasts).map(buildHistoryForecastEntry),
   };
 }
@@ -5611,10 +5622,19 @@ function buildResolutionOutputBlock(resolution) {
   };
 }
 
+// Fields the extraction gate stamps (#7067). Absent while the gate is off.
+const GATE_RESOLUTION_FIELDS = ['specOrigin', 'specFamily', 'reason', 'originalFamily', 'originalMetricKey', 'originalSourceFeed', 'downgradeReason'];
+
 function buildHistoryResolutionBlock(resolution) {
-  const block = buildResolutionOutputBlock(resolution);
-  if (!block || typeof resolution.rule !== 'string' || !Number.isFinite(resolution.ruleVersion)) return block;
-  return { ...block, rule: resolution.rule, ruleVersion: resolution.ruleVersion };
+  let block = buildResolutionOutputBlock(resolution);
+  if (!block) return block;
+  if (typeof resolution.rule === 'string' && Number.isFinite(resolution.ruleVersion)) {
+    block = { ...block, rule: resolution.rule, ruleVersion: resolution.ruleVersion };
+  }
+  for (const field of GATE_RESOLUTION_FIELDS) {
+    if (typeof resolution[field] === 'string' && resolution[field].length > 0) block = { ...block, [field]: resolution[field] };
+  }
+  return block;
 }
 
 function buildHorizonResolutionsOutputBlock(horizonResolutions) {
@@ -12803,6 +12823,8 @@ function buildForecastTraceArtifacts(data, context = {}, config = {}) {
     generatedAt,
     generatedAtIso: new Date(generatedAt).toISOString(),
     canonicalKey: CANONICAL_KEY,
+    // Digest of the deep-snapshot.json bytes this run wrote (#9058).
+    snapshotSha256: context.snapshotSha256 || null,
     forecastCount: predictions.length,
     tracedForecastCount: tracedPredictions.length,
     triggerContext: data?.triggerContext || null,
@@ -13131,6 +13153,7 @@ async function writeForecastTraceArtifacts(data, context = {}) {
     forecastCount: artifacts.manifest.forecastCount,
     tracedForecastCount: artifacts.manifest.tracedForecastCount,
     triggerContext: artifacts.manifest.triggerContext,
+    snapshotSha256: artifacts.manifest.snapshotSha256,
     quality: artifacts.summary.quality,
     worldStateSummary: artifacts.summary.worldStateSummary,
   };
@@ -13153,7 +13176,10 @@ function buildDeepForecastLockKey(runId) {
   return `${FORECAST_DEEP_LOCK_KEY_PREFIX}:${runId}`;
 }
 
-async function writeDeepForecastSnapshot(snapshot, _context = {}) {
+// `context.body` is the snapshot already serialized by
+// prepareDeepForecastSnapshot, so the bytes written are the bytes whose
+// digest the run recorded.
+async function writeDeepForecastSnapshot(snapshot, context = {}) {
   const storageConfig = resolveR2StorageConfig();
   if (!storageConfig || !snapshot?.runId) return null;
   const snapshotKey = buildDeepForecastSnapshotKey(
@@ -13161,14 +13187,25 @@ async function writeDeepForecastSnapshot(snapshot, _context = {}) {
     snapshot.generatedAt || Date.now(),
     storageConfig.basePrefix || FORECAST_DEEP_RUN_PREFIX,
   );
-  await putR2JsonObject(storageConfig, snapshotKey, snapshot, {
+  const written = await putR2JsonBody(storageConfig, snapshotKey, context.body ?? serializeR2JsonBody(snapshot), {
     runid: String(snapshot.runId || ''),
     kind: 'deep_snapshot',
   });
   return {
     storageConfig,
     snapshotKey,
+    snapshotSha256: written.sha256,
   };
+}
+
+// Serializes the run's input snapshot once and digests it (#9058), before
+// the history append, so history can carry the digest without waiting on the
+// R2 upload. The digest is null when R2 is not configured, since no snapshot
+// will be written.
+function prepareDeepForecastSnapshot(snapshot, { storageConfigured = Boolean(resolveR2StorageConfig()) } = {}) {
+  if (!storageConfigured || !snapshot?.runId) return { body: null, snapshotSha256: null };
+  const body = serializeR2JsonBody(snapshot);
+  return { body, snapshotSha256: sha256Hex(body) };
 }
 
 // ---------------------------------------------------------------------------
@@ -13940,6 +13977,8 @@ function buildDeepForecastSnapshotPayload(data = {}, context = {}) {
     deepForecast: data.deepForecast || null,
     impactExpansionCandidates: data.impactExpansionCandidates || [],
     priorWorldStateKey: data.priorWorldStateKey || '',
+    // The calibration decision and map this run scored with (#9058).
+    calibrationPublication: data.calibrationPublicationArchive || null,
   };
 }
 
@@ -16617,6 +16656,23 @@ async function resolveCalibrationRun(nowMs) {
   return { calibrationPublication, prior };
 }
 
+// Every legacy detector, in run order. scripts/replay-forecast-detectors.mjs
+// calls this at a run's recorded revision, so a detector added or removed
+// here is replayed with the code that ran.
+function detectAllScenarios(inputs, emaRiskScores) {
+  return [
+    ...detectConflictScenarios(inputs, emaRiskScores),
+    ...detectMarketScenarios(inputs),
+    ...detectSupplyChainScenarios(inputs),
+    ...detectPoliticalScenarios(inputs),
+    ...detectMilitaryScenarios(inputs),
+    ...detectUcdpConflictZones(inputs, emaRiskScores),
+    ...detectCyberScenarios(inputs),
+    ...detectGpsJammingScenarios(inputs),
+    ...detectFromPredictionMarkets(inputs),
+  ];
+}
+
 // Detector output to scored forecasts. The published calibration applies to
 // the post-blend probability, before anything derived from it.
 function scoreDetectedPredictions(predictions, { inputs, prior, calibrationPublication, cascadeRules }) {
@@ -16634,6 +16690,7 @@ function scoreDetectedPredictions(predictions, { inputs, prior, calibrationPubli
 
 async function fetchForecasts() {
   await warmPingChokepoints();
+  const trailInputs = await readProbabilityTrailInputs();
   const traceStorageConfig = resolveR2StorageConfig();
   const [priorWorldStates, priorWorldStateFallback, priorTracePointer] = traceStorageConfig
     ? await Promise.all([
@@ -16660,17 +16717,7 @@ async function fetchForecasts() {
   console.log('  Running domain detectors...');
   const { url: emaUrl, token: emaToken } = getRedisCredentials();
   const emaRiskScores = await updateEmaWindows(inputs, emaUrl, emaToken);
-  const predictions = [
-    ...detectConflictScenarios(inputs, emaRiskScores),
-    ...detectMarketScenarios(inputs),
-    ...detectSupplyChainScenarios(inputs),
-    ...detectPoliticalScenarios(inputs),
-    ...detectMilitaryScenarios(inputs),
-    ...detectUcdpConflictZones(inputs, emaRiskScores),
-    ...detectCyberScenarios(inputs),
-    ...detectGpsJammingScenarios(inputs),
-    ...detectFromPredictionMarkets(inputs),
-  ];
+  const predictions = detectAllScenarios(inputs, emaRiskScores);
 
   console.log(`  Generated ${predictions.length} predictions`);
   {
@@ -16796,7 +16843,7 @@ async function fetchForecasts() {
   const initiallyPublishedSituationFamilies = publishArtifacts.filteredSituationFamilies;
   const publishedPredictions = publishArtifacts.publishedPredictions;
   // Only published forecasts reach the resolution ledger, so only they are measured.
-  await runExtractionGateShadow(publishedPredictions);
+  await runExtractionGate(publishedPredictions, runGeneratedAt);
   const publishTelemetry = summarizePublishFiltering(predictions, finalSelectionPool, publishedPredictions);
   const publishedSituationClusters = publishArtifacts.publishedSituationClusters;
   const publishedSituationFamilies = publishArtifacts.publishedSituationFamilies;
@@ -16807,6 +16854,7 @@ async function fetchForecasts() {
 
   return {
     predictions: publishedPredictions,
+    probabilityTrail: buildProbabilityTrail(trailInputs.prior, { generatedAt: runGeneratedAt, predictions: publishedPredictions }, trailInputs.history),
     fullRunPredictions,
     inputs,
     generatedAt: runGeneratedAt,
@@ -16827,6 +16875,7 @@ async function fetchForecasts() {
     impactExpansionCandidates,
     deepForecast,
     calibrationPublication: calibrationPublication.record,
+    calibrationPublicationArchive: archiveCalibrationPublication(calibrationPublication, runGeneratedAt),
     priorWorldStateKey: priorTracePointer?.worldStateKey || '',
     priorWorldState,
     priorWorldStates,
@@ -16854,7 +16903,8 @@ async function runExtractionGateShadow(predictions) {
     const verdicts = evaluateExtractionShadow(predictions, rawByKey);
     const summary = summarizeExtractionShadow(verdicts);
     const count = (outcome) => summary.byOutcome[outcome] || 0;
-    console.log(`  [ExtractionGate] shadow hard=${summary.total} pass=${count('pass')} fail=${count('fail')} feed_unavailable=${count('feed_unavailable')} skipped=${count('skipped')} byFamily=${JSON.stringify(summary.byFamily)} byDomain=${JSON.stringify(summary.byDomain)}`);
+    // deploy= splits the counters at a spec change (GPS: #9003, #9047).
+    console.log(`  [ExtractionGate] shadow hard=${summary.total} pass=${count('pass')} fail=${count('fail')} feed_unavailable=${count('feed_unavailable')} skipped=${count('skipped')} deploy=${getDeployRevision().slice(0, 12) || 'unknown'} byFamily=${JSON.stringify(summary.byFamily)} byDomain=${JSON.stringify(summary.byDomain)}`);
     for (const v of verdicts) {
       if (v.outcome === 'fail') console.log(`  [ExtractionGate] would_downgrade id=${JSON.stringify(v.id)} family=${v.family} domain=${v.domain} metricKey=${JSON.stringify(v.metricKey)} reason=${v.reason}`);
     }
@@ -16863,6 +16913,27 @@ async function runExtractionGateShadow(predictions) {
     console.warn(`  [ExtractionGate] shadow skipped: ${err?.message || err}`);
     return null;
   }
+}
+
+// The shadow gate, then enforcement when EXTRACTION_GATE_ENFORCED is on. With
+// the switch off nothing past the shadow runs, so emission is unchanged and
+// the scorecard is not read.
+async function runExtractionGate(predictions, generatedAt, { enforced = EXTRACTION_GATE_ENFORCED, nowMs = Date.now() } = {}) {
+  const shadow = await runExtractionGateShadow(predictions);
+  if (!enforced) return { shadow, decision: decideExtractionGateMode(null, { enforced }), counts: null };
+  let scorecard = null;
+  try {
+    const { url, token } = getRedisCredentials();
+    scorecard = await redisGetOrThrow(url, token, CALIBRATION_GATE_SCORECARD_KEY);
+  } catch (err) {
+    console.warn(`  [ExtractionGate] scorecard read failed: ${err?.message || err}`);
+  }
+  const judgedLane = scorecard?.judgedLane ?? null;
+  const decision = decideExtractionGateMode(scorecard, { enforced, nowMs });
+  // A failed shadow has no verdicts, so nothing is downgraded this run.
+  const counts = applyExtractionGate(predictions, shadow?.verdicts || [], generatedAt, decision);
+  console.log(`  [ExtractionGate] enforce downgrade=${decision.downgrade} reason=${decision.reason} pendingJudge=${judgedLane?.pendingJudge ?? 'unknown'} scoredWithinSlaRate=${judgedLane?.scoredWithinSlaRate ?? 'unknown'} downgraded=${JSON.stringify(counts.downgraded)} withheld=${JSON.stringify(counts.withheld)}`);
+  return { shadow, decision, counts };
 }
 
 async function readForecastRefreshRequest() {
@@ -17065,7 +17136,7 @@ async function processDeepForecastTask(task = {}, options = {}) {
         acceptedPathCount: deepForecast.selectedPathCount || 0,
         completedAt: deepForecast.completedAt,
       },
-    }, { runId: snapshot.runId });
+    }, { runId: snapshot.runId, snapshotSha256: task.snapshotSha256 || null });
     // Fire-and-forget: non-blocking prompt self-improvement runs after artifact is written.
     runImpactExpansionPromptRefinement({
       candidatePackets: snapshot.impactExpansionCandidates || [],
@@ -17093,7 +17164,7 @@ async function processDeepForecastTask(task = {}, options = {}) {
       acceptedPathCount: deepForecast.selectedPathCount || 0,
       completedAt: deepForecast.completedAt,
     },
-  }, { runId: snapshot.runId });
+  }, { runId: snapshot.runId, snapshotSha256: task.snapshotSha256 || null });
   // Fire-and-forget: non-blocking prompt self-improvement runs after artifact is written.
   runImpactExpansionPromptRefinement({
     candidatePackets: snapshot.impactExpansionCandidates || [],
@@ -17132,7 +17203,7 @@ async function writeFailedDeepForecastArtifacts(task = {}, failureReason = '', o
       failureReason: deepForecast.failureReason,
       completedAt: deepForecast.completedAt,
     },
-  }, { runId: snapshot.runId });
+  }, { runId: snapshot.runId, snapshotSha256: task.snapshotSha256 || null });
 }
 
 // ---------------------------------------------------------------------------
@@ -18142,6 +18213,14 @@ export function declareRecords(data) {
 
 export const FORECAST_EXTRA_KEYS = [
   {
+    key: PROBABILITY_TRAIL_KEY,
+    transform: data => data.probabilityTrail,
+    ttl: PROBABILITY_TRAIL_TTL_SECONDS,
+    declareRecords: data => Object.keys(data.forecasts).length,
+    metaKey: PROBABILITY_TRAIL_META_KEY,
+    skipWhenEmpty: true,
+  },
+  {
     key: DASHBOARD_KEY,
     // Compose with buildPublishedSeedPayload — the SAME projection the canonical key
     // gets via `publishTransform`. runSeed hands extraKey transforms the RAW `data`
@@ -18175,6 +18254,12 @@ export const FORECAST_EXTRA_KEYS = [
   },
 ];
 
+export async function markProbabilityTrailActivated() {
+  const { url, token } = getRedisCredentials();
+  const result = await redisCommand(url, token, ['SET', PROBABILITY_TRAIL_ACTIVATION_KEY, '1']);
+  if (result?.result !== 'OK') throw new Error('Probability trail activation marker write failed');
+}
+
 // Runs after the canonical publish. The calibration record goes first: it
 // describes the probabilities just published, and the later stages share an
 // LLM budget and R2 latency that must not delay or skip it.
@@ -18183,6 +18268,10 @@ async function runForecastAfterPublish(data, meta, triggerContext) {
     await writeCalibrationPublication(data.calibrationPublication);
   } catch (err) {
     console.warn(`  [Calibration] Publication record write failed: ${err.message}`);
+  }
+  if (Object.keys(data.probabilityTrail?.forecasts ?? {}).length) {
+    try { await markProbabilityTrailActivated(); }
+    catch (err) { console.warn(`  [ProbabilityTrail] Activation marker write failed: ${err.message}`); }
   }
 
   if (triggerContext.triggerRequest) {
@@ -18201,8 +18290,29 @@ async function runForecastAfterPublish(data, meta, triggerContext) {
     console.warn(`  [MarketImplications] Stage failed: ${err.message}`);
   }
 
+  // The input snapshot is built and digested before the history append, so
+  // each history entry links to it (#9058). It is written after, with the
+  // other trace artifacts: the R2 upload must not delay the append the
+  // resolver opens ledger windows from. A failed write leaves a digest with
+  // no object, which the replay tool reports as a missing snapshot.
+  const runId = meta?.runId || `${Date.now()}`;
+  let snapshotPayload = null;
+  let preparedSnapshot = { body: null, snapshotSha256: null };
   try {
-    const snapshot = await appendHistorySnapshot(data);
+    snapshotPayload = buildDeepForecastSnapshotPayload({
+      ...data,
+      triggerContext,
+      forecastDepth: 'fast',
+    }, { runId });
+    preparedSnapshot = prepareDeepForecastSnapshot(snapshotPayload);
+  } catch (err) {
+    console.warn(`  [DeepForecast] Snapshot build failed: ${err.message}`);
+  }
+
+  try {
+    const snapshot = await appendHistorySnapshot(data, {
+      emission: { runId, snapshotSha256: preparedSnapshot.snapshotSha256 },
+    });
     console.log(`  History appended: ${snapshot.predictions.length} forecasts -> ${HISTORY_KEY}`);
   } catch (err) {
     console.warn(`  [History] Append failed: ${err.message}`);
@@ -18215,7 +18325,6 @@ async function runForecastAfterPublish(data, meta, triggerContext) {
   }
 
   try {
-    const runId = meta?.runId || `${Date.now()}`;
     let deepForecast = data.deepForecast || {
       status: 'skipped',
       reason: 'not_eligible',
@@ -18227,12 +18336,9 @@ async function runForecastAfterPublish(data, meta, triggerContext) {
       replacedFastRun: false,
       rejectedPathsPreview: [],
     };
-    const snapshotPayload = buildDeepForecastSnapshotPayload({
-      ...data,
-      triggerContext,
-      forecastDepth: 'fast',
-    }, { runId });
-    const snapshotWrite = await writeDeepForecastSnapshot(snapshotPayload, { runId });
+    const snapshotWrite = snapshotPayload
+      ? await writeDeepForecastSnapshot(snapshotPayload, { runId, body: preparedSnapshot.body })
+      : null;
     if (snapshotWrite?.storageConfig && (data.impactExpansionCandidates || []).length > 0) {
       writeSimulationPackage(snapshotPayload, { storageConfig: snapshotWrite.storageConfig, priorWorldState: data.priorWorldState || null })
         .then(() => enqueueSimulationTask(runId))
@@ -18243,6 +18349,7 @@ async function runForecastAfterPublish(data, meta, triggerContext) {
         const queueResult = await enqueueDeepForecastTask({
           runId,
           snapshotKey: snapshotWrite.snapshotKey,
+          snapshotSha256: snapshotWrite.snapshotSha256 || null,
           fastPrefix: buildTraceRunPrefix(runId, data.generatedAt, snapshotWrite.storageConfig?.basePrefix || FORECAST_DEEP_RUN_PREFIX),
           priorWorldStateKey: data.priorWorldStateKey || '',
           selectedCandidateStateIds: deepForecast.selectedStateIds || [],
@@ -18279,7 +18386,7 @@ async function runForecastAfterPublish(data, meta, triggerContext) {
         completedAt: deepForecast.completedAt || '',
         failureReason: deepForecast.failureReason || '',
       },
-    }, { runId });
+    }, { runId, snapshotSha256: snapshotWrite?.snapshotSha256 || null });
     if (pointer) {
       console.log(`  [Trace] Written: ${pointer.summaryKey} (${pointer.tracedForecastCount} forecasts)`);
     } else {
@@ -19729,6 +19836,7 @@ export {
   resolveCalibrationRun,
   runForecastAfterPublish,
   scoreDetectedPredictions,
+  detectAllScenarios,
   resolveCalibrationPublication,
   writeCalibrationPublication,
   CANONICAL_KEY,
@@ -19895,6 +20003,7 @@ export {
   buildDeepForecastSnapshotKey,
   buildDeepForecastSnapshotPayload,
   writeDeepForecastSnapshot,
+  prepareDeepForecastSnapshot,
   isSimulationEligible,
   SIMULATION_ELIGIBILITY_RANK_THRESHOLD,
   SIMULATION_RESCORING_DEMOTION_THRESHOLD,
@@ -19968,6 +20077,7 @@ export {
   callForecastLLM,
   __setForecastLlmRunDeadlineForTests,
   __setRedisStoreForTests,
+  runExtractionGate,
   runExtractionGateShadow,
   buildMarketImplicationsFingerprint,
   buildAndSeedMarketImplications,

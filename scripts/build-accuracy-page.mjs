@@ -12,12 +12,13 @@ import {
   RECEIPT_VOID_REASON_LABELS,
   SKILL_MIN_FAMILIES,
   SKILL_MIN_OUTCOME_FAMILIES,
+  meetsFamilyOutcomeMinimums,
   wilsonInterval,
 } from './_forecast-scorecard.mjs';
-import { FORECAST_ACCURACY_AUDIT } from '../shared/forecast-accuracy-audit.js';
+import { STANDING_ACCURACY_AUDIT, forecastAccuracyAudit, headlineFamilyGate } from '../shared/forecast-accuracy-audit.js';
 
 /** Bump when the page copy changes so its lastmod advances without touching every sibling. */
-export const ACCURACY_CONTENT_VERSION = '2026-10-08';
+export const ACCURACY_CONTENT_VERSION = '2026-10-09';
 
 export const ACCURACY_PAGE_PATH = '/accuracy/';
 
@@ -46,14 +47,15 @@ export const SCORECARD_DECLARED_FIELDS = Object.freeze([
   'funnel',
   'receipts',
   'marketAlerts',
+  // The live API's audit at capture time (#8990). The page holds the audit when
+  // it is set, whatever its own gate reads.
+  'underAudit',
 ]);
 
 // Proto fields the frozen page and its download deliberately leave out.
 // familyOutcomes keys the live forecast-card chips by forecast id; a weekly
 // snapshot has no live cards, and the distribution publishes no forecast ids.
-// underAudit mirrors FORECAST_ACCURACY_AUDIT, which the page and download read
-// at build time, so a captured copy would only go stale.
-export const SCORECARD_LIVE_ONLY_FIELDS = Object.freeze(['familyOutcomes', 'underAudit']);
+export const SCORECARD_LIVE_ONLY_FIELDS = Object.freeze(['familyOutcomes']);
 
 // A fixed vocabulary, because the page is public: an exception message or an
 // upstream response body would publish internals and could carry attacker-
@@ -111,6 +113,7 @@ export const SCORECARD_NESTED_OBJECT_FIELDS = Object.freeze({
   uncertainty: UNCERTAINTY_FIELDS,
   funnel: FUNNEL_FIELDS,
   marketAlerts: MARKET_ALERT_FIELDS,
+  underAudit: Object.freeze(['since', 'reason', 'issue']),
 });
 // Members that are themselves objects. The producer writes null for an
 // interval it cannot compute, and null is kept: it is the not-measurable state.
@@ -130,9 +133,67 @@ export const SCORECARD_NESTED_ROW_FIELDS = Object.freeze({
   receipts: PUBLIC_RECEIPT_FIELDS,
 });
 
+// Point-in-time horizon grades (#9057). The public OpenAPI document has no
+// room for them, so the REST response does not carry them; the freeze reads
+// them from the MCP get_forecast_scorecard tool, which serves the same stored
+// scorecard. Mirrors HORIZON_GRADE_FIELDS and HORIZON_GRADE_ROW_FIELDS in
+// server/worldmonitor/forecast/v1/scorecard-fields.ts (a test pins the parity).
+export const HORIZON_GRADE_FIELDS = Object.freeze(['semantics', 'note', 'minimums', 'unversionedScored', 'rows']);
+export const HORIZON_GRADE_ROW_FIELDS = Object.freeze([
+  'curvesVersion', 'horizon', 'scored', 'yes', 'no', 'families', 'yesFamilies', 'noFamilies', 'measurable', 'brier', 'realizedRate',
+]);
+const HORIZON_GRADE_SCORE_FIELDS = new Set(['brier', 'realizedRate']);
+const HORIZON_LABELS = Object.freeze({ h24: '24 hours', d7: '7 days', d30: '30 days' });
+
+const isCount = (value) => Number.isInteger(value) && value >= 0;
+
+// The row's measurable flag is re-derived here from its counts with the
+// producer's own predicate, so a row that claims a grade below the family
+// minimums, or whose counts disagree, publishes counts only.
+function selectHorizonGradeRow(row) {
+  if (!isPlainObject(row) || !Object.hasOwn(HORIZON_LABELS, row.horizon) || !Number.isInteger(row.curvesVersion)) return null;
+  const counts = ['scored', 'yes', 'no', 'families', 'yesFamilies', 'noFamilies'];
+  if (!counts.every((field) => isCount(row[field]))) return null;
+  if (row.yes + row.no !== row.scored || row.families > row.scored) return null;
+  if (row.yesFamilies > row.families || row.noFamilies > row.families) return null;
+  const [low, high] = Array.isArray(row.brier?.ci95) && row.brier.ci95.length === 2 ? row.brier.ci95 : [];
+  const mean = row.brier?.mean;
+  // The mean and the percentile bootstrap bounds are rounded apart, and a
+  // percentile interval can sit off its own point estimate, so the mean is not
+  // required to lie inside it; the counts above carry the publication rule.
+  const brierValid = isFiniteNumber(mean) && mean >= 0 && mean <= 1
+    && isFiniteNumber(low) && isFiniteNumber(high) && low >= 0 && low <= high && high <= 1;
+  const measurable = row.measurable === true && brierValid && meetsFamilyOutcomeMinimums(row);
+  const out = pickFields(row, HORIZON_GRADE_ROW_FIELDS.filter((field) => !HORIZON_GRADE_SCORE_FIELDS.has(field)));
+  out.measurable = measurable;
+  if (measurable) {
+    out.brier = { mean, ci95: [low, high] };
+    out.realizedRate = { count: row.scored, successes: row.yes, rate: Number((row.yes / row.scored).toFixed(6)), ci95: wilsonInterval(row.yes, row.scored) };
+  }
+  return out;
+}
+
+/** Whitelist the MCP horizonGrades block (#9057) for the snapshot, the page and the download. */
+export function selectHorizonGrades(value) {
+  if (!isPlainObject(value)) return null;
+  const out = pickFields(value, HORIZON_GRADE_FIELDS.filter((field) => field !== 'rows'));
+  out.rows = Array.isArray(value.rows) ? value.rows.map(selectHorizonGradeRow).filter(Boolean) : [];
+  return out;
+}
+
+// The grades count only beside the scorecard they were stored with: the MCP
+// read and the REST read are separate requests, and a seeder run between them
+// would pair one run's grades with another run's record.
+function horizonGradesState(section, generatedAt) {
+  const captured = isPlainObject(section?.horizonGrades) ? section.horizonGrades : null;
+  const grades = selectHorizonGrades(captured?.grades);
+  if (!grades) return { status: 'not-captured', grades: null };
+  if (generatedAt === null || positiveMs(captured.generatedAt) !== generatedAt) return { status: 'other-run', grades: null };
+  return { status: 'captured', grades };
+}
+
 const ISSUE_URL = 'https://github.com/koala73/worldmonitor/issues';
 const CONFIDENCE_INTERVAL_ISSUE = `${ISSUE_URL}/7072`;
-const HORIZON_SCORING_ISSUE = `${ISSUE_URL}/9057`;
 const DATASET_IDENTIFIER = 'forecast-resolution-scorecard';
 const DATASET_LICENSE = {
   '@type': 'CreativeWork',
@@ -148,6 +209,19 @@ const WORLD_MONITOR_ORG = Object.freeze({
 const SCHEMA_ORG_CONTEXT_URL = 'https://schema.org';
 const INSUFFICIENT_SAMPLE = 'Insufficient sample';
 const POOLED_POPULATION = 'all-scored-entries';
+
+// From schema 3 the producer counts published forecasts only in `totals` and
+// `funnel` (#8990). The page reads a frozen capture, so it names the population
+// that capture carries.
+const PUBLISHED_LEDGER_SCHEMA = 3;
+// Population labels (#8990). `totals`, `funnel` and the go-forward share count
+// published forecasts (isPublishedEntry); receipts, domain rows and the
+// headline count the narrower attributable published forecasts
+// (isPublishedOriginEntry); calibration, overall and the market comparison
+// pool every origin.
+const POOLED_LABEL = 'of every origin, unpublished shadow bets included';
+const ATTRIBUTABLE_PUBLISHED = 'attributable published forecasts';
+const ledgerIsPublished = (scorecard) => isFiniteNumber(scorecard?.schemaVersion) && scorecard.schemaVersion >= PUBLISHED_LEDGER_SCHEMA;
 const BRIER_DELTA_CONVENTION = 'The published delta is the market Brier minus the forecast Brier, and lower is better, so a negative delta means the market scored better.';
 
 const META_DESCRIPTION = 'World Monitor grades its own forecasts against always forecasting how often events actually happened: skill scores, Brier and log scores, and sample sizes.';
@@ -160,10 +234,16 @@ export function auditIssueUrl(audit) {
 const auditSinceSentence = (audit) => `Under audit since ${audit.since}.`;
 const auditNoticeBody = (audit, where) => `${audit.reason} The scores previously shown ${where} were not reliable and are withdrawn while corrections are made. Forecasts are still being published and logged, and their outcomes will be rescored once the fixes land.`;
 
-/** The withdrawal notice every surface prints while the audit switch is set. */
+const auditLiftSentence = (audit) => (audit.liftsWhenMeasurable
+  ? ` The scores return automatically once the headline cohort is measurable: ${SKILL_RULE}.`
+  : '');
+
+/** The withdrawal notice every surface prints while an audit holds. */
 export function accuracyAuditNotice(audit, where = 'here') {
-  return `${auditSinceSentence(audit)} ${auditNoticeBody(audit, where)}`;
+  return `${auditSinceSentence(audit)} ${auditNoticeBody(audit, where)}${auditLiftSentence(audit)}`;
 }
+
+const SKILL_RULE = `at least ${SKILL_MIN_FAMILIES} forecast families, with at least ${SKILL_MIN_OUTCOME_FAMILIES} that came true and ${SKILL_MIN_OUTCOME_FAMILIES} that did not`;
 
 const isPlainObject = (value) => (
   value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -257,6 +337,7 @@ function noRecord(availability, failureCode, attemptedAt) {
     generatedAt: null,
     ageHours: null,
     scorecard: null,
+    horizonGrades: { status: 'not-captured', grades: null },
   };
 }
 
@@ -337,6 +418,7 @@ export function classifyAccuracyState(section) {
     generatedAt,
     ageHours,
     scorecard,
+    horizonGrades: horizonGradesState(section, generatedAt),
   };
 }
 
@@ -362,22 +444,14 @@ function formatSkill(value) {
   return Number(text) > 0 ? `+${text}` : text === '-0.00' ? '0.00' : text;
 }
 
-// The producer's Brier interval resamples whole forecast families, and its
-// insufficientSample flag carries the family minimums (#8990). A capture whose
-// interval predates that method cannot show it met them.
-const FAMILY_INTERVAL_METHOD = /^family-level /;
-
 /**
  * Whether the headline cohort meets the family minimums: 'met', 'short', or
  * 'unknown' for a capture without a family-bootstrap interval over the cohort.
+ * The same gate lifts the audit (#8990), so the page's measurable reading and
+ * its audit state cannot disagree.
  */
 export function familyGate(scorecard) {
-  const skill = isPlainObject(scorecard?.skill) ? scorecard.skill : null;
-  const method = scorecard?.uncertainty?.method;
-  if (!skill || typeof method !== 'string' || !FAMILY_INTERVAL_METHOD.test(method)) return 'unknown';
-  const interval = scoreInterval(scorecard.uncertainty.skillBrier, skill.count, skill.brier);
-  if (!interval) return 'unknown';
-  return interval.small ? 'short' : 'met';
+  return headlineFamilyGate(scorecard);
 }
 
 /**
@@ -423,8 +497,6 @@ function skillIntervalPhrase(reading) {
   return reading.ci95 ? `, 95% interval ${formatSkill(reading.ci95[0])} to ${formatSkill(reading.ci95[1])}` : '';
 }
 
-const SKILL_RULE = `at least ${SKILL_MIN_FAMILIES} forecast families, with at least ${SKILL_MIN_OUTCOME_FAMILIES} that came true and ${SKILL_MIN_OUTCOME_FAMILIES} that did not`;
-
 function familyPhrase({ familyGated, measurable }) {
   if (!familyGated) return 'forecast families this capture does not count';
   return measurable ? `at least ${SKILL_MIN_FAMILIES} forecast families` : 'too few forecast families';
@@ -461,7 +533,32 @@ export function proportionIntervals(scorecard) {
     byDomain: keyedEstimates(scorecard.byDomain, 'domain', voidOf, resolvedOf),
     byGenerationOrigin: keyedEstimates(scorecard.byGenerationOrigin, 'generationOrigin', voidOf, resolvedOf),
     calibration: keyedEstimates(scorecard.calibration, 'bucket', bucketYesCount, (bucket) => Number(bucket.count)),
+    // #7072: the scored share of the ledger and the 2 actual rates the
+    // verdict prints, each a count over a count the capture carries.
+    scoredShare: isPlainObject(scorecard.totals) ? proportionEstimate(scorecard.totals.scored, scorecard.totals.entries) : null,
+    headlineActualRate: isPlainObject(scorecard.skill) ? proportionEstimate(scorecard.skill.yesCount, scorecard.skill.count) : null,
+    pooledActualRate: pooledActualRate(scorecard),
   };
+}
+
+function pooledActualRate(scorecard) {
+  const cohort = pooledCohort(scorecard);
+  return cohort ? proportionEstimate(cohort.yesCount, cohort.count) : null;
+}
+
+// The verdict sentences are plain text escaped as a whole; the interval
+// bounds ride in a marker that rateIntervalMarkup turns into the same
+// data-rate-interval span the tables use, after escaping.
+function intervalPhrase(estimate) {
+  return estimate ? `, 95% interval [[rate-interval ${formatPercent(estimate.ci95[0])} to ${formatPercent(estimate.ci95[1])}]]` : '';
+}
+
+function plainRateIntervals(text) {
+  return text.replace(/\[\[rate-interval ([\d.]+% to [\d.]+%)\]\]/g, '$1');
+}
+
+function rateIntervalMarkup(html) {
+  return html.replace(/\[\[rate-interval ([\d.]+% to [\d.]+%)\]\]/g, '<span data-rate-interval>$1</span>');
 }
 
 // Bounds are marked so the page's population rule can tell them apart from a
@@ -583,7 +680,7 @@ function headlineResultSentence(scorecard, interval) {
   if (!reading || reading.bss === null) {
     return `${windowPhrase}, World Monitor's headline cohort scores a Brier of ${brierPhrase} across ${formatCount(skill.count)} scored forecasts. This capture cannot compare that with ${REFERENCE}.`;
   }
-  const against = `against ${formatScore(reading.referenceBrier)} for always forecasting the actual rate of ${formatPercent(reading.rate)}`;
+  const against = `against ${formatScore(reading.referenceBrier)} for always forecasting the actual rate, ${rateOf(reading.rate, reading.count, 'forecasts')}${intervalPhrase(proportionEstimate(reading.yesCount, reading.count))}`;
   if (!reading.measurable) {
     return `${windowPhrase}, World Monitor's headline cohort has ${formatCount(reading.count)} scored forecasts from ${familyPhrase(reading)}: a small sample, too few to judge whether it beats ${REFERENCE}. On it the Brier score is ${brierPhrase}, ${against}.`;
   }
@@ -593,17 +690,40 @@ function headlineResultSentence(scorecard, interval) {
   return `${windowPhrase}, ${outcome}: a skill score of ${formatSkill(reading.bss)}${skillIntervalPhrase(reading)}, where ${SKILL_SCALE}, over ${formatCount(reading.count)} scored forecasts from ${familyPhrase(reading)}. Their Brier score was ${brierPhrase}, ${against}.`;
 }
 
-const ACCURACY_NEGATIVE_SCOPE = 'This page does not publish confidence intervals for the log scores or the per-domain skill scores yet. Brier scores and the headline skill score carry a 95% interval, resampled by forecast family, when the scorecard includes one, and each score is published with the number of forecasts behind it and whether they come from enough forecast families to judge. Void rates and calibration-bucket rates carry a 95% Wilson interval; the scored share of the ledger and the base rates do not yet. World Monitor no longer publishes its 24-hour, 7-day and 30-day projections (since 2026-10-07), and this page does not score them. World Monitor still grades some of those horizons internally, and removing the projections changed none of the scores here. Individual forecasts appear only as receipts for the most recently resolved published forecasts; judge reasoning, the full news archive and internal data locations are not published.';
+const NEGATIVE_SCOPE_LEAD = 'This page does not publish confidence intervals for the log scores or the per-domain skill scores yet. Brier scores and the headline skill score carry a 95% interval, resampled by forecast family, when the scorecard includes one, and each score is published with the number of forecasts behind it and whether they come from enough forecast families to judge. Void rates, calibration-bucket rates, the scored share of the ledger and the actual rates carry a 95% Wilson interval. World Monitor no longer publishes its 24-hour, 7-day and 30-day projections (since 2026-10-07), and removing them changed none of the scores here. ';
+const NEGATIVE_SCOPE_TAIL = 'Individual forecasts appear only as receipts for the most recently resolved published forecasts; judge reasoning, the full news archive and internal data locations are not published.';
+// The grading claim holds only for an edition that carries the grades (#9057).
+function accuracyNegativeScope(gradesCaptured) {
+  const grades = gradesCaptured
+    ? 'The page grades the projections it made at each horizon, beside the curve version that produced them, and shows a grade only once that horizon has enough forecast families; a projection comes from a fixed, hand-set curve and is not a probability. '
+    : 'This edition carries no grades for those projections. ';
+  return `${NEGATIVE_SCOPE_LEAD}${grades}${NEGATIVE_SCOPE_TAIL}`;
+}
 
-export function renderAccuracyLlmsSection(section, audit = FORECAST_ACCURACY_AUDIT) {
+/**
+ * The audit for a frozen capture (#8990), the one every /accuracy/ renderer
+ * defaults to. It holds while the capture is stale, failed or retained from an
+ * earlier week, while the live API had flagged it at capture time, and while
+ * its headline is not measurable.
+ */
+export function accuracyStateAudit(state) {
+  if (!isPlainObject(state)) return STANDING_ACCURACY_AUDIT;
+  return forecastAccuracyAudit(state.scorecard, {
+    stale: state.availability !== 'ok' || state.freshness !== 'current',
+    capturedAudit: state.scorecard?.underAudit ?? null,
+  });
+}
+
+export function renderAccuracyLlmsSection(section, audit) {
   const state = classifyAccuracyState(section);
+  if (audit === undefined) audit = accuracyStateAudit(state);
   const page = new URL(ACCURACY_PAGE_PATH, WORLD_MONITOR_ORG.url).href;
   const paragraphs = [`The standing forecast-resolution record is published at ${page}.`];
   if (audit) {
     paragraphs.push(accuracyAuditNotice(audit, 'on that page'), `The audit's findings and fixes are tracked at ${auditIssueUrl(audit)}.`);
     return `## Forecast accuracy\n\n${paragraphs.join('\n\n')}\n`;
   }
-  const result = state.scorecard ? headlineResultSentence(state.scorecard, shownBrierIntervals(state).skill) : '';
+  const result = state.scorecard ? plainRateIntervals(headlineResultSentence(state.scorecard, shownBrierIntervals(state).skill)) : '';
   if (result) {
     paragraphs.push(result);
     if (state.capturedAt) {
@@ -623,7 +743,7 @@ export function renderAccuracyLlmsSection(section, audit = FORECAST_ACCURACY_AUD
   } else if (state.coverage === 'insufficient') {
     paragraphs.push('The headline cohort currently has no scored forecast in this window, so it carries no Brier score.');
   }
-  paragraphs.push(ACCURACY_NEGATIVE_SCOPE);
+  paragraphs.push(accuracyNegativeScope(state.horizonGrades.status === 'captured'));
   return `## Forecast accuracy\n\n${paragraphs.join('\n\n')}\n`;
 }
 
@@ -657,10 +777,10 @@ function headlineTiles(scorecard, intervals, escapeHtml) {
     [
       'Brier score, every scored entry',
       isFiniteNumber(overall?.brier) ? formatScore(overall.brier) : 'Not measurable',
-      `${formatCount(overall?.count ?? 0)} scored forecasts, ${scoreIntervalText(intervals.overall)}`,
+      `${formatCount(overall?.count ?? 0)} scored forecasts ${POOLED_LABEL}, ${scoreIntervalText(intervals.overall)}`,
     ],
     [
-      'Scored entries',
+      ledgerIsPublished(scorecard) ? 'Scored published forecasts' : 'Scored entries',
       formatCount(totals?.scored ?? 0),
       `of ${formatCount(totals?.resolved ?? 0)} resolved`,
     ],
@@ -674,7 +794,7 @@ ${tiles.map(([label, value, note]) => `        <div class="metric"><span>${escap
 
 function headlineResultParagraph(scorecard, interval, escapeHtml) {
   const sentence = headlineResultSentence(scorecard, interval);
-  return sentence ? `      <p data-accuracy-result>${escapeHtml(sentence)}</p>\n` : '';
+  return sentence ? `      <p data-accuracy-result>${rateIntervalMarkup(escapeHtml(sentence))}</p>\n` : '';
 }
 
 const RECORD_FACT_LABELS = Object.freeze({
@@ -745,7 +865,11 @@ function coverageSentence(state) {
   return `${sample} That meets the minimum for judging skill: ${SKILL_RULE}.`;
 }
 
-function totalsTable(totals, intervals, escapeHtml) {
+function totalsTable(scorecard, intervals, escapeHtml) {
+  const { totals } = scorecard;
+  const population = ledgerIsPublished(scorecard)
+    ? 'These totals count published forecasts only. Shadow bets, scored for evidence but never shown, are left out; they appear under Accuracy by generation origin.'
+    : 'These totals count every origin, unpublished shadow bets included.';
   const rows = [
     ['Entries in the rolling window', escapeHtml(formatCount(totals.entries))],
     ['Resolved', escapeHtml(formatCount(totals.resolved))],
@@ -753,13 +877,15 @@ function totalsTable(totals, intervals, escapeHtml) {
     ['Voided', `${escapeHtml(`${rateOf(totals.voidRate, totals.resolved, 'resolved entries')} (${formatCount(totals.void)} entries), 95% interval`)} ${intervalHtml(intervals.void, escapeHtml)}`],
     ['Awaiting a judge', escapeHtml(formatCount(totals.pendingJudge))],
     ['Still open, not yet resolvable', escapeHtml(formatCount(totals.pending))],
-    // The API calls this field publicationCoverage. It is scored over ALL
-    // entries, which is not a publication property, so the page states the
-    // definition instead of repeating a label the number does not earn.
-    ['Scored share of the ledger', escapeHtml(rateOf(totals.publicationCoverage, totals.entries, 'entries'))],
+    // Derived from the counts, not read from the deprecated
+    // publicationCoverage (#7072): the share is over ALL entries, which is not
+    // a publication property, so the page states the definition instead. It is
+    // rounded to 6 places first, as the producer rounded that field, so the
+    // printed percentage does not move.
+    ['Scored share of the ledger', `${escapeHtml(`${rateOf(totals.entries ? Math.round((totals.scored / totals.entries) * 1e6) / 1e6 : 0, totals.entries, 'entries')}, 95% interval`)} ${intervalHtml(intervals.scoredShare, escapeHtml)}`],
   ];
   return `      <div class="table-scroll"><table data-ledger-totals>
-        <caption>Resolution ledger totals for the rolling window. Forecasts withheld under issue #5234 are left out. These are state-derived sovereign risk, rates and inflation, and FX stress forecasts that no feed can check. Voided entries are counted for coverage and excluded from every score below. A judging backlog is an ordinary state of the ledger, not a fault. The void rate's 95% interval is a Wilson interval on the counts shown.</caption>
+        <caption>Resolution ledger totals for the rolling window. ${escapeHtml(population)} Forecasts withheld under issue #5234 are left out. These are state-derived sovereign risk, rates and inflation, and FX stress forecasts that no feed can check. Voided entries are counted for coverage and excluded from every score below. A judging backlog is an ordinary state of the ledger, not a fault. The void rate's 95% interval is a Wilson interval on the counts shown.</caption>
         <thead><tr><th scope="col">Ledger stage</th><th scope="col">Entries</th></tr></thead>
         <tbody>
 ${rows.map(([label, valueHtml]) => `          <tr><th scope="row">${escapeHtml(label)}</th><td>${valueHtml}</td></tr>`).join('\n')}
@@ -776,7 +902,7 @@ function funnelRateHtml(successes, count, escapeHtml) {
   return `${escapeHtml(text)} ${intervalHtml(estimate, escapeHtml)}`;
 }
 
-function funnelSection(funnel, escapeHtml) {
+function funnelSection(funnel, published, escapeHtml) {
   const heading = '      <h2>From deadline to grade</h2>';
   if (!isPlainObject(funnel)) {
     return `${heading}
@@ -794,7 +920,7 @@ function funnelSection(funnel, escapeHtml) {
   ];
   return `${heading}
       <div class="table-scroll"><table data-maturity-funnel>
-        <caption>Of the forecasts in the ledger that are past their deadline or already resolved, how many were resolved and how many could be graded. Unresolved forecasts not yet due are left out of both rates, so a young forecast never counts as a miss. The 95% interval is a Wilson interval on the counts shown.</caption>
+        <caption>Of the ${published ? 'published ' : ''}forecasts in the ledger that are past their deadline or already resolved, how many were resolved and how many could be graded. Unresolved forecasts not yet due are left out of both rates, so a young forecast never counts as a miss. The 95% interval is a Wilson interval on the counts shown.</caption>
         <thead><tr><th scope="col">Stage</th><th scope="col">Forecasts</th></tr></thead>
         <tbody>
 ${rows.map(([label, valueHtml]) => `          <tr><th scope="row">${escapeHtml(label)}</th><td>${valueHtml}</td></tr>`).join('\n')}
@@ -857,7 +983,7 @@ function receiptsSection(scorecard, escapeHtml, unverified = false) {
   // excluded origins resolved look the same; name both rather than guess.
   if (receipts.length === 0 && Number(scorecard.totals?.resolved) > 0) {
     return `${heading}
-      <p>This capture carries no receipts: it predates them, or no published forecast resolved in the window.</p>`;
+      <p>This capture carries no receipts: it predates them, or no attributable published forecast (synthetic and unattributed origins left out) resolved in the window.</p>`;
   }
   const rows = receipts.filter((receipt) => (
     isPlainObject(receipt) && Object.hasOwn(RECEIPT_OUTCOME_LABELS, receipt.outcome) && typeof receipt.question === 'string'
@@ -868,7 +994,7 @@ function receiptsSection(scorecard, escapeHtml, unverified = false) {
   }
   return `${heading}
       <div class="table-scroll"><table data-forecast-receipts${unverified ? ' data-receipts-unverified' : ''}>
-        <caption>${unverified ? `${escapeHtml(UNVERIFIED_RECEIPTS)} ` : ''}The ${escapeHtml(formatCount(rows.length))} most recently resolved published forecasts, newest first, leaving out experimental, synthetic and unattributed origins, voids included. ${escapeHtml(unverified ? UNVERIFIED_SCORED_CHANCE : SCORED_CHANCE)} A hard forecast is settled by reading a World Monitor data feed; a judged one by AI judges reading archived news, and the linked item is one they cited. Dates are UTC.</caption>
+        <caption>${unverified ? `${escapeHtml(UNVERIFIED_RECEIPTS)} ` : ''}The ${escapeHtml(formatCount(rows.length))} most recently resolved ${ATTRIBUTABLE_PUBLISHED}, newest first, leaving out experimental, synthetic and unattributed origins, voids included. ${escapeHtml(unverified ? UNVERIFIED_SCORED_CHANCE : SCORED_CHANCE)} A hard forecast is settled by reading a World Monitor data feed; a judged one by AI judges reading archived news, and the linked item is one they cited. Dates are UTC.</caption>
         <thead><tr><th scope="col">Forecast</th><th scope="col">Made</th><th scope="col">${unverified ? 'Chance scored' : 'Chance given'}</th><th scope="col">Outcome</th><th scope="col">Resolved</th><th scope="col">How it was settled</th></tr></thead>
         <tbody>
 ${rows.map((receipt) => `          <tr data-receipt-outcome="${escapeHtml(receipt.outcome)}"><th scope="row">${escapeHtml(receipt.question)}</th><td>${escapeHtml(utcDate(receipt.forecastAt))}</td><td><span data-probability-band>${escapeHtml(isFiniteNumber(receipt.probability) ? `${Number((receipt.probability * 100).toFixed(1))}%` : 'Not recorded')}</span></td><td>${escapeHtml(RECEIPT_OUTCOME_LABELS[receipt.outcome])}</td><td>${escapeHtml(utcDate(receipt.resolvedAt))}</td><td>${receiptSourceHtml(receipt, escapeHtml)}</td></tr>`).join('\n')}
@@ -881,7 +1007,7 @@ function calibrationTable(scorecard, intervals, escapeHtml) {
   const populated = buckets.filter((bucket) => Number(bucket.count) > 0);
   const scored = scorecard.overall?.count ?? scorecard.totals?.scored ?? 0;
   return `      <div class="table-scroll"><table data-calibration>
-        <caption>Calibration by predicted probability, computed over all ${escapeHtml(formatCount(scored))} scored entries rather than the narrower headline cohort. Average predicted and Brier are probabilities, not rates. The 95% interval is a Wilson interval on how often the bucket's forecasts happened; a narrow bucket has a wide one. Buckets that scored nothing are omitted rather than shown as zero.</caption>
+        <caption>Calibration by predicted probability, computed over all ${escapeHtml(formatCount(scored))} scored forecasts ${POOLED_LABEL}, rather than the narrower headline cohort. Average predicted and Brier are probabilities, not rates. The 95% interval is a Wilson interval on how often the bucket's forecasts happened; a narrow bucket has a wide one. Buckets that scored nothing are omitted rather than shown as zero.</caption>
         <thead><tr><th scope="col">Predicted probability</th><th scope="col">Forecasts</th><th scope="col">Average predicted</th><th scope="col">Actually happened</th><th scope="col">95% interval</th><th scope="col">Brier</th></tr></thead>
         <tbody>
 ${populated.map((bucket) => `          <tr data-calibration-bucket="${escapeHtml(bucket.bucket)}"><th scope="row" data-probability-band>${escapeHtml(probabilityBand(bucket))}</th><td>${escapeHtml(formatCount(bucket.count))}</td><td>${scoreCell(bucket.predictedMean, escapeHtml)}</td><td>${escapeHtml(isFiniteNumber(bucket.realizedRate) ? rateOf(bucket.realizedRate, bucket.count, 'forecasts') : INSUFFICIENT_SAMPLE)}</td><td>${intervalHtml(intervals.calibration[bucket.bucket], escapeHtml)}</td><td>${scoreCell(bucket.brier, escapeHtml)}</td></tr>`).join('\n')}
@@ -939,7 +1065,7 @@ function domainSection(scorecard, escapeHtml) {
     return '      <p>No published forecast has been graded in any domain yet.</p>';
   }
   return `      <div class="table-scroll"><table data-by-domain>
-        <caption>Accuracy by forecast domain for published forecasts only: synthetic, unattributed and bet_engine entries are always left out, the same population as the forecast-card badges. A domain shows its scores once its graded forecasts come from ${escapeHtml(SKILL_RULE)}, and reads Not yet measured below that. The actual-rate Brier is what always forecasting how often the domain's forecasts actually came true would have scored, p(1-p). The skill score compares the two: ${escapeHtml(SKILL_SCALE)}. Per-domain skill scores carry no interval yet, so the table does not say which domains beat that rate.</caption>
+        <caption>Accuracy by forecast domain for ${ATTRIBUTABLE_PUBLISHED} only: synthetic, unattributed and bet_engine entries are always left out, the same population as the forecast-card badges. A domain shows its scores once its graded forecasts come from ${escapeHtml(SKILL_RULE)}, and reads Not yet measured below that. The actual-rate Brier is what always forecasting how often the domain's forecasts actually came true would have scored, p(1-p). The skill score compares the two: ${escapeHtml(SKILL_SCALE)}. Per-domain skill scores carry no interval yet, so the table does not say which domains beat that rate.</caption>
         <thead><tr><th scope="col">Domain</th><th scope="col">Graded forecasts</th><th scope="col">Skill vs actual rate</th><th scope="col">Brier</th><th scope="col">Actual-rate Brier</th></tr></thead>
         <tbody>
 ${rows.map((row) => {
@@ -983,7 +1109,7 @@ function marketSection(vsMarketSkill, escapeHtml) {
       ? 'the forecast scored better'
       : 'the two tied';
   return `      <h2>Against prediction markets</h2>
-      <p>Measured over every scored entry that carried a liquid prediction market's price, not over the narrower headline cohort. ${escapeHtml(MARKET_COMPARISON_SCOPE)} On ${escapeHtml(formatCount(vsMarketSkill.count))} such resolved entries the forecast Brier was ${escapeHtml(formatScore(vsMarketSkill.forecastBrier))} and the market Brier was ${escapeHtml(formatScore(vsMarketSkill.marketBrier))}. ${escapeHtml(BRIER_DELTA_CONVENTION)} Here the delta is ${escapeHtml(formatScore(delta))}, so on this sample ${escapeHtml(verdict)}.</p>`;
+      <p>Measured over every scored forecast ${POOLED_LABEL}, that carried a liquid prediction market's price, not over the narrower headline cohort. ${escapeHtml(MARKET_COMPARISON_SCOPE)} On ${escapeHtml(formatCount(vsMarketSkill.count))} such resolved entries the forecast Brier was ${escapeHtml(formatScore(vsMarketSkill.forecastBrier))} and the market Brier was ${escapeHtml(formatScore(vsMarketSkill.marketBrier))}. ${escapeHtml(BRIER_DELTA_CONVENTION)} Here the delta is ${escapeHtml(formatScore(delta))}, so on this sample ${escapeHtml(verdict)}.</p>`;
 }
 
 const NOT_YET_MEASURABLE = 'Not yet measurable';
@@ -1116,9 +1242,18 @@ function pooledCohort(scorecard) {
   };
 }
 
-function ledgerVerdictSentences(totals, windowDays) {
+function ledgerVerdictSentences(scorecard) {
+  const { totals, rollingWindowDays: windowDays } = scorecard;
   const windowPhrase = isFiniteNumber(windowDays) ? `Over the current ${formatCount(windowDays)}-day window` : 'Over the current rolling window';
-  return `${windowPhrase}, ${formatCount(totals.resolved)} forecasts came due and were resolved. ${formatCount(totals.scored)} could be graded against what happened. ${formatCount(totals.void)} could not be graded and were set aside: ${rateOf(totals.voidRate, totals.resolved, 'resolved forecasts')}. The scorecard does not yet publish why each one was set aside, so the reasons are not broken out here. Another ${formatCount(totals.pendingJudge)} are in the queue for a judge, counted whether or not their deadline has passed.`;
+  return `${windowPhrase}, ${formatCount(totals.resolved)} ${ledgerIsPublished(scorecard) ? 'published ' : ''}forecasts came due and were resolved. ${formatCount(totals.scored)} could be graded against what happened. ${formatCount(totals.void)} could not be graded and were set aside: ${rateOf(totals.voidRate, totals.resolved, 'resolved forecasts')}. The scorecard does not yet publish why each one was set aside, so the reasons are not broken out here. Another ${formatCount(totals.pendingJudge)} are in the queue for a judge, counted whether or not their deadline has passed.`;
+}
+
+// The bands come from the calibration buckets, which pool every origin, so the
+// paragraph names that population beside the published ledger counts (#8990).
+function bandParagraph(calibration, escapeHtml) {
+  const outcomes = bandOutcomes(calibration);
+  const graded = outcomes.reduce((sum, outcome) => sum + outcome.count, 0);
+  return `${escapeHtml(`Over all ${formatCount(graded)} graded forecasts of every origin, unpublished shadow bets included:`)} ${outcomes.map((outcome) => bandSentence(outcome, escapeHtml)).join(' ')}`;
 }
 
 function bandSentence({ band, count, yesCount }, escapeHtml) {
@@ -1138,7 +1273,7 @@ function marketVerdictSentence(vsMarketSkill) {
     : delta > 0
       ? "World Monitor's odds were closer to what happened than the market's"
       : 'the two were equally close to what happened';
-  return `In the ${formatCount(vsMarketSkill.count)} graded cases that carried a liquid prediction market's price, ${closer}. A market matched to a forecast, rather than one the forecast bet on, can ask a narrower or broader question.`;
+  return `In the ${formatCount(vsMarketSkill.count)} graded cases of every origin, unpublished shadow bets included, that carried a liquid prediction market's price, ${closer}. A market matched to a forecast, rather than one the forecast bet on, can ask a narrower or broader question.`;
 }
 
 // One rate over every graded forecast mixes domains whose outcomes come true
@@ -1148,7 +1283,7 @@ function pooledVerdictSentences(scorecard) {
   if (!cohort) {
     return 'How often all graded forecasts came true cannot be derived from this capture, because its probability buckets do not account for every graded forecast.';
   }
-  return `Across all ${formatCount(cohort.count)} graded forecasts, ${formatCount(cohort.yesCount)} came true: ${rateOf(cohort.yesCount / cohort.count, cohort.count, 'graded forecasts')}. That count pools kinds of forecast that come true at very different rates, so it is not compared with a single rate. Skill is judged within the headline cohort and within each domain.`;
+  return `Across all ${formatCount(cohort.count)} graded forecasts of every origin, unpublished shadow bets included, ${formatCount(cohort.yesCount)} came true: ${rateOf(cohort.yesCount / cohort.count, cohort.count, 'graded forecasts')}${intervalPhrase(proportionEstimate(cohort.yesCount, cohort.count))}. That count pools kinds of forecast that come true at very different rates, so it is not compared with a single rate. Skill is judged within the headline cohort and within each domain.`;
 }
 
 // The page's lead (#8990): did the headline forecasts beat always forecasting
@@ -1164,7 +1299,7 @@ function skillVerdict(scorecard) {
   if (!reading) {
     return { verdict: 'none', lead: 'No skill to report yet.', text: `This capture does not record how many of the ${formatCount(count)} headline forecasts came true, so it cannot compare them with ${REFERENCE}.` };
   }
-  const tally = `Of ${formatCount(reading.count)} graded forecasts, ${formatCount(reading.yesCount)} came true: ${rateOf(reading.rate, reading.count, 'forecasts')}.`;
+  const tally = `Of ${formatCount(reading.count)} graded forecasts, ${formatCount(reading.yesCount)} came true: ${rateOf(reading.rate, reading.count, 'forecasts')}${intervalPhrase(proportionEstimate(reading.yesCount, reading.count))}.`;
   if (reading.bss === null) {
     return { verdict: 'none', lead: 'No skill to report yet.', text: `${tally} Every one went the same way, so always forecasting how often they happened was never wrong and there is nothing to beat.` };
   }
@@ -1190,14 +1325,14 @@ function skillVerdict(scorecard) {
 function verdictSection(scorecard, escapeHtml) {
   const skill = skillVerdict(scorecard);
   const paragraphs = [
-    escapeHtml(ledgerVerdictSentences(scorecard.totals, scorecard.rollingWindowDays)),
-    bandOutcomes(scorecard.calibration).map((outcome) => bandSentence(outcome, escapeHtml)).join(' '),
+    escapeHtml(ledgerVerdictSentences(scorecard)),
+    bandParagraph(scorecard.calibration, escapeHtml),
     escapeHtml(marketVerdictSentence(scorecard.vsMarketSkill)),
-    escapeHtml(pooledVerdictSentences(scorecard)),
+    rateIntervalMarkup(escapeHtml(pooledVerdictSentences(scorecard))),
   ];
   return `      <section data-accuracy-verdict aria-label="Plain-language verdict">
         <h2>In plain terms</h2>
-        <p data-accuracy-skill="${escapeHtml(skill.verdict)}"><strong>${escapeHtml(skill.lead)}</strong> ${escapeHtml(skill.text)}</p>
+        <p data-accuracy-skill="${escapeHtml(skill.verdict)}"><strong>${escapeHtml(skill.lead)}</strong> ${rateIntervalMarkup(escapeHtml(skill.text))}</p>
 ${paragraphs.map((paragraph) => `        <p>${paragraph}</p>`).join('\n')}
       </section>
       <dl data-accuracy-definitions>
@@ -1212,15 +1347,64 @@ ${paragraphs.map((paragraph) => `        <p>${paragraph}</p>`).join('\n')}
       </dl>`;
 }
 
-function limitsSection(omittedBuckets, escapeHtml) {
+const HORIZON_GRADE_RULE = `at least ${SKILL_MIN_FAMILIES} forecast families, with at least ${SKILL_MIN_OUTCOME_FAMILIES} where the projected event happened and ${SKILL_MIN_OUTCOME_FAMILIES} where it did not`;
+
+function horizonSampleText(row) {
+  if (row.scored === 0) return 'No graded windows yet';
+  const families = `${formatCount(row.families)} forecast ${row.families === 1 ? 'family' : 'families'}`;
+  return `${formatCount(row.scored)} graded ${row.scored === 1 ? 'window' : 'windows'} from ${families}: ${formatCount(row.yesFamilies)} with the event, ${formatCount(row.noFamilies)} without`;
+}
+
+function horizonGradeRow(row, escapeHtml) {
+  const head = `          <tr data-horizon-grade="${escapeHtml(row.horizon)}" data-curves-version="${escapeHtml(String(row.curvesVersion))}" data-measurable="${row.measurable}"><th scope="row">${escapeHtml(HORIZON_LABELS[row.horizon])}</th><td>${escapeHtml(`Version ${row.curvesVersion}`)}</td>`;
+  const sample = `<td>${escapeHtml(horizonSampleText(row))}</td></tr>`;
+  if (!row.measurable) {
+    return `${head}<td>${escapeHtml(NOT_YET_MEASURABLE)}</td><td>${escapeHtml(NOT_YET_MEASURABLE)}</td>${sample}`;
+  }
+  const brier = `${formatScore(row.brier.mean)}, 95% interval ${formatScore(row.brier.ci95[0])} to ${formatScore(row.brier.ci95[1])}`;
+  const rate = `${escapeHtml(rateOf(row.realizedRate.rate, row.scored, 'graded windows'))}, 95% interval ${intervalHtml(proportionEstimate(row.yes, row.scored), escapeHtml)}`;
+  return `${head}<td>${escapeHtml(brier)}</td><td>${rate}</td>${sample}`;
+}
+
+// Point-in-time grades of the retired projections (#9057). Each row is one
+// curve version and one horizon, and a grade shows only where that row meets
+// the headline's family minimums; below them it prints its counts.
+function horizonSection(horizonGrades, escapeHtml) {
+  const heading = '      <h2 id="horizon-grades">Grades for the 24-hour, 7-day and 30-day projections</h2>';
+  const intro = `      <p data-horizon-grades-intro>World Monitor stopped publishing these projections on 2026-10-07 and still grades the ones it made. <strong>A projection is not a probability.</strong> It comes from a fixed, hand-set curve for each domain, and each set of curves has a version number, shown beside every grade. A grade scores the projection as if it were a probability at the moment its horizon names, so a poor grade can come from the curves rather than the forecast. These grades are never pooled into the scores above.</p>`;
+  if (horizonGrades.status !== 'captured') {
+    const reason = horizonGrades.status === 'other-run'
+      ? 'This edition read the projection grades from a different scoring run than the record above, so none are shown.'
+      : 'This edition did not capture the projection grades, so none are shown.';
+    return `${heading}\n${intro}\n      <p data-horizon-grades-status="${escapeHtml(horizonGrades.status)}">${escapeHtml(reason)} The next weekly refresh reads them again.</p>`;
+  }
+  const { rows, unversionedScored } = horizonGrades.grades;
+  const unversioned = isCount(unversionedScored) && unversionedScored > 0
+    ? `\n      <p data-horizon-unversioned>${escapeHtml(`${formatCount(unversionedScored)} graded ${unversionedScored === 1 ? 'window was' : 'windows were'} registered before projections carried a curve version, so ${unversionedScored === 1 ? 'it is' : 'they are'} counted here and never graded.`)}</p>`
+    : '';
+  if (rows.length === 0) {
+    return `${heading}\n${intro}\n      <p data-horizon-grades-status="empty">${escapeHtml('No projection with a curve version has a scoring window yet.')}</p>${unversioned}`;
+  }
+  return `${heading}
+${intro}
+      <div class="table-scroll"><table data-horizon-grades>
+        <caption>${escapeHtml(`Point-in-time grades by curve version and horizon. A grade is shown once its graded windows come from ${HORIZON_GRADE_RULE}, and reads ${NOT_YET_MEASURABLE} below that. The Brier interval resamples whole forecast families. The share where the event happened has a Wilson interval that treats each window as independent, so read it beside the family count.`)}</caption>
+        <thead><tr><th scope="col">Horizon</th><th scope="col">Curve version</th><th scope="col">Brier</th><th scope="col">Event happened</th><th scope="col">Sample</th></tr></thead>
+        <tbody>
+${rows.map((row) => horizonGradeRow(row, escapeHtml)).join('\n')}
+        </tbody>
+      </table></div>${unversioned}`;
+}
+
+function limitsSection(omittedBuckets, gradesCaptured, escapeHtml) {
   const bucketSentence = omittedBuckets.length > 0
     ? `Calibration buckets that scored nothing are omitted from the table rather than drawn as a zero: ${omittedBuckets.join(', ')} are empty in this window.`
     : 'Every calibration bucket scored at least one forecast in this window, so none is omitted.';
   return `      <h2>What this page does not publish</h2>
       <ul>
         <li>${escapeHtml(bucketSentence)}</li>
-        <li>No confidence intervals on the log scores or the per-domain skill scores, so the domain table does not say which domains beat their actual rate. An interval on a mean score needs every forecast's own score, which the public scorecard does not carry, and this page will not invent one from the averages. The Brier scores and the headline skill score carry a 95% interval when the scorecard includes one, computed by the scoring service by resampling whole forecast families. Void rates and calibration-bucket rates do carry a 95% Wilson interval, because a rate's interval needs only the two counts printed beside it; the scored share of the ledger and the base rates in the summary do not carry one yet. Tracking: <a href="${escapeHtml(CONFIDENCE_INTERVAL_ISSUE)}">issue #7072</a>.</li>
-        <li>No 24-hour, 7-day or 30-day projections, and no accuracy for them. World Monitor no longer publishes those projections, as of 2026-10-07. It still grades some of those horizons internally, and removing the projections changed none of the scores on this page. Those horizon grades are not published yet. Tracking: <a href="${escapeHtml(HORIZON_SCORING_ISSUE)}">issue #9057</a>.</li>
+        <li>No confidence intervals on the log scores or the per-domain skill scores, so the domain table does not say which domains beat their actual rate. An interval on a mean score needs every forecast's own score, which the public scorecard does not carry, and this page will not invent one from the averages. The Brier scores and the headline skill score carry a 95% interval when the scorecard includes one, computed by the scoring service by resampling whole forecast families. Void rates, calibration-bucket rates, the scored share of the ledger and the actual rates in the summary do carry a 95% Wilson interval, because a rate's interval needs only the two counts printed beside it. Tracking: <a href="${escapeHtml(CONFIDENCE_INTERVAL_ISSUE)}">issue #7072</a>.</li>
+        <li>No 24-hour, 7-day or 30-day projection values. World Monitor no longer publishes those projections, as of 2026-10-07, and removing them changed none of the scores on this page. ${gradesCaptured ? 'Their grades are in the <a href="#horizon-grades">projection grades</a> section, each one only once its sample is large enough.' : 'This edition carries no grades for them; the <a href="#horizon-grades">projection grades</a> section says why.'}</li>
         <li>Individual forecasts appear only as the receipts for the most recently resolved ones. The judges' reasoning, the full news archive they read and internal data locations are not published.</li>
       </ul>`;
 }
@@ -1251,7 +1435,7 @@ function provenanceLine(state, dataset, snapshotPath, escapeHtml, audited = fals
 
 function auditSection(audit, escapeHtml) {
   return `      <section id="under-audit" class="card" role="note" data-accuracy-audit="${escapeHtml(audit.since)}" aria-label="Accuracy under audit">
-        <p><strong>${escapeHtml(auditSinceSentence(audit))}</strong> ${escapeHtml(auditNoticeBody(audit, 'here'))}</p>
+        <p><strong>${escapeHtml(auditSinceSentence(audit))}</strong> ${escapeHtml(`${auditNoticeBody(audit, 'here')}${auditLiftSentence(audit)}`)}</p>
         <p>The findings and the fixes are tracked in <a href="${escapeHtml(auditIssueUrl(audit))}">issue #${escapeHtml(String(audit.issue))}</a>. The download below keeps the raw figures and marks them as under audit.</p>
       </section>`;
 }
@@ -1259,6 +1443,9 @@ function auditSection(audit, escapeHtml) {
 // While the audit switch is set, nothing on the page presents a score as a
 // verdict: no headline, no intervals, no calibration, domain, origin or market
 // comparison, and no ledger or funnel counts built from the same windows.
+// One exception rides in the methodology: the go-forward VOID share (#4930).
+// It counts only windows opened after the audit's fixes were in production,
+// so the audit does not touch it, and it is a count, not a score.
 function auditedBody({ state, baseUrl, tpl, dataset, snapshotPath, heading, audit }) {
   const { escapeHtml } = tpl;
   const lede = '      <p class="lede">World Monitor logs every forecast it publishes and aims to score each one once its outcome is known. While the audit below is open, this page publishes no scores.</p>';
@@ -1311,9 +1498,9 @@ ${recordStatus(state, escapeHtml)}
 ${state.coverage === 'insufficient' ? '' : `${headlineTiles(scorecard, brierIntervals, escapeHtml)}\n${headlineResultParagraph(scorecard, brierIntervals.skill, escapeHtml)}`}      <p><strong>Lower Brier is better.</strong> A Brier score is the mean squared error of a probability forecast, so 0 is perfect and answering 0.5 to everything scores 0.25. Log score is harsher on confident mistakes, and lower is better there too.</p>
 ${cohortSection(scorecard.skill, unknownOriginSentence(scorecard), escapeHtml)}
       <h2>Resolution ledger</h2>
-${totalsTable(scorecard.totals, intervals, escapeHtml)}
+${totalsTable(scorecard, intervals, escapeHtml)}
       <p>${escapeHtml(scorecard.methodology)}</p>
-${funnelSection(scorecard.funnel, escapeHtml)}
+${funnelSection(scorecard.funnel, ledgerIsPublished(scorecard), escapeHtml)}
 ${receiptsSection(scorecard, escapeHtml)}
       <h2>Calibration</h2>
 ${calibrationTable(scorecard, intervals, escapeHtml)}
@@ -1323,7 +1510,8 @@ ${domainSection(scorecard, escapeHtml)}
 ${originTable(scorecard.byGenerationOrigin, scorecard.skill, unknownOriginStatus(scorecard), intervals, escapeHtml)}
 ${marketSection(scorecard.vsMarketSkill, escapeHtml)}
 ${marketAlertsSection(scorecard.marketAlerts, escapeHtml)}
-${limitsSection(omittedBuckets, escapeHtml)}
+${horizonSection(state.horizonGrades, escapeHtml)}
+${limitsSection(omittedBuckets, state.horizonGrades.status === 'captured', escapeHtml)}
 ${relatedSection(baseUrl, tpl)}
 ${provenanceLine(state, dataset, snapshotPath, escapeHtml)}`;
 }
@@ -1374,7 +1562,7 @@ function accuracyDatasetLd({ baseUrl, tpl, state, dataset, audit }) {
   };
 }
 
-export function renderAccuracyPage({ baseUrl, tpl, state, lastmod, dataset, dataCatalog, snapshotPath, audit = FORECAST_ACCURACY_AUDIT }) {
+export function renderAccuracyPage({ baseUrl, tpl, state, lastmod, dataset, dataCatalog, snapshotPath, audit = accuracyStateAudit(state) }) {
   const { breadcrumbLd, absoluteUrl, pageDocument } = tpl;
   const description = audit ? AUDIT_META_DESCRIPTION : META_DESCRIPTION;
   assertMetaDescription(description);
@@ -1457,7 +1645,23 @@ function withPublishedMarketAlertMedians(scorecard) {
   };
 }
 
-export function accuracyDatasetDownload({ state, snapshotPath, audit = FORECAST_ACCURACY_AUDIT }) {
+// Under an audit the page withholds the grades, so the download does not call
+// them published; the rows stay, flagged by underAudit like the raw scorecard.
+function horizonProjectionsDownload(horizonGrades, audit) {
+  const grades = horizonGrades.grades;
+  return {
+    valuesPublished: false,
+    gradesStatus: horizonGrades.status,
+    gradesPublished: !audit && Boolean(grades?.rows.some((row) => row.measurable)),
+    definition: 'A projection is not a probability: it comes from a fixed, hand-set curve per domain, identified by curvesVersion. Each row grades one curve version at one horizon, scoring the projection value as a probability at that point in time. brier and realizedRate appear only when measurable is true, which needs the minimums below; other rows carry counts only.',
+    minimums: { families: SKILL_MIN_FAMILIES, yesFamilies: SKILL_MIN_OUTCOME_FAMILIES, noFamilies: SKILL_MIN_OUTCOME_FAMILIES },
+    source: 'MCP get_forecast_scorecard (horizonGrades), read from the same stored scorecard as the record above. The REST scorecard does not carry it.',
+    unversionedScored: isCount(grades?.unversionedScored) ? grades.unversionedScored : null,
+    rows: grades ? grades.rows : null,
+  };
+}
+
+export function accuracyDatasetDownload({ state, snapshotPath, audit = accuracyStateAudit(state) }) {
   const skill = isPlainObject(state.scorecard?.skill) ? state.scorecard.skill : null;
   const payload = {
     dataset: DATASET_IDENTIFIER,
@@ -1492,6 +1696,8 @@ export function accuracyDatasetDownload({ state, snapshotPath, audit = FORECAST_
       vsMarketSkill: POOLED_POPULATION,
       overall: POOLED_POPULATION,
     },
+    // The population of scorecard.totals and scorecard.funnel in this capture.
+    ledgerPopulation: state.scorecard ? (ledgerIsPublished(state.scorecard) ? 'published-forecasts' : 'all-entries') : null,
     confidenceIntervals: {
       proportions: { published: true, method: 'wilson-95' },
       meanScores: {
@@ -1509,9 +1715,9 @@ export function accuracyDatasetDownload({ state, snapshotPath, audit = FORECAST_
     },
     intervals: proportionIntervals(state.scorecard),
     skillVsActualRate: skillDownload(state.scorecard),
-    // Point-in-time horizons are graded internally (#8939); neither the
-    // projection values (#8967) nor those grades are published here.
-    horizonProjections: { valuesPublished: false, gradesPublished: false, trackedIn: HORIZON_SCORING_ISSUE },
+    // The projection values are retired (#8967); their point-in-time grades
+    // are published per curve version and horizon once measurable (#9057).
+    horizonProjections: horizonProjectionsDownload(state.horizonGrades, audit),
     scorecard: withPublishedMarketAlertMedians(state.scorecard),
   };
   return `${JSON.stringify(payload, null, 2)}\n`;
@@ -1526,7 +1732,7 @@ export function writeAccuracySection({
   dataset,
   dataCatalog,
   snapshotPath,
-  audit = FORECAST_ACCURACY_AUDIT,
+  audit,
 }) {
   if (!dataCatalog?.['@id'] || !dataset?.catalog?.['@id']) {
     throw new Error(
@@ -1534,6 +1740,7 @@ export function writeAccuracySection({
     );
   }
   const state = classifyAccuracyState(section);
+  // An omitted audit stays undefined, so each renderer derives it from state.scorecard.
   mkdirSync(join(outDir, 'accuracy'), { recursive: true });
   writeFileSync(
     join(outDir, 'accuracy', 'index.html'),

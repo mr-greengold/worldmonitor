@@ -41,7 +41,7 @@ function sentHeaders(callIndex = 0): Headers {
 // injection is now path-gated. Using `some-premium-rpc` (a non-existent
 // path) made every "Clerk Bearer attached" assertion silently fail under
 // the new logic. See PREMIUM_RPC_PATHS in src/shared/premium-paths.ts.
-const TARGET = 'https://api.worldmonitor.app/api/sanctions/v1/list-sanctions-pressure';
+const TARGET = 'https://api.worldmonitor.app/api/economic/v1/list-global-tenders';
 // A real PUBLIC path used to verify the path-gating bypass: hits below
 // fetch the same way but should NOT see Bearer attached.
 const PUBLIC_TARGET = 'https://api.worldmonitor.app/api/economic/v1/get-fred-series-batch';
@@ -265,6 +265,17 @@ describe('premiumFetch', () => {
     assert.equal(sentHeaders().get('Authorization'), 'Bearer insider-clerk-token');
     await proFreshRpcFetch(PREMIUM_INSIDER_TRANSACTIONS_TARGET);
     assert.equal(sentHeaders(1).get('Authorization'), 'Bearer insider-clerk-token');
+  });
+
+  it('country history attaches paid credentials while retaining anonymous session recovery', async () => {
+    const target = 'https://api.worldmonitor.app/api/intelligence/v1/get-country-history?country=US&days=90';
+    setup({ clerkToken: 'history-clerk-token' });
+    await proFreshRpcFetch(target);
+    assert.equal(sentHeaders().get('Authorization'), 'Bearer history-clerk-token');
+    setup();
+    await proFreshRpcFetch(target);
+    assert.equal(sentHeaders().get('Authorization'), null);
+    assert.equal(hasPremiumIntent(fetchMock.mock.calls[0].arguments[1] as RequestInit), false);
   });
 
   it('non-premium path: tester key still attached (works on any path)', async () => {
@@ -536,6 +547,27 @@ describe('reportServerError', () => {
     assert.equal(calls.length, 0, 'rate-limit degradation must not be captured again by every browser');
   });
 
+  // api/mcp-proxy answers an upstream MCP server timeout with its own 504 and
+  // has already captured it server-side at warning. Reporting it again here
+  // filed it as an origin `API 504: /api/mcp-proxy` error (WORLDMONITOR-17A).
+  it('skips the mcp-proxy 504 that relays an upstream MCP server timeout', () => {
+    const { calls, enqueue } = makeSpy();
+    const res = new Response(JSON.stringify({ error: 'MCP server timed out' }), {
+      status: 504,
+      headers: { 'Content-Type': 'application/json', 'X-Wm-Upstream-Timeout': '1' },
+    });
+    reportServerError(res, 'https://api.worldmonitor.app/api/mcp-proxy', enqueue);
+    assert.equal(calls.length, 0, 'an upstream MCP timeout is not an origin 5xx');
+  });
+
+  it('still reports an unmarked 504 from the proxy path', () => {
+    const { calls, enqueue } = makeSpy();
+    const res = new Response('', { status: 504 });
+    reportServerError(res, 'https://api.worldmonitor.app/api/mcp-proxy', enqueue);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].msg, 'API 504: /api/mcp-proxy');
+  });
+
   // WORLDMONITOR-ZH: closing the country deep-dive aborts its signal while
   // withBillingVerificationRetry waits out Retry-After, and the wrapper hands
   // back the FIRST 503. Nobody waited for the retry, so whether the outage was
@@ -757,6 +789,6 @@ describe('premiumFetch forwards the caller signal to the 5xx report', () => {
       headers: { Authorization: 'Bearer existing-token' },
       signal: new AbortController().signal,
     });
-    assert.deepEqual(captured, ['API 503: /api/sanctions/v1/list-sanctions-pressure']);
+    assert.deepEqual(captured, ['API 503: /api/economic/v1/list-global-tenders']);
   });
 });

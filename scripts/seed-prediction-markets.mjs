@@ -8,7 +8,7 @@ import {
 } from './_prediction-classify.mjs';
 import {
   isExcluded, parseYesPrice, parseKalshiYesPrice, parsePredictionMarketVolume,
-  selectPricedKalshiMarket, isExpired,
+  selectPricedKalshiMarket, isExpired, kalshiMarketUrl, parsePolymarketChange, parseKalshiChange24h,
 } from './_prediction-scoring.mjs';
 import {
   buildCountryMarketIndex,
@@ -71,7 +71,7 @@ function kalshiTitle(marketTitle, eventTitle) {
   return `${eventTitle}: ${marketTitle}`;
 }
 
-function kalshiCountryCandidate(market, eventTitle) {
+function kalshiCountryCandidate(market, eventTitle, seriesTicker = market.series_ticker) {
   const yesPrice = parseKalshiYesPrice(market);
   if (yesPrice === null) return null;
   const marketTitle = eventTitle
@@ -82,6 +82,7 @@ function kalshiCountryCandidate(market, eventTitle) {
     yesPrice,
     volume: parseFloat(market.volume_fp) || 0,
     url: `https://kalshi.com/markets/${market.ticker}`,
+    displayUrl: kalshiMarketUrl(seriesTicker),
     endDate: market.close_time ?? undefined,
     tags: [],
     source: 'kalshi',
@@ -109,7 +110,7 @@ async function fetchKalshiMarkets() {
 
     const eventKey = `kalshi:${event.event_ticker || event.ticker || event.id || event.title}`;
     for (const market of binaryActive) {
-      const candidate = kalshiCountryCandidate(market, event.title);
+      const candidate = kalshiCountryCandidate(market, event.title, event.series_ticker);
       if (candidate) countryCandidates.push({ ...candidate, eventKey });
     }
 
@@ -118,12 +119,15 @@ async function fetchKalshiMarkets() {
 
     const marketTitle = topMarket.yes_sub_title || topMarket.title || '';
     const title = kalshiTitle(marketTitle, event.title);
+    const change24h = parseKalshiChange24h(topMarket);
 
     featured.push({
       title,
       yesPrice,
+      ...(change24h === null ? {} : { change24h }),
       volume,
       url: `https://kalshi.com/markets/${topMarket.ticker}`,
+      displayUrl: kalshiMarketUrl(event.series_ticker),
       endDate: topMarket.close_time ?? undefined,
       tags: [],
       source: 'kalshi',
@@ -233,9 +237,13 @@ async function fetchAllPredictions() {
           if (yesPrice === null) continue;
 
           const eventKey = `polymarket:${event.id}`;
+          const change24h = parsePolymarketChange(topMarket, 'oneDayPriceChange');
+          const change7d = parsePolymarketChange(topMarket, 'oneWeekPriceChange');
           markets.push({
             title: topMarket.question || event.title,
             yesPrice,
+            ...(change24h === null ? {} : { change24h }),
+            ...(change7d === null ? {} : { change7d }),
             volume: eventVolume,
             url: `https://polymarket.com/event/${event.slug}`,
             endDate: topMarket.endDate ?? event.endDate ?? undefined,
@@ -246,9 +254,13 @@ async function fetchAllPredictions() {
           for (const market of active) {
             const candidatePrice = parseYesPrice(market);
             if (candidatePrice === null) continue;
+            const candidateChange24h = parsePolymarketChange(market, 'oneDayPriceChange');
+            const candidateChange7d = parsePolymarketChange(market, 'oneWeekPriceChange');
             countryCandidates.push({
               title: market.question || event.title,
               yesPrice: candidatePrice,
+              ...(candidateChange24h === null ? {} : { change24h: candidateChange24h }),
+              ...(candidateChange7d === null ? {} : { change7d: candidateChange7d }),
               volume: parsePredictionMarketVolume(market),
               url: `https://polymarket.com/event/${event.slug}`,
               endDate: market.endDate ?? event.endDate ?? undefined,

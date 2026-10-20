@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -16,20 +16,25 @@ import {
   SCORECARD_STALE_AFTER_HOURS,
   accuracyAuditNotice,
   accuracyDatasetDownload,
+  accuracyStateAudit,
   classifyAccuracyState,
   proportionIntervals,
   renderAccuracyPage,
   renderAccuracyLlmsSection,
   selectDeclaredScorecardFields,
+  selectHorizonGrades,
   writeAccuracySection,
 } from '../scripts/build-accuracy-page.mjs';
+import { GO_FORWARD_SINCE_MS, SKILL_MIN_FAMILIES, SKILL_MIN_OUTCOME_FAMILIES, computeScorecard } from '../scripts/_forecast-scorecard.mjs';
 import { MARKET_ALERT_BASE_RATE_RULE, MARKET_ALERT_RESOLUTION_RULE, buildScorecard } from '../scripts/_market-alert-ledger.mjs';
 import { MARKET_ALERT_TYPES } from '../scripts/shared/market-alert-core.js';
-import { FORECAST_ACCURACY_AUDIT } from '../shared/forecast-accuracy-audit.js';
+import { FORECAST_ACCURACY_AUDIT_OVERRIDE, STANDING_ACCURACY_AUDIT } from '../shared/forecast-accuracy-audit.js';
+import { resolveLatestLivePulseSnapshotPath } from '../scripts/build-crawlable-corpus.mjs';
+import { wilsonInterval } from '../scripts/_forecast-scorecard.mjs';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 // Every suite below except the #8990 one pins the record as it reads once the
-// audit switch is lifted; that suite pins the state the switch publishes today.
+// audit has lifted; that suite pins the audited state.
 const LIFTED = null;
 const read = (relativePath) => readFileSync(join(repoRoot, relativePath), 'utf8');
 
@@ -645,7 +650,8 @@ describe('accuracy page honesty rules', () => {
     assert.match(sentence, /Brier score was 0\.118/);
     assert.match(sentence, /over 180 scored forecasts from at least 30 forecast families/);
     // p = 40/180, p(1-p) = 0.1728.
-    assert.match(sentence, /against 0\.173 for always forecasting the actual rate of 22\.2%/);
+    assert.match(sentence, /against 0\.173 for always forecasting the actual rate, 22\.2% of 180 forecasts, 95% interval 16\.8% to 28\.8%/);
+    assert.match(result[1], /<span data-rate-interval>16\.8% to 28\.8%<\/span>/, 'the bounds are marked as an interval');
     assert.doesNotMatch(sentence, /historical/);
     assert.doesNotMatch(sentence, /0\.25|0\.5 to everything|coin/);
     assert.doesNotMatch(result[0], /class="metric"/);
@@ -770,7 +776,7 @@ describe('accuracy page honesty rules', () => {
   it('does not claim every market price was for the forecast\'s own question', () => {
     const market = (html) => { const text = stripTags(html).replaceAll('&#39;', "'"); return text.slice(text.indexOf('Against prediction markets')); };
     const section = market(renderState(LIVE_SECTION).html);
-    assert.match(section, /every scored entry that carried a liquid prediction market's price/);
+    assert.match(section, /every scored forecast of every origin, unpublished shadow bets included, that carried a liquid prediction market's price/);
     assert.match(section, /For a market bet the price is for the bet's own question\. For any other forecast it is the price of a market on the same subject and kind of event that settles after the forecast was issued and no later than one more horizon, at least a week, past its deadline\. That market can ask a narrower or broader question than the forecast\./);
     assert.match(section, /On 78 such resolved entries/);
     assert.doesNotMatch(stripTags(renderState(LIVE_SECTION).html), /own question a liquid|covered the same question|overlapped/);
@@ -882,7 +888,9 @@ describe('accuracy page honesty rules', () => {
       scorecard: {
         ...WITH_INTERVALS.scorecard,
         betEngine: { count: 299 },
-        judgedLane: 'shadow',
+        // "shadow bets" is public vocabulary (#8990), so the planted value is a
+        // token no page copy uses.
+        judgedLane: 'lane-leak-marker',
         marketAlerts: {
           ...MARKET_ALERTS,
           archive: { coveredFromMs: 1 },
@@ -892,11 +900,12 @@ describe('accuracy page honesty rules', () => {
     };
     const { html } = renderState(leaky);
     const download = downloadFor(leaky);
-    assert.doesNotMatch(html, /betEngine|judgedLane|shadow|coveredFromMs/);
-    assert.doesNotMatch(JSON.stringify(download), /betEngine|judgedLane|shadow|coveredFromMs/);
+    assert.doesNotMatch(html, /betEngine|judgedLane|lane-leak-marker|coveredFromMs/);
+    assert.doesNotMatch(JSON.stringify(download), /betEngine|judgedLane|lane-leak-marker|coveredFromMs/);
     assert.deepEqual(
       Object.keys(download.scorecard).sort(),
-      [...SCORECARD_DECLARED_FIELDS].sort(),
+      // This capture predates the captured underAudit (#8990), so it has none.
+      SCORECARD_DECLARED_FIELDS.filter((field) => field !== 'underAudit').sort(),
       'the distribution carries the declared surface and nothing else',
     );
     assert.deepEqual(download.scorecard.marketAlerts, MARKET_ALERTS);
@@ -923,15 +932,15 @@ describe('accuracy page honesty rules', () => {
     assert.equal(download.confidenceIntervals.meanScores.logScore.published, false);
     // Some horizons are graded internally since #8939, so a bare `scored: false`
     // was untrue. The flags say what this file and page publish, nothing more.
-    assert.deepEqual(download.horizonProjections, {
-      valuesPublished: false,
-      gradesPublished: false,
-      trackedIn: 'https://github.com/koala73/worldmonitor/issues/9057',
-    });
-    // #7075 closed with internal grading; publishing those grades is #9057.
+    // This section carries no MCP horizon read, so it publishes no grades
+    // and says so (#9057).
+    assert.equal(download.horizonProjections.valuesPublished, false);
+    assert.equal(download.horizonProjections.gradesPublished, false);
+    assert.equal(download.horizonProjections.gradesStatus, 'not-captured');
+    assert.equal(download.horizonProjections.rows, null);
     const html = renderState(LIVE_SECTION).html;
-    assert.match(html, /Those horizon grades are not published yet\. Tracking: <a href="https:\/\/github\.com\/koala73\/worldmonitor\/issues\/9057">issue #9057<\/a>\./);
-    assert.doesNotMatch(html, /issues\/7075/);
+    assert.match(html, /This edition did not capture the projection grades, so none are shown\./);
+    assert.doesNotMatch(html, /issues\/7075|issues\/9057|not published yet/);
     assert.equal(download.headlineCohort.excludedScored, 310);
     assert.deepEqual(download.headlineCohort.excludedOrigins, ['bet_engine', 'state_derived']);
     assert.deepEqual(download.pooledPopulations, {
@@ -1201,7 +1210,33 @@ describe('accuracy page proportion intervals', () => {
   it('promises intervals only for the rates that carry one', () => {
     const text = stripTags(renderState(LIVE_SECTION).html);
     assert.doesNotMatch(text, /Every rate (does )?carr/);
-    assert.match(text, /scored share of the ledger and the base rates/);
+    assert.doesNotMatch(text, /do not( carry one)? yet\b[^.]*base rates|base rates do not/);
+    assert.match(text, /the scored share of the ledger and the actual rates/);
+  });
+
+  // #7072: the 2 rates the page used to leave bare now carry a Wilson interval
+  // from the counts printed beside them.
+  it('puts a Wilson interval beside the scored share and each actual rate', () => {
+    // Test data: the live capture plus a headline yes count.
+    const section = sectionWith({ skill: { ...LIVE_SCORECARD.skill, yesCount: 54 } });
+    const html = renderState(section).html;
+    const { totals } = section.scorecard;
+    const intervals = proportionIntervals(section.scorecard);
+    assert.deepEqual(intervals.scoredShare.ci95, wilsonInterval(totals.scored, totals.entries));
+    const pct = (value) => `${(value * 100).toFixed(1)}%`;
+    const totalsText = stripTags(html.match(/<table data-ledger-totals>[\s\S]*?<\/table>/)[0]);
+    assert.ok(totalsText.includes(`95% interval ${pct(intervals.scoredShare.ci95[0])} to ${pct(intervals.scoredShare.ci95[1])}`), totalsText);
+    const text = stripTags(html);
+    for (const estimate of [intervals.headlineActualRate, intervals.pooledActualRate]) {
+      assert.ok(estimate, 'the live capture carries both counts');
+      assert.ok(text.includes(`came true: ${pct(estimate.successes / estimate.count)} of`), 'rate printed');
+      assert.ok(text.includes(`95% interval ${pct(estimate.ci95[0])} to ${pct(estimate.ci95[1])}`), `interval ${estimate.ci95}`);
+    }
+    assert.doesNotMatch(html, /\[\[rate-interval/, 'no marker leaks into the page');
+    const llms = renderAccuracyLlmsSection(section, null);
+    assert.doesNotMatch(llms, /\[\[rate-interval|data-rate-interval/, 'llms-full prints the bounds as text');
+    const headline = intervals.headlineActualRate;
+    assert.ok(llms.includes(`actual rate, ${pct(headline.successes / headline.count)} of 180 forecasts, 95% interval ${pct(headline.ci95[0])} to ${pct(headline.ci95[1])}`), llms);
   });
 
   it('says the ledger totals leave out forecasts withheld under #5234', () => {
@@ -1257,7 +1292,10 @@ describe('accuracy page forecast receipts (#5092)', () => {
       familyOutcomes: [{ forecastId: 'fc-1', outcome: 'VOID', voidReason: 'other' }],
     });
     assert.equal(Object.hasOwn(selected, 'familyOutcomes'), false);
-    assert.deepEqual([...SCORECARD_LIVE_ONLY_FIELDS], ['familyOutcomes', 'underAudit']);
+    assert.deepEqual([...SCORECARD_LIVE_ONLY_FIELDS], ['familyOutcomes']);
+    // The live API's audit is captured member by member, so the page can hold it (#8990).
+    const flagged = selectDeclaredScorecardFields({ ...WITH_INTERVALS.scorecard, underAudit: { since: '2026-10-07', reason: 'r', issue: 8990, extra: 'x' } });
+    assert.deepEqual(flagged.underAudit, { since: '2026-10-07', reason: 'r', issue: 8990 });
   });
 
   it('renders the receipts newest first with what was forecast, when, the chance, the outcome and the source', () => {
@@ -1324,7 +1362,7 @@ describe('accuracy page forecast receipts (#5092)', () => {
     // The API defaults the field to [], so an old seed and a window where only
     // excluded origins resolved look the same.
     const text = stripTags(renderState(sectionWith({ receipts: [] })).html);
-    assert.match(text, /This capture carries no receipts: it predates them, or no published forecast resolved in the window\./);
+    assert.match(text, /This capture carries no receipts: it predates them, or no attributable published forecast \(synthetic and unattributed origins left out\) resolved in the window\./);
     assert.doesNotMatch(text, /does not carry per-forecast receipts/);
   });
 
@@ -1368,7 +1406,7 @@ describe('accuracy page Brier intervals and maturity funnel (#7072)', () => {
     const sentence = stripTags(html.match(/<p data-accuracy-result>([\s\S]*?)<\/p>/)[1]);
     assert.match(sentence, /Brier of 0\.118 \(95% interval 0\.098 to 0\.139\) across 180 scored forecasts/);
     assert.match(tileOf(html, 'Brier score, headline cohort'), /180 scored forecasts, 95% interval 0\.098 to 0\.139/);
-    assert.match(tileOf(html, 'Brier score, every scored entry'), /490 scored forecasts, 95% interval 0\.178 to 0\.207/);
+    assert.match(tileOf(html, 'Brier score, every scored entry'), /490 scored forecasts of every origin, unpublished shadow bets included, 95% interval 0\.178 to 0\.207/);
     assert.match(renderAccuracyLlmsSection(WITH_INTERVALS, LIFTED), /Brier of 0\.118 \(95% interval 0\.098 to 0\.139\)/);
   });
 
@@ -1404,7 +1442,7 @@ describe('accuracy page Brier intervals and maturity funnel (#7072)', () => {
       overall: { ...LIVE_SCORECARD.overall, count: 1 },
       uncertainty: { ...UNCERTAINTY, overallBrier: { count: 1, mean: 0.04, ci95: [0.04, 0.04], insufficientSample: true } },
     });
-    assert.match(tileOf(renderState(single).html, 'Brier score, every scored entry'), /1 scored forecasts, 95% interval not measurable/);
+    assert.match(tileOf(renderState(single).html, 'Brier score, every scored entry'), /1 scored forecasts of every origin, unpublished shadow bets included, 95% interval not measurable/);
   });
 
   it('flags an interval resting on fewer forecasts than the producer trusts', () => {
@@ -1568,7 +1606,7 @@ describe('accuracy verdict block', () => {
   });
 
   it('states the market comparison in words that follow the delta sign', () => {
-    assert.match(verdictText(renderState(LIVE_SECTION).html), /In the 78 graded cases that carried a liquid prediction market's price, the market's odds were closer to what happened than World Monitor's\. A market matched to a forecast, rather than one the forecast bet on, can ask a narrower or broader question\./);
+    assert.match(verdictText(renderState(LIVE_SECTION).html), /In the 78 graded cases of every origin, unpublished shadow bets included, that carried a liquid prediction market's price, the market's odds were closer to what happened than World Monitor's\. A market matched to a forecast, rather than one the forecast bet on, can ask a narrower or broader question\./);
     const flipped = sectionWith({ vsMarketSkill: { count: 78, forecastBrier: 0.073136, marketBrier: 0.154623, brierDelta: 0.081487 } });
     assert.match(verdictText(renderState(flipped).html), /World Monitor's odds were closer to what happened than the market's/);
     const tied = sectionWith({ vsMarketSkill: { count: 4, forecastBrier: 0.1, marketBrier: 0.1, brierDelta: 0 } });
@@ -1581,7 +1619,7 @@ describe('accuracy verdict block', () => {
     const { overall } = LIVE_SCORECARD;
     assert.equal(pooledYes, 140, 'the fixture buckets recover 140 realised outcomes');
     const text = verdictText(renderState(LIVE_SECTION).html);
-    assert.match(text, new RegExp(`Across all ${overall.count} graded forecasts, ${pooledYes} came true: 28\\.6% of ${overall.count}`));
+    assert.match(text, new RegExp(`Across all ${overall.count} graded forecasts of every origin, unpublished shadow bets included, ${pooledYes} came true: 28\\.6% of ${overall.count}`));
     assert.match(text, /pools kinds of forecast that come true at very different rates, so it is not compared with a single rate/);
     for (const brier of [0.1, 0.192435, 0.3]) {
       assert.doesNotMatch(verdictText(renderState(sectionWith({ overall: { ...overall, brier } })).html), /beat|0\.204/, 'a pooled comparison is a pooling artifact');
@@ -1846,13 +1884,47 @@ describe('accuracy page publishing contract', () => {
   });
 });
 
+describe('go-forward VOID share on the page (#4930)', () => {
+  const AFTER = Date.parse('2026-10-20T06:00:00Z');
+  const opened = (id, outcome) => ({
+    id, status: 'resolved', outcome, probability: 0.4, domain: 'conflict', generationOrigin: 'detector',
+    firstSeenAt: GO_FORWARD_SINCE_MS + 1, resolvedAt: AFTER - 1, evidence: outcome === 'VOID' ? { reason: 'all_judges_void' } : {},
+  });
+  const NOTE = /Since 8 October 2026, 3 of 30 resolved published forecasts were void \(10\.0%, 95% interval 3\.5% to 25\.6%\); the target is under 15%\./;
+  const { methodology } = computeScorecard(Array.from({ length: 30 }, (_, i) => opened(`f${i}`, i < 3 ? 'VOID' : 'NO')), AFTER);
+
+  it('prints the producer sentence directly under the ledger totals', () => {
+    const { html } = renderState(sectionWith({ methodology }));
+    const ledger = html.slice(html.indexOf('<h2>Resolution ledger</h2>'), html.indexOf('<h2>Calibration</h2>'));
+    const afterTotals = ledger.slice(ledger.indexOf('</table>'));
+    assert.match(stripTags(afterTotals), NOTE);
+  });
+
+  it('keeps the sentence in the methodology while the audit withdraws the scores', () => {
+    const audit = { since: '2026-10-07', issue: 8990, reason: 'Fixture reason for the audit notice, long enough to read as one.' };
+    assert.match(stripTags(renderState(sectionWith({ methodology }), { audit }).html), NOTE);
+  });
+
+  it('carries the sentence into the dataset download', () => {
+    assert.match(JSON.stringify(downloadFor(sectionWith({ methodology }))), NOTE);
+  });
+});
+
 describe('accuracy page after the #5233 correction', () => {
   const CORRECTION = 'could not read';
 
-  it('the committed pre-correction snapshot carries no correction note', () => {
-    const snapshot = JSON.parse(read('docs/snapshots/crawlable-live-pulse-2026-10-05.json'));
-    const { html } = renderState(snapshot.forecastScorecard);
-    assert.doesNotMatch(stripTags(html), new RegExp(CORRECTION));
+  it('prints the correction note only when the captured methodology carries it', () => {
+    // The renderer must not supply the note itself: the pre-correction
+    // methodology, captured the day the page shipped, renders without it.
+    const before = renderState(sectionWith({ methodology: LIVE_SCORECARD.methodology }));
+    assert.doesNotMatch(stripTags(before.html), new RegExp(CORRECTION));
+    // The committed capture rolls forward every week, so resolve the newest
+    // one and read the expectation from its own methodology. Naming the
+    // 2026-10-05 file broke the first refresh that deleted it (#9115).
+    const capture = JSON.parse(read(resolveLatestLivePulseSnapshotPath(repoRoot))).forecastScorecard;
+    const captured = new RegExp(CORRECTION).test(capture.scorecard?.methodology ?? '');
+    const { html } = renderState(capture);
+    assert.equal(new RegExp(CORRECTION).test(stripTags(html)), captured, 'the page follows the captured methodology');
   });
 
   it('shows the note when the captured scorecard reports the voids', () => {
@@ -1892,32 +1964,84 @@ describe('accuracy record under audit (#8990)', () => {
   // The page body only: JSON-LD lives in the head, so it never counts as visible copy.
   const visibleText = ({ shell }) => stripTags(shell.body).replaceAll('&quot;', '"');
 
-  it('keeps the switch either lifted or a well-formed audit', () => {
-    if (FORECAST_ACCURACY_AUDIT === null) return;
-    assert.match(FORECAST_ACCURACY_AUDIT.since, /^\d{4}-\d{2}-\d{2}$/);
-    assert.ok(Number.isInteger(FORECAST_ACCURACY_AUDIT.issue) && FORECAST_ACCURACY_AUDIT.issue > 0);
-    assert.ok(FORECAST_ACCURACY_AUDIT.reason.length > 40);
-    assert.ok(Object.isFrozen(FORECAST_ACCURACY_AUDIT));
+  it('keeps the standing audit well-formed and the override either unset or a well-formed audit', () => {
+    for (const audit of [STANDING_ACCURACY_AUDIT, FORECAST_ACCURACY_AUDIT_OVERRIDE].filter(Boolean)) {
+      assert.match(audit.since, /^\d{4}-\d{2}-\d{2}$/);
+      assert.ok(Number.isInteger(audit.issue) && audit.issue > 0);
+      assert.ok(audit.reason.length > 40);
+      assert.ok(Object.isFrozen(audit));
+    }
+    assert.equal(STANDING_ACCURACY_AUDIT.liftsWhenMeasurable, true);
+    assert.equal(FORECAST_ACCURACY_AUDIT_OVERRIDE?.liftsWhenMeasurable, undefined, 'an override never lifts by itself');
   });
 
   it('names the three flaws and the rescoring in the notice, with no skill verdict', () => {
     assert.equal(accuracyAuditNotice(AUDIT), NOTICE);
-    if (FORECAST_ACCURACY_AUDIT) assert.equal(FORECAST_ACCURACY_AUDIT.reason, AUDIT.reason, 'the live reason is the reviewed copy');
+    assert.equal(STANDING_ACCURACY_AUDIT.reason, AUDIT.reason, 'the standing reason is the reviewed copy');
     assert.doesNotMatch(NOTICE, /skill|beat|base rate/i);
   });
 
-  it('defaults every renderer to the switch', () => {
+  it('says when the standing audit lifts, and only on the standing audit', () => {
+    const LIFT = ' The scores return automatically once the headline cohort is measurable: at least 30 forecast families, with at least 5 that came true and 5 that did not.';
+    assert.equal(accuracyAuditNotice(STANDING_ACCURACY_AUDIT), `${NOTICE}${LIFT}`);
+    assert.ok(!accuracyAuditNotice(AUDIT).includes('return automatically'), 'a manual audit lifts only by hand');
+    const callout = renderState(FULL, { audit: STANDING_ACCURACY_AUDIT }).html.match(/<section id="under-audit"[\s\S]*?<\/section>/)[0];
+    assert.ok(stripTags(callout).includes(LIFT.trim()));
+    assert.ok(renderAccuracyLlmsSection(FULL, STANDING_ACCURACY_AUDIT).includes(LIFT.trim()));
+  });
+
+  it('derives every renderer\'s audit from the captured scorecard', () => {
     const { tpl } = fakeTpl();
-    const state = classifyAccuracyState(FULL);
-    const page = (audit) => renderAccuracyPage({
-      baseUrl: BASE_URL, tpl, state, lastmod: '2026-10-07', dataset: DATASET, dataCatalog: DATA_CATALOG, snapshotPath: SNAPSHOT_PATH, ...audit,
-    });
-    assert.equal(page({}), page({ audit: FORECAST_ACCURACY_AUDIT }));
-    assert.equal(renderAccuracyLlmsSection(FULL), renderAccuracyLlmsSection(FULL, FORECAST_ACCURACY_AUDIT));
-    assert.equal(
-      accuracyDatasetDownload({ state, snapshotPath: SNAPSHOT_PATH }),
-      accuracyDatasetDownload({ state, snapshotPath: SNAPSHOT_PATH, audit: FORECAST_ACCURACY_AUDIT }),
-    );
+    const SMALL = sectionWith({ uncertainty: { ...UNCERTAINTY, skillBrier: { ...UNCERTAINTY.skillBrier, insufficientSample: true } } });
+    for (const [label, section] of [['measurable', FULL], ['small sample', SMALL], ['nothing captured', null]]) {
+      const state = classifyAccuracyState(section);
+      const derived = accuracyStateAudit(state);
+      const page = (audit) => renderAccuracyPage({
+        baseUrl: BASE_URL, tpl, state, lastmod: '2026-10-07', dataset: DATASET, dataCatalog: DATA_CATALOG, snapshotPath: SNAPSHOT_PATH, ...audit,
+      });
+      assert.equal(page({}), page({ audit: derived }), label);
+      assert.equal(renderAccuracyLlmsSection(section), renderAccuracyLlmsSection(section, derived), label);
+      assert.equal(
+        accuracyDatasetDownload({ state, snapshotPath: SNAPSHOT_PATH }),
+        accuracyDatasetDownload({ state, snapshotPath: SNAPSHOT_PATH, audit: derived }),
+        label,
+      );
+    }
+    if (FORECAST_ACCURACY_AUDIT_OVERRIDE) return;
+    assert.equal(accuracyStateAudit(classifyAccuracyState(FULL)), null, 'a measurable capture lifts the audit');
+    assert.equal(accuracyStateAudit(classifyAccuracyState(SMALL)), STANDING_ACCURACY_AUDIT);
+    assert.equal(accuracyStateAudit(classifyAccuracyState(null)), STANDING_ACCURACY_AUDIT);
+  });
+
+  it('lifts every /accuracy/ surface for a measurable capture and holds them for a small sample', () => {
+    if (FORECAST_ACCURACY_AUDIT_OVERRIDE) return;
+    const SMALL = sectionWith({ uncertainty: { ...UNCERTAINTY, skillBrier: { ...UNCERTAINTY.skillBrier, insufficientSample: true } } });
+    const { tpl } = fakeTpl();
+    const build = (section) => {
+      const outDir = mkdtempSync(join(tmpdir(), 'accuracy-lift-'));
+      try {
+        writeAccuracySection({ outDir, baseUrl: BASE_URL, tpl, section, dataset: DATASET, dataCatalog: DATA_CATALOG, snapshotPath: SNAPSHOT_PATH });
+        return {
+          html: readFileSync(join(outDir, 'accuracy', 'index.html'), 'utf8'),
+          download: JSON.parse(readFileSync(join(outDir, DATASET.file), 'utf8')),
+          llms: renderAccuracyLlmsSection(section),
+        };
+      } finally {
+        rmSync(outDir, { recursive: true, force: true });
+      }
+    };
+    const lifted = build(FULL);
+    assert.doesNotMatch(lifted.html, /data-accuracy-audit|Under audit since/);
+    assert.match(lifted.html, /data-accuracy-verdict/);
+    assert.equal(lifted.download.underAudit, null);
+    assert.doesNotMatch(lifted.llms, /Under audit since/);
+    assert.match(lifted.llms, /Brier/);
+    const held = build(SMALL);
+    assert.match(held.html, /data-accuracy-audit="2026-10-07"/);
+    assert.doesNotMatch(held.html, /data-accuracy-verdict/);
+    assert.equal(held.download.underAudit.issue, 8990);
+    assert.match(held.llms, /^Under audit since 2026-10-07\./m);
+    assert.doesNotMatch(held.llms, /Brier/);
   });
 
   it('replaces the headline, the verdict and every score with the dated notice', () => {
@@ -2073,7 +2197,9 @@ describe('accuracy record under audit (#8990)', () => {
   const claimsIn = (text) => CLAIM_PHRASES.filter((phrase) => phrase.test(text)).map(String);
 
   it('keeps every static surface free of score claims', () => {
-    const surfaces = FORECAST_ACCURACY_AUDIT ? [...STATIC_SURFACES, 'public/llms-full.txt'] : STATIC_SURFACES;
+    // llms-full.txt is generated from the committed capture, so it is score-free exactly while that capture holds the audit.
+    const capture = JSON.parse(read(relative(repoRoot, resolveLatestLivePulseSnapshotPath(repoRoot)))).forecastScorecard;
+    const surfaces = accuracyStateAudit(classifyAccuracyState(capture)) ? [...STATIC_SURFACES, 'public/llms-full.txt'] : STATIC_SURFACES;
     for (const path of surfaces) assert.deepEqual(claimsIn(read(path)), [], `${path} states accuracy as a verdict`);
     const post = read(BLOG);
     const noteAt = post.indexOf(BLOG_NOTE);
@@ -2157,5 +2283,224 @@ describe('accuracy page skill against the actual rate, both audit states (#8990)
     assert.equal(classifyAccuracyState(rowLevel).coverage, 'small-sample', 'a row-level flag predates the family rule');
     assert.equal(classifyAccuracyState(sectionWith({ uncertainty: undefined })).coverage, 'small-sample');
     assert.match(renderState(skillSection({ brier: 0.2 }, { small: true })).html, /data-accuracy-coverage="small-sample">Coverage: Small sample/);
+  });
+});
+
+// Schema 3 scorecards count published forecasts only in the totals and the
+// funnel (#8990). The page is built from a frozen capture, so it names the
+// population that capture carries, not the one the current producer writes.
+describe('ledger population follows the capture (#8990)', () => {
+  const PUBLISHED = sectionWith({ schemaVersion: 3, funnel: FUNNEL });
+  const POOLED = sectionWith({ schemaVersion: 2, funnel: FUNNEL });
+  const captionOf = (html, marker) => stripTags(html.match(new RegExp(`<table ${marker}>[\\s\\S]*?</caption>`))[0]);
+  const verdictOf = (html) => stripTags(html.match(/<section data-accuracy-verdict[\s\S]*?<\/section>/)[0]).replace(/&#39;/g, "'");
+  const tileLabels = (html) => [...html.matchAll(/<div class="metric"><span>([^<]+)<\/span>/g)].map((match) => match[1]);
+
+  it('names published forecasts in the totals, funnel, tile and verdict from schema 3', () => {
+    const { html } = renderState(PUBLISHED);
+    assert.match(captionOf(html, 'data-ledger-totals'), /These totals count published forecasts only\. Shadow bets, scored for evidence but never shown, are left out; they appear under Accuracy by generation origin\./);
+    assert.match(captionOf(html, 'data-maturity-funnel'), /^ ?Of the published forecasts in the ledger that are past their deadline or already resolved/);
+    assert.ok(tileLabels(html).includes('Scored published forecasts'));
+    assert.match(verdictOf(html), /772 published forecasts came due and were resolved\. 490 could be graded/);
+  });
+
+  it('says an older capture pools every origin, shadow bets included', () => {
+    const { html } = renderState(POOLED);
+    assert.match(captionOf(html, 'data-ledger-totals'), /These totals count every origin, unpublished shadow bets included\./);
+    assert.doesNotMatch(captionOf(html, 'data-maturity-funnel'), /published/);
+    assert.ok(tileLabels(html).includes('Scored entries'));
+    assert.match(verdictOf(html), /, 772 forecasts came due and were resolved\./);
+  });
+
+  it('names the pooled population beside the all-graded count and the probability bands', () => {
+    for (const section of [PUBLISHED, POOLED]) {
+      const text = verdictOf(renderState(section).html);
+      assert.match(text, /Across all 490 graded forecasts of every origin, unpublished shadow bets included, /);
+      assert.match(text, /Over all 490 graded forecasts of every origin, unpublished shadow bets included: When World Monitor put the chance/);
+    }
+  });
+
+  it('labels every pooled number outside the verdict with its population', () => {
+    const POOLED_LABEL = 'of every origin, unpublished shadow bets included';
+    const html = renderState(sectionWith({ schemaVersion: 3, funnel: FUNNEL, uncertainty: UNCERTAINTY })).html;
+    const tile = stripTags(html.match(/<div class="metric"><span>Brier score, every scored entry<\/span>[\s\S]*?<\/div>/)[0]);
+    assert.ok(tile.includes(`490 scored forecasts ${POOLED_LABEL}`), tile);
+    assert.ok(captionOf(html, 'data-calibration').includes(`all 490 scored forecasts ${POOLED_LABEL}`));
+    const market = stripTags(html.match(/<h2>Against prediction markets<\/h2>[\s\S]*?<\/p>/)[0]);
+    assert.ok(market.includes(`every scored forecast ${POOLED_LABEL}, that carried`), market);
+  });
+
+  it('names the narrower attributable population where receipts and domains use it', () => {
+    const html = renderState(sectionWith({ schemaVersion: 3, funnel: FUNNEL, receipts: [] })).html;
+    assert.match(stripTags(html), /no attributable published forecast \(synthetic and unattributed origins left out\) resolved in the window/);
+    assert.match(captionOf(html, 'data-by-domain'), /^ ?Accuracy by forecast domain for attributable published forecasts only/);
+  });
+
+  it('records the ledger population in the download', () => {
+    assert.equal(downloadFor(PUBLISHED).ledgerPopulation, 'published-forecasts');
+    assert.equal(downloadFor(POOLED).ledgerPopulation, 'all-entries');
+  });
+});
+
+describe('accuracy page horizon grades (#9057)', () => {
+  // Test data, not a live reading: one measurable row and two below the minimums.
+  const MEASURABLE_D7 = Object.freeze({
+    curvesVersion: 1, horizon: 'd7', scored: 40, yes: 8, no: 32, families: SKILL_MIN_FAMILIES, yesFamilies: 6, noFamilies: 24,
+    measurable: true, brier: { mean: 0.142, ci95: [0.11, 0.18] }, realizedRate: { count: 40, successes: 8, rate: 0.2, ci95: [0.105, 0.348] },
+  });
+  const SHORT_H24 = Object.freeze({ curvesVersion: 1, horizon: 'h24', scored: 12, yes: 3, no: 9, families: 9, yesFamilies: 3, noFamilies: 7, measurable: false });
+  const EMPTY_D30 = Object.freeze({ curvesVersion: 1, horizon: 'd30', scored: 0, yes: 0, no: 0, families: 0, yesFamilies: 0, noFamilies: 0, measurable: false });
+  const GRADES = Object.freeze({
+    semantics: 'point_in_time',
+    note: 'A projection is not a probability.',
+    minimums: { families: SKILL_MIN_FAMILIES, yesFamilies: SKILL_MIN_OUTCOME_FAMILIES, noFamilies: SKILL_MIN_OUTCOME_FAMILIES },
+    unversionedScored: 2,
+    rows: [SHORT_H24, MEASURABLE_D7, EMPTY_D30],
+  });
+  const withGrades = (grades = GRADES, generatedAt = LIVE_SCORECARD.generatedAt) => ({
+    ...LIVE_SECTION,
+    horizonGrades: { attemptedAt: '2026-09-10', generatedAt, grades, failureCode: '' },
+  });
+  const rowHtml = (html, horizon) => html.match(new RegExp(`<tr data-horizon-grade="${horizon}"[\\s\\S]*?</tr>`))?.[0] ?? '';
+
+  it('publishes a measurable grade beside its curve version, and says projections are not probabilities', () => {
+    const { html } = renderState(withGrades());
+    assert.match(html, /<h2 id="horizon-grades">/);
+    assert.match(html, /<strong>A projection is not a probability\.<\/strong> It comes from a fixed, hand-set curve/);
+    const d7 = rowHtml(html, 'd7');
+    assert.match(d7, /data-curves-version="1" data-measurable="true"/);
+    assert.match(d7, /<td>Version 1<\/td>/);
+    assert.match(d7, /<td>0\.142, 95% interval 0\.110 to 0\.180<\/td>/);
+    assert.match(d7, /20\.0% of 40 graded windows, 95% interval <span data-rate-interval>/);
+    assert.match(d7, /40 graded windows from 30 forecast families: 6 with the event, 24 without/);
+    assert.match(html, /2 graded windows were registered before projections carried a curve version/);
+  });
+
+  it('says plainly that a horizon below the minimums is not yet measurable, with its counts', () => {
+    const { html } = renderState(withGrades());
+    for (const horizon of ['h24', 'd30']) {
+      const row = rowHtml(html, horizon);
+      assert.match(row, /data-measurable="false"/);
+      assert.equal((row.match(/<td>Not yet measurable<\/td>/g) ?? []).length, 2, horizon);
+      assert.doesNotMatch(row, /95% interval/);
+    }
+    assert.match(rowHtml(html, 'h24'), /12 graded windows from 9 forecast families: 3 with the event, 7 without/);
+    assert.match(rowHtml(html, 'd30'), /<td>No graded windows yet<\/td>/);
+    assert.match(html, /once its graded windows come from at least 30 forecast families, with at least 5 where the projected event happened and 5 where it did not/);
+  });
+
+  it('re-checks the minimums itself, so a row that claims a grade below them publishes counts only', () => {
+    const cases = {
+      'one family short': { families: SKILL_MIN_FAMILIES - 1 },
+      'one YES family short': { yesFamilies: SKILL_MIN_OUTCOME_FAMILIES - 1 },
+      'one NO family short': { noFamilies: SKILL_MIN_OUTCOME_FAMILIES - 1 },
+      'inverted interval': { brier: { mean: 0.142, ci95: [0.18, 0.11] } },
+    };
+    for (const [label, override] of Object.entries(cases)) {
+      const grades = { ...GRADES, rows: [{ ...MEASURABLE_D7, ...override }] };
+      const { html } = renderState(withGrades(grades));
+      assert.match(rowHtml(html, 'd7'), /data-measurable="false"/, label);
+      const [row] = downloadFor(withGrades(grades)).horizonProjections.rows;
+      assert.equal(row.measurable, false, label);
+      assert.equal('brier' in row || 'realizedRate' in row, false, label);
+    }
+    const exact = selectHorizonGrades({ ...GRADES, rows: [MEASURABLE_D7] }).rows[0];
+    assert.equal(exact.measurable, true, 'exactly at the minimums is measurable');
+    // Rounded apart, a percentile bootstrap interval can sit off its own mean;
+    // that is no reason to hide a grade the counts allow.
+    const offMean = selectHorizonGrades({ ...GRADES, rows: [{ ...MEASURABLE_D7, brier: { mean: 0.142, ci95: [0.143, 0.18] } }] }).rows[0];
+    assert.equal(offMean.measurable, true);
+  });
+
+  it('recomputes the published rate and its Wilson interval from the counts', () => {
+    const [row] = selectHorizonGrades({ ...GRADES, rows: [{ ...MEASURABLE_D7, realizedRate: { count: 40, successes: 39, rate: 0.975, ci95: [0.9, 1] } }] }).rows;
+    assert.deepEqual(row.realizedRate, { count: 40, successes: 8, rate: 0.2, ci95: wilsonInterval(8, 40) });
+  });
+
+  it('claims grading in the limits list and llms text only when this edition carries the grades', () => {
+    const withLimits = renderState(withGrades()).html;
+    assert.match(withLimits, /Their grades are in the <a href="#horizon-grades">projection grades<\/a> section/);
+    assert.match(renderAccuracyLlmsSection(withGrades(), LIFTED), /The page grades the projections it made at each horizon/);
+    for (const section of [LIVE_SECTION, withGrades(GRADES, LIVE_SCORECARD.generatedAt - 1)]) {
+      const html = renderState(section).html;
+      assert.match(html, /This edition carries no grades for them; the <a href="#horizon-grades">projection grades<\/a> section says why\./);
+      assert.doesNotMatch(html, /Their grades are in the/);
+      const llms = renderAccuracyLlmsSection(section, LIFTED);
+      assert.match(llms, /This edition carries no grades for those projections\./);
+      assert.doesNotMatch(llms, /The page grades the projections/);
+    }
+  });
+
+  it('shows no grade read from a different scoring run than the record', () => {
+    const { html } = renderState(withGrades(GRADES, LIVE_SCORECARD.generatedAt - 1));
+    assert.match(html, /data-horizon-grades-status="other-run"/);
+    assert.doesNotMatch(html, /data-horizon-grade=/);
+    const download = downloadFor(withGrades(GRADES, LIVE_SCORECARD.generatedAt - 1)).horizonProjections;
+    assert.equal(download.gradesStatus, 'other-run');
+    assert.equal(download.rows, null);
+  });
+
+  it('withholds the grades from the page while the audit is on, like every other score', () => {
+    const audit = { since: '2026-10-07', issue: 8990, reason: 'An audit found errors in how forecasts were scored, so scores are withdrawn.' };
+    const { shell } = renderState(withGrades(), { audit });
+    assert.doesNotMatch(shell.body, /horizon-grades|horizon-grade=|Version 1/);
+    const download = JSON.parse(accuracyDatasetDownload({ state: classifyAccuracyState(withGrades()), snapshotPath: SNAPSHOT_PATH, audit }));
+    assert.equal(download.underAudit.issue, 8990, 'the download keeps the raw rows flagged under audit');
+    assert.equal(download.horizonProjections.rows.length, 3);
+    assert.equal(download.horizonProjections.gradesPublished, false, 'the page withholds them, so the download does not call them published');
+    assert.equal(downloadFor(withGrades()).horizonProjections.gradesPublished, true, 'lifted, the measurable row is published');
+  });
+
+  it('shows the grades only where the derived audit lifts: measurable and fresh, never stale or failed (#8990)', () => {
+    if (FORECAST_ACCURACY_AUDIT_OVERRIDE) return;
+    const derived = (section) => renderState(section, { audit: undefined }).shell.body;
+    assert.match(derived(withGrades()), /<h2 id="horizon-grades">/, 'a fresh measurable capture lifts the audit and shows the grades');
+    for (const [label, section] of [
+      ['small sample', { ...withGrades(), scorecard: { ...LIVE_SCORECARD, uncertainty: { ...UNCERTAINTY, skillBrier: { ...UNCERTAINTY.skillBrier, insufficientSample: true } } } }],
+      ['stale', { ...withGrades(), attemptedAtMs: LIVE_SECTION.attemptedAtMs + 40 * 3_600_000 }],
+      ['retained after a failed capture', { ...withGrades(), failureCode: 'http-error' }],
+    ]) {
+      assert.doesNotMatch(derived(section), /horizon-grades|horizon-grade=/, label);
+      assert.match(derived(section), /data-accuracy-audit=/, label);
+    }
+  });
+
+  it('publishes the grades in the download with their definition and minimums', () => {
+    const download = downloadFor(withGrades()).horizonProjections;
+    assert.equal(download.valuesPublished, false);
+    assert.equal(download.gradesStatus, 'captured');
+    assert.equal(download.gradesPublished, true);
+    assert.match(download.definition, /not a probability/);
+    assert.deepEqual(download.minimums, { families: SKILL_MIN_FAMILIES, yesFamilies: SKILL_MIN_OUTCOME_FAMILIES, noFamilies: SKILL_MIN_OUTCOME_FAMILIES });
+    assert.equal(download.unversionedScored, 2);
+    assert.deepEqual(download.rows.map((row) => [row.horizon, row.curvesVersion, row.measurable]), [['h24', 1, false], ['d7', 1, true], ['d30', 1, false]]);
+    assert.deepEqual(download.rows[1].brier, MEASURABLE_D7.brier);
+    assert.equal(downloadFor(withGrades({ ...GRADES, rows: [SHORT_H24] })).horizonProjections.gradesPublished, false);
+  });
+
+  it('drops rows it cannot read and states an empty table plainly', () => {
+    const grades = selectHorizonGrades({ ...GRADES, rows: [
+      { ...SHORT_H24, horizon: 'd90' }, { ...SHORT_H24, curvesVersion: null }, { ...SHORT_H24, yes: 4 }, 'x',
+      { ...MEASURABLE_D7, yesFamilies: SKILL_MIN_FAMILIES + 1 }, { ...MEASURABLE_D7, noFamilies: SKILL_MIN_FAMILIES + 1 },
+    ] });
+    assert.deepEqual(grades.rows, []);
+    const { html } = renderState(withGrades({ ...GRADES, rows: [] }));
+    assert.match(html, /data-horizon-grades-status="empty"/);
+  });
+
+  it('grades a producer scorecard end to end through the page', () => {
+    const NOW = LIVE_SCORECARD.generatedAt;
+    const ledger = Object.fromEntries(Array.from({ length: SKILL_MIN_FAMILIES }, (_, i) => {
+      const deadline = NOW - 2 * 86_400_000;
+      return [`g${i}`, {
+        id: `fc-g${i}`, key: `fc-g${i}@1@d30`, status: 'resolved', outcome: i < SKILL_MIN_OUTCOME_FAMILIES ? 'YES' : 'NO', probability: 0.3,
+        domain: 'supply_chain', generationOrigin: 'legacy_detector', projectionCurvesVersion: 1, generatedAt: deadline - 86_400_000, resolvedAt: NOW - 86_400_000, deadline,
+        spec: { kind: 'hard', horizon: 'd30', semantics: 'point_in_time', window: 'at-deadline', deadline },
+      }];
+    }));
+    const { horizonGrades } = computeScorecard(ledger, NOW);
+    const { html } = renderState(withGrades(horizonGrades));
+    assert.match(rowHtml(html, 'd30'), /data-measurable="true"/);
+    assert.match(rowHtml(html, 'h24'), /data-measurable="false"/);
   });
 });

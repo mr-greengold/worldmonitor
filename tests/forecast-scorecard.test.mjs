@@ -1,7 +1,12 @@
 import { strict as assert } from 'node:assert';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
 import {
+  DEFAULT_JUDGED_SLA_MS,
+  RESOLVER_CYCLE_MS,
+  hardSlaMs,
+  slaDueAt,
   DEFAULT_ROLLING_WINDOW_DAYS,
   DEFAULT_SKILL_EXCLUDED_ORIGINS,
   MARKET_SETTLEMENT_FEED,
@@ -14,10 +19,15 @@ import {
   RECEIPT_SOURCE_LABELS,
   RECEIPT_VOID_REASON_LABELS,
   FAMILY_OUTCOME_FAMILY_LIMIT,
+  GO_FORWARD_SINCE,
+  GO_FORWARD_MIN_RESOLVED,
+  GO_FORWARD_SINCE_MS,
+  GO_FORWARD_VOID_SHARE_TARGET,
   FAMILY_OUTCOME_LIMIT,
   PUBLIC_FAMILY_OUTCOME_FIELDS,
   buildFamilyOutcomes,
   buildPublicReceipts,
+  buildPublicForecastArchive,
   computeScorecard,
   hasPreLineageAnchor,
   isWithheldEntry,
@@ -25,11 +35,43 @@ import {
 } from '../scripts/_forecast-scorecard.mjs';
 import { PROJECTION_HORIZONS } from '../scripts/_forecast-resolution.mjs';
 import { selectFitCohort } from '../scripts/_forecast-calibration.mjs';
+import { buildProbabilityTrail, stampResolutionTrajectories } from '../scripts/_forecast-probability-trail.mjs';
 import { MARKET_SETTLEMENT_FEED as BET_SETTLEMENT_FEED } from '../scripts/_bet-templates-markets.mjs';
 
 const NOW = Date.parse('2026-07-20T00:00:00Z');
 const DAY_MS = 24 * 60 * 60 * 1000;
 const round6 = (value) => Math.round(value * 1_000_000) / 1_000_000;
+
+describe('public resolved forecast archive', () => {
+  it('uses the receipt cohort and whitelist, without the 20-receipt cap', () => {
+    const valid = Array.from({ length: 25 }, (_, i) => resolved({ id: `fc-${i}`, title: 'Will conflict escalate?', spec: { kind: 'judged' }, domain: 'conflict', region: 'Iran', generationOrigin: 'legacy_detector',
+      firstSeenAt: NOW - DAY_MS, lastSeenAt: NOW, deadline: NOW, trajectory: [[new Date(NOW - DAY_MS).toISOString(), 0.5]],
+      evidence: { selectionVersion: 3, rationale: 'PRIVATE', archiveItems: ['PRIVATE'] },
+    }));
+    const ledger = [...valid, { ...valid[0], duplicateOf: 'x' }, { ...valid[0], stateBucketId: 'fx_stress' },
+      { ...valid[0], generationOrigin: 'bet_engine' }, { ...valid[0], spec: { kind: 'hard', horizon: 'd7' } },
+      { ...valid[0], generationOrigin: 'bet_engine', probabilitySource: 'base_rate' }, { ...valid[0], resolvedAt: NOW - 181 * DAY_MS }];
+    const archive = buildPublicForecastArchive(ledger, NOW);
+    assert.equal(archive.rows.length, 25);
+    assert.deepEqual(archive.rows.map(row => row.forecastId).sort(), valid.map(row => row.id).sort());
+    assert.equal(archive.rows[0].evidence.selectionVersion, 3);
+    assert.ok(!JSON.stringify(archive).includes('PRIVATE'));
+    assert.ok(!JSON.stringify(archive).includes('metricKey'));
+    assert.ok(Buffer.byteLength(JSON.stringify(buildPublicForecastArchive(Array.from({ length: 300 }, (_, i) => ({ ...valid[0], id: `fc-${i}` })), NOW))) < 512 * 1024);
+  });
+
+  it('freezes only the matching subject and window trajectory at resolution', () => {
+    const trail = buildProbabilityTrail(null, { generatedAt: NOW, predictions: [{ id: 'fc-default', region: 'Iran', probability: 0.7 }] },
+      [{ generatedAt: NOW - DAY_MS, predictions: [{ id: 'fc-default', region: 'Iran', probability: 0.5 }] }]);
+    const entry = resolved({ region: 'Iran', resolvedAt: NOW, firstSeenAt: NOW - DAY_MS, deadline: NOW });
+    const other = { ...entry, region: 'Syria' };
+    stampResolutionTrajectories({ entry, other }, trail, NOW);
+    assert.equal(entry.trajectory.length, 2);
+    assert.equal(other.trajectory, undefined);
+    stampResolutionTrajectories({ entry }, { forecasts: {} }, NOW + DAY_MS);
+    assert.equal(entry.trajectory.length, 2);
+  });
+});
 
 function resolved(overrides) {
   return {
@@ -124,7 +166,7 @@ describe('computeScorecard', () => {
       // synthetic backfill — inflates overall, must be held out of skill
       c: resolved({ probability: 0.9, outcome: 'YES', generationOrigin: 'state_derived' }),
       // shadow bet-engine — scored for evidence but not promoted to the headline
-      d: resolved({ probability: 0.2, outcome: 'NO', generationOrigin: 'bet_engine' }),
+      d: resolved({ probability: 0.2, outcome: 'NO', generationOrigin: 'bet_engine', probabilitySource: 'ensemble' }),
     };
 
     const scorecard = computeScorecard(ledger, NOW);
@@ -218,14 +260,14 @@ describe('computeScorecard', () => {
       a: resolved({ probability: 0.8, outcome: 'YES', domain: 'market', generationOrigin: 'detector' }),
       b: resolved({ probability: 0.4, outcome: 'NO', domain: 'market', generationOrigin: 'detector' }),
       c: resolved({ probability: 0.3, outcome: 'NO', domain: 'conflict', generationOrigin: 'detector' }),
-      d: resolved({ probability: 0.1, outcome: 'YES', domain: 'market', generationOrigin: 'bet_engine' }),
+      d: resolved({ probability: 0.1, outcome: 'YES', domain: 'market', generationOrigin: 'bet_engine', probabilitySource: 'ensemble' }),
       e: resolved({ probability: 0.1, outcome: 'YES', domain: 'market', generationOrigin: 'state_derived' }),
       f: absent,
       g: resolved({ probability: 0.5, outcome: 'VOID', domain: 'market', generationOrigin: 'detector' }),
-      h: resolved({ probability: 0.9, outcome: 'NO', domain: 'cyber', generationOrigin: 'bet_engine' }),
+      h: resolved({ probability: 0.9, outcome: 'NO', domain: 'cyber', generationOrigin: 'bet_engine', probabilitySource: 'ensemble' }),
     }, NOW, { promoteBetEngine: true });
 
-    assert.equal(scorecard.schemaVersion, 2, 'schema 2 marks a seed that carries publishedByDomain');
+    assert.ok(scorecard.schemaVersion >= 2, 'schema 2 marks a seed that carries publishedByDomain');
     assert.deepEqual(scorecard.publishedByDomain, [
       { domain: 'conflict', count: 1, brier: 0.09, yesCount: 0, families: 1, nEff: 1, yesFamilies: 0, noFamilies: 1, referenceBrier: 0, measurable: false },
       { domain: 'market', count: 2, brier: 0.1, yesCount: 1, families: 1, nEff: 1, yesFamilies: 1, noFamilies: 1, referenceBrier: 0.25, measurable: false },
@@ -378,6 +420,14 @@ describe('market comparisons read only anchors that price the forecast question 
     assert.equal(scorecard.skill.preLineageAnchorCount, 1);
     const none = computeScorecard({ clean: resolved({ probability: 0.2, outcome: 'NO' }) }, NOW);
     assert.equal(none.skill.preLineageAnchorCount, 0);
+    // The count is internal, so the public methodology states it beside the audit-lift headline (#8990).
+    assert.ok(scorecard.methodology.endsWith(' 1 of the 3 headline forecasts scored here was published after a blend toward a market price chosen by the matcher used before issue #7071, which paired forecasts with unrelated markets; it is scored on the probability published.'));
+    assert.doesNotMatch(none.methodology, /issue #7071/);
+    const two = computeScorecard({
+      a: preLineage({ id: 'a', probability: 0.388, outcome: 'YES' }),
+      b: preLineage({ id: 'b', probability: 0.4, outcome: 'NO' }),
+    }, NOW);
+    assert.match(two.methodology, / 2 of the 2 headline forecasts scored here were published after a blend/);
   });
 
   it('treats a null or blank blend as missing lineage', () => {
@@ -478,8 +528,221 @@ describe('scorecard uncertainty and maturity denominators (#7072)', () => {
     assert.equal(small.uncertainty.skillBrier, null, 'an empty headline cohort has no estimate');
 
     const empty = computeScorecard({ a: resolved({ outcome: 'VOID' }) }, NOW);
-    assert.deepEqual(empty.uncertainty, { method: empty.uncertainty.method, overallBrier: null, skillBrier: null });
+    assert.deepEqual(empty.uncertainty, {
+      method: empty.uncertainty.method,
+      overallBrier: null,
+      skillBrier: null,
+      overallLogScore: null,
+      skillLogScore: null,
+      byDomain: [],
+      byGenerationOrigin: [],
+      vsMarket: null,
+    });
     assert.ok(!JSON.stringify(empty).includes('NaN'));
+  });
+});
+
+describe('group, log-score and market intervals (#7072)', () => {
+  const ledger = Object.fromEntries(Array.from({ length: 80 }, (_, i) => [`e${i}`, resolved({
+    id: `fam-${i % 40}`,
+    domain: i % 2 ? 'market' : 'conflict',
+    generationOrigin: i < 60 ? 'detector' : 'state_derived',
+    probability: ((i * 7) % 10) / 10 + 0.05,
+    outcome: i % 3 === 0 ? 'YES' : 'NO',
+    // Every fourth window carries a lineage-backed market anchor.
+    ...(i % 4 === 0 && { calibration: { marketPrice: 0.5, marketBlendedProbability: 0.5 } }),
+  })]));
+  const scorecard = computeScorecard(ledger, NOW);
+  const { uncertainty } = scorecard;
+  const brackets = ({ mean, ci95 }) => ci95[0] <= mean && mean <= ci95[1];
+
+  it('bootstraps Brier and log score for every domain and origin, matching the point estimates', () => {
+    assert.deepEqual(uncertainty.byDomain.map((row) => row.domain), scorecard.byDomain.map((row) => row.domain));
+    assert.deepEqual(uncertainty.byGenerationOrigin.map((row) => row.generationOrigin), ['detector', 'state_derived']);
+    for (const [rows, published, key] of [[uncertainty.byDomain, scorecard.byDomain, 'domain'], [uncertainty.byGenerationOrigin, scorecard.byGenerationOrigin, 'generationOrigin']]) {
+      for (const row of rows) {
+        const point = published.find((group) => group[key] === row[key]);
+        assert.equal(row.count, point.scored);
+        assert.equal(row.brier.mean, point.brier);
+        assert.equal(row.logScore.mean, point.logScore);
+        assert.ok(brackets(row.brier) && brackets(row.logScore), `${row[key]} intervals bracket the estimate`);
+        assert.ok(row.brier.ci95[1] > row.brier.ci95[0]);
+      }
+    }
+  });
+
+  it('flags a group by its families: 20 families per domain miss the minimum of 30', () => {
+    assert.deepEqual(uncertainty.byDomain.map((row) => [row.domain, row.families, row.insufficientSample]), [['conflict', 20, true], ['market', 20, true]]);
+  });
+
+  it('bootstraps the overall and headline log score', () => {
+    assert.equal(uncertainty.overallLogScore.mean, scorecard.overall.logScore);
+    assert.equal(uncertainty.skillLogScore.mean, scorecard.skill.logScore);
+    assert.equal(uncertainty.skillLogScore.count, scorecard.skill.count);
+    assert.ok(brackets(uncertainty.overallLogScore));
+  });
+
+  it('pairs WM minus market Brier on the published-origin cohort, holding out state_derived', () => {
+    const { vsMarket } = uncertainty;
+    // Anchors at i = 0, 4, ..., 56 are detector rows; 60..76 are state_derived.
+    assert.equal(vsMarket.cohort, 'published_origin');
+    assert.equal(vsMarket.count, 15);
+    assert.equal(scorecard.vsMarketSkill.count, 20, 'the public block still pools every origin');
+    assert.equal(vsMarket.wmMinusMarketBrier.mean, round6(vsMarket.forecastBrier - vsMarket.marketBrier));
+    assert.ok(brackets(vsMarket.wmMinusMarketBrier));
+    assert.equal(vsMarket.insufficientSample, true);
+  });
+
+  it('resamples the market comparison by family, so repeating every window leaves the interval unchanged', () => {
+    const doubled = { ...ledger, ...Object.fromEntries(Object.entries(ledger).map(([key, entry]) => [`${key}-again`, entry])) };
+    const again = computeScorecard(doubled, NOW).uncertainty.vsMarket;
+    assert.equal(again.count, 2 * uncertainty.vsMarket.count);
+    assert.deepEqual(again.wmMinusMarketBrier, uncertainty.vsMarket.wmMinusMarketBrier);
+  });
+
+  it('reproduces every interval on a rerun and keeps the public members unchanged', () => {
+    assert.deepEqual(computeScorecard(ledger, NOW).uncertainty, uncertainty);
+    const { overallBrier, skillBrier } = uncertainty;
+    assert.deepEqual(Object.keys(overallBrier), ['count', 'mean', 'ci95', 'insufficientSample']);
+    assert.deepEqual(Object.keys(skillBrier), ['count', 'mean', 'ci95', 'insufficientSample']);
+  });
+});
+
+describe('evaluation corpus: SLA, VOID by reason and latency across both lanes (#7072)', () => {
+  const HOUR_MS = 60 * 60 * 1000;
+  const at = (offsetDays) => NOW + offsetDays * DAY_MS;
+  const judged = { kind: 'judged' };
+  // A live point read: due 1 day 1 hour after the deadline, sealed by the next run.
+  const LIVE = { kind: 'hard', metricKey: 'supply_chain:chokepoints:v4|riskScore(route==Strait of Hormuz)', window: 'at-deadline', threshold: 50 };
+  // Monthly FRED publishes weeks after its month ends.
+  const FRED_MONTHLY = { kind: 'hard', metricKey: 'economic:fred:v1:CPIAUCSL:0|value(series==CPIAUCSL)', window: 'at-deadline', threshold: 3 };
+  const live = (overrides) => resolved({ spec: LIVE, ...overrides });
+  const ledger = {
+    hardOnTime: live({ id: 'h1', deadline: at(-5), resolvedAt: at(-4.5) }),
+    hardLate: live({ id: 'h2', outcome: 'NO', probability: 0.2, deadline: at(-10), resolvedAt: at(-7) }),
+    hardVoid: live({ id: 'h3', outcome: 'VOID', deadline: at(-6), resolvedAt: at(-5), evidence: { reason: 'feed_unavailable' } }),
+    // Within the 5-day level stamped when it opened, late under its feed's own.
+    hardStamped: live({ id: 'h4', deadline: at(-10), resolvedAt: at(-6), sla: { lane: 'hard', ms: 5 * DAY_MS } }),
+    // A stamp from the other lane does not apply.
+    hardForeignStamp: live({ id: 'h5', deadline: at(-20), resolvedAt: at(-17), sla: { lane: 'judged', ms: 5 * DAY_MS } }),
+    // 50 days after its deadline is on time for a monthly FRED read.
+    fredOnTime: resolved({ id: 'h6', spec: FRED_MONTHLY, deadline: at(-60), resolvedAt: at(-10) }),
+    fredWaiting: { id: 'h7', generationOrigin: 'detector', status: 'pending', spec: FRED_MONTHLY, deadline: at(-30) },
+    hardUndated: resolved({ id: 'h8' }),
+    hardPendingPast: { id: 'h9', generationOrigin: 'detector', status: 'pending', spec: LIVE, deadline: at(-3) },
+    hardPendingDue: { id: 'h10', generationOrigin: 'detector', status: 'pending', spec: LIVE, deadline: at(-1) },
+    hardImmature: { id: 'h11', generationOrigin: 'detector', status: 'pending', spec: LIVE, deadline: at(1) },
+    // 54h after the deadline: inside 18h + 2 days, outside 2 days alone.
+    judgedOnTime: resolved({ id: 'j1', spec: judged, deadline: at(-4), resolvedAt: at(-4) + 54 * HOUR_MS }),
+    judgedLateVoid: resolved({ id: 'j2', spec: judged, outcome: 'VOID', deadline: at(-6), resolvedAt: at(-6) + 18 * HOUR_MS + 3 * DAY_MS, evidence: { kind: 'judged', reason: 'all_judges_void' } }),
+    judgedPendingPast: { id: 'j3', generationOrigin: 'detector', status: 'pending-judge', spec: { ...judged, deadline: at(-4) } },
+    // Due 6h from now with the grace, 12h ago without it.
+    judgedPendingInGrace: { id: 'j4', generationOrigin: 'detector', status: 'pending-judge', spec: { ...judged, deadline: at(-2.5) } },
+    // A late shadow bet stays out of the published counts.
+    shadowLate: live({ id: 'b1', generationOrigin: 'bet_engine', probabilitySource: 'ensemble', outcome: 'VOID', deadline: at(-10), resolvedAt: at(-2), evidence: { reason: 'late_read' } }),
+  };
+
+  it('holds each hard window to its own feed\'s settlement bound plus one resolver cycle', () => {
+    const CYCLE = DAY_MS + HOUR_MS;
+    const spec = (metricKey, window = 'at-deadline') => ({ kind: 'hard', metricKey, window, threshold: 1 });
+    assert.equal(RESOLVER_CYCLE_MS, CYCLE, 'one daily run plus an hour of start jitter');
+    assert.equal(hardSlaMs(LIVE), 2 * CYCLE);
+    assert.equal(hardSlaMs(FRED_MONTHLY), 75 * DAY_MS + CYCLE);
+    assert.equal(hardSlaMs(spec('energy:eia-petroleum:v1|value(series==WCRSTUS1)')), 14 * DAY_MS + CYCLE);
+    assert.equal(hardSlaMs(spec('prediction:markets-resolution:v1|yesPrice(slug==x)', 'at-endDate')), 14 * DAY_MS + CYCLE);
+    assert.equal(hardSlaMs(spec('intelligence:gpsjam:v2|hexCount(region==x)')), 3 * DAY_MS + 7 * HOUR_MS + CYCLE);
+    assert.equal(hardSlaMs(spec('conflict:ucdp-events:v1|count(country==Syria)', 'within-horizon')), 24 * DAY_MS + CYCLE);
+    assert.equal(hardSlaMs(spec('conflict:ucdp-events:v1|count(country==Syria)')), 2 * CYCLE, 'an at-deadline count on a live feed takes the live-read VOID first');
+    assert.equal(hardSlaMs(undefined), CYCLE, 'an unreadable spec VOIDs on the first run');
+    assert.equal(hardSlaMs({ ...LIVE, window: 'within-horizon' }), CYCLE, 'a within-horizon read resolves on the first run');
+    assert.equal(hardSlaMs({ ...LIVE, window: 'rolling' }), CYCLE, 'an unsupported window VOIDs on the first run');
+    assert.equal(hardSlaMs({ ...LIVE, threshold: undefined }), CYCLE, 'a missing threshold VOIDs on the first run');
+  });
+
+  it('counts a window sealed by a run that started a few minutes late as on time', () => {
+    const within = { ...LIVE, window: 'within-horizon' };
+    const entry = resolved({ id: 'w1', spec: within, deadline: at(-3), resolvedAt: at(-3) + DAY_MS + 3 * 60 * 1000 });
+    assert.equal(computeScorecard({ entry }, NOW).corpus.byLane.hard.resolvedWithinSlaCount, 1);
+    assert.equal(slaDueAt(entry), at(-3) + RESOLVER_CYCLE_MS);
+  });
+
+  it('counts terminal states inside and outside the service level in each lane, published origins only', () => {
+    const { corpus } = computeScorecard(ledger, NOW);
+    assert.equal(corpus.cohort, 'published_origin');
+    assert.equal(corpus.judgedSlaMs, 2 * DAY_MS);
+    const { latency: hardLatency, ...hard } = corpus.byLane.hard;
+    const { latency: judgedLatency, ...judgedLane } = corpus.byLane.judged;
+    assert.deepEqual(hard, { resolved: 7, resolvedWithinSlaCount: 4, scoredWithinSlaCount: 3, voidWithinSlaCount: 1, resolvedLateCount: 2, slaUnmeasurable: 1, pendingPastSlaCount: 1 });
+    assert.deepEqual(judgedLane, { resolved: 2, resolvedWithinSlaCount: 1, scoredWithinSlaCount: 1, voidWithinSlaCount: 0, resolvedLateCount: 1, slaUnmeasurable: 0, pendingPastSlaCount: 1 });
+    assert.equal(corpus.resolvedCount, 9);
+    assert.equal(corpus.resolvedWithinSlaCount, 5);
+    assert.equal(corpus.scoredWithinSlaCount, 4);
+    assert.equal(corpus.voidWithinSlaCount, 1);
+    assert.equal(corpus.resolvedLateCount, 3);
+    assert.equal(corpus.slaUnmeasurable, 1);
+    assert.equal(corpus.pendingPastSlaCount, 2);
+    assert.deepEqual(hardLatency, { count: 6, medianMs: 3 * DAY_MS, p90Ms: 50 * DAY_MS }, '0.5d, 1d, 3d, 3d, 4d, 50d');
+    assert.deepEqual(judgedLatency, { count: 2, medianMs: 54 * HOUR_MS, p90Ms: 90 * HOUR_MS });
+  });
+
+  it('repeats the counts per origin, so a shadow bet never mixes into the published figures', () => {
+    const { corpus, totals } = computeScorecard(ledger, NOW);
+    assert.deepEqual(corpus.byGenerationOrigin.map((row) => row.generationOrigin), ['bet_engine', 'detector']);
+    const [bets, detector] = corpus.byGenerationOrigin;
+    assert.equal(bets.resolvedCount, 1);
+    assert.equal(bets.resolvedLateCount, 1);
+    assert.deepEqual(bets.voidByReason, { late_read: 1 });
+    const { generationOrigin: _origin, ...detectorCounts } = detector;
+    const { resolvedCount, resolvedWithinSlaCount, scoredWithinSlaCount, voidWithinSlaCount, resolvedLateCount, slaUnmeasurable, pendingPastSlaCount, voidByReason, byLane } = corpus;
+    assert.deepEqual(detectorCounts, { resolvedCount, resolvedWithinSlaCount, scoredWithinSlaCount, voidWithinSlaCount, resolvedLateCount, slaUnmeasurable, pendingPastSlaCount, voidByReason, byLane });
+    assert.equal(totals.resolved, resolvedCount, 'with only detector rows published, both populations agree');
+    assert.equal(corpus.byGenerationOrigin.reduce((sum, row) => sum + row.resolvedCount, 0), totals.resolved + bets.resolvedCount, 'every resolved window is in one origin');
+  });
+
+  it('counts published synthetic rows in the totals but not in the attributable corpus (#8990)', () => {
+    const withSynthetic = { ...ledger, energy: live({ id: 's1', generationOrigin: 'state_derived', domain: 'energy', outcome: 'VOID', deadline: at(-5), resolvedAt: at(-4.5) }) };
+    const { corpus, totals } = computeScorecard(withSynthetic, NOW);
+    const base = computeScorecard(ledger, NOW);
+    assert.equal(totals.resolved, base.totals.resolved + 1, 'a published state-derived window counts in the totals');
+    assert.equal(totals.void, base.totals.void + 1);
+    assert.equal(corpus.resolvedCount, base.corpus.resolvedCount, 'the attributable corpus leaves it out');
+    assert.equal(totals.resolved - corpus.resolvedCount, 1);
+  });
+
+  it('reports VOID by reason across both lanes, keys sorted', () => {
+    const { corpus, judgedLane } = computeScorecard(ledger, NOW);
+    assert.deepEqual(Object.entries(corpus.voidByReason), [['all_judges_void', 1], ['feed_unavailable', 1]]);
+    assert.deepEqual(judgedLane.voidByReason, { all_judges_void: 1 }, 'the judged lane alone misses the hard VOID');
+  });
+
+  it('leaves the registration counts null when no history was read, and carries them when the seeder passes them', () => {
+    const bare = computeScorecard(ledger, NOW).corpus;
+    assert.equal(bare.publishedCount, null);
+    assert.equal(bare.ledgerRegisteredCount, null);
+    assert.equal(bare.registrationCoverage, null);
+    assert.ok(!Object.hasOwn(bare, 'unregisteredByReason'));
+    const registration = {
+      publishedCount: 4, ledgerRegisteredCount: 3, registrationCoverage: 0.75, registeredLedgerWindows: 2,
+      unregisteredByReason: { no_resolution_spec: 1 }, historySnapshots: 2, historyFrom: at(-2), historyTo: at(-1),
+    };
+    const { corpus } = computeScorecard(ledger, NOW, { registration });
+    for (const [field, value] of Object.entries(registration)) assert.deepEqual(corpus[field], value, field);
+  });
+
+  it('stays deterministic and never NaN', () => {
+    assert.equal(JSON.stringify(computeScorecard(ledger, NOW).corpus), JSON.stringify(computeScorecard(ledger, NOW).corpus));
+    assert.ok(!JSON.stringify(computeScorecard({}, NOW).corpus).includes('NaN'));
+  });
+
+  it('documents the service levels and corpus fields in both languages', () => {
+    assert.equal(RESOLVER_CYCLE_MS, DAY_MS + 60 * 60 * 1000, 'the docs say one daily run plus an hour');
+    assert.equal(DEFAULT_JUDGED_SLA_MS, 2 * DAY_MS, 'the docs say 2 days');
+    for (const path of ['docs/panels/forecast.mdx', 'docs/zh/panels/forecast.mdx']) {
+      const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+      for (const term of ['hardResolutionBoundMs', 'RESOLVER_CYCLE_MS', 'DEFAULT_JUDGED_SLA_MS', 'scoredWithinSlaCount', 'voidWithinSlaCount', 'byGenerationOrigin', 'registrationCoverage', 'resolvedWithinSlaCount', 'voidByReason', 'emissionHash', 'receiptHash', 'emission_snapshot_required', 'wmMinusMarketBrier', 'skillLogScore', 'slaScope', 'registrationScope', '| 76 ', '| 15 ']) {
+        assert.ok(text.includes(term), `${path} names ${term}`);
+      }
+    }
   });
 });
 
@@ -493,14 +756,15 @@ describe('Phase-2 betEngine slice + promotion flag (#5525 U14)', () => {
     });
   }
 
-  it('keeps windows that opened on the base-rate placeholder out of the skill comparisons (#8990)', () => {
+  it('leaves windows that opened on the base-rate placeholder out of every count (#8990)', () => {
     const scorecard = computeScorecard({
       a: betEngineEntry({ probability: 0.8, outcome: 'YES', baselineProbability: 0.4, calibration: { marketPrice: 60 } }),
       b: betEngineEntry({ probability: 0.4, outcome: 'NO', baselineProbability: 0.4, probabilitySource: 'base_rate', calibration: { marketPrice: 70 } }),
       c: betEngineEntry({ probability: 0.3, outcome: 'NO', baselineProbability: 0.4, probabilitySource: undefined, calibration: { marketPrice: 70 } }),
       d: betEngineEntry({ probability: 0.2, outcome: 'NO', baselineProbability: 0.4, probabilitySource: 'ensemble_partial', calibration: { marketPrice: 70 } }),
     }, NOW);
-    assert.equal(scorecard.betEngine.count, 4, 'every bet window is still scored');
+    assert.equal(scorecard.betEngine.count, 2, 'a placeholder window was never a question');
+    assert.equal(scorecard.byGenerationOrigin.find((row) => row.generationOrigin === 'bet_engine').resolved, 2);
     assert.equal(scorecard.betEngine.ensembleCount, 2);
     assert.equal(scorecard.betEngine.vsBaseRate.count, 2);
     assert.equal(scorecard.betEngine.vsMarketSkill.count, 2);
@@ -616,9 +880,9 @@ describe('projection horizon lane (#7075)', () => {
     assert.equal(scorecard.projections.semantics, 'point_in_time');
     assert.equal(scorecard.projections.minSample, SKILL_MIN_FAMILIES);
     assert.deepEqual(scorecard.projections.byHorizon, [
-      { horizon: 'h24', registered: 1, matured: 0, resolved: 0, scored: 0, families: 0, yes: 0, no: 0, unobserved: 0, void: 0, realizedRate: null, brier: null, insufficientSample: true },
-      { horizon: 'd7', registered: 4, matured: 4, resolved: 4, scored: 2, families: 1, yes: 1, no: 1, unobserved: 1, void: 1, realizedRate: { count: 2, successes: 1, rate: 0.5, ci95: wilsonInterval(1, 2) }, brier: null, insufficientSample: true },
-      { horizon: 'd30', registered: 1, matured: 1, resolved: 0, scored: 0, families: 0, yes: 0, no: 0, unobserved: 0, void: 0, realizedRate: null, brier: null, insufficientSample: true },
+      { horizon: 'h24', registered: 1, matured: 0, resolved: 0, scored: 0, families: 0, yesFamilies: 0, noFamilies: 0, yes: 0, no: 0, unobserved: 0, void: 0, realizedRate: null, brier: null, insufficientSample: true },
+      { horizon: 'd7', registered: 4, matured: 4, resolved: 4, scored: 2, families: 1, yesFamilies: 1, noFamilies: 1, yes: 1, no: 1, unobserved: 1, void: 1, realizedRate: { count: 2, successes: 1, rate: 0.5, ci95: wilsonInterval(1, 2) }, brier: null, insufficientSample: true },
+      { horizon: 'd30', registered: 1, matured: 1, resolved: 0, scored: 0, families: 0, yesFamilies: 0, noFamilies: 0, yes: 0, no: 0, unobserved: 0, void: 0, realizedRate: null, brier: null, insufficientSample: true },
     ]);
   });
 
@@ -701,7 +965,7 @@ describe('projection horizon lane (#7075)', () => {
       }),
     };
     assert.equal(buildPublicReceipts({ h: { ...withHorizon.h, spec: { ...withHorizon.h.spec, horizon: undefined } } }, NOW).length, 1, 'the fixture is receipt-shaped');
-    const strip = ({ generatedAt: _g, projections: _p, ...rest }) => rest;
+    const strip = ({ generatedAt: _g, projections: _p, horizonGrades: _hg, ...rest }) => rest;
     assert.deepEqual(strip(computeScorecard(withHorizon, NOW)), strip(computeScorecard(forecasts, NOW)));
     assert.deepEqual(buildPublicReceipts(withHorizon, NOW), buildPublicReceipts(forecasts, NOW));
     assert.deepEqual(buildFamilyOutcomes(withHorizon, NOW), buildFamilyOutcomes(forecasts, NOW));
@@ -748,6 +1012,91 @@ describe('projection horizon lane (#7075)', () => {
     assert.equal(d7.scored, 2 * SKILL_MIN_FAMILIES);
     assert.equal(d7.brier, null);
     assert.equal(d7.insufficientSample, true);
+  });
+
+  describe('public horizon grades (#9057)', () => {
+    // One d7 window per family on curve version 1: the first `yes` families
+    // came true, the rest did not.
+    const gradeLedger = (families, yes, overrides = {}) => Object.fromEntries(Array.from({ length: families }, (_, i) => [
+      `g${i}`,
+      horizonRow('d7', { id: `fc-g${i}`, key: `fc-g${i}@1@d7`, projectionCurvesVersion: 1, probability: 0.3, outcome: i < yes ? 'YES' : 'NO', ...overrides }),
+    ]));
+    const gradeRow = (ledger, horizon = 'd7', version = 1) => computeScorecard(ledger, NOW).horizonGrades.rows
+      .find((row) => row.horizon === horizon && row.curvesVersion === version);
+
+    it('grades a horizon exactly at the headline family minimums, with the curve version beside it', () => {
+      const row = gradeRow(gradeLedger(SKILL_MIN_FAMILIES, SKILL_MIN_OUTCOME_FAMILIES));
+      assert.equal(row.measurable, true);
+      assert.equal(row.curvesVersion, 1);
+      assert.deepEqual(
+        [row.scored, row.families, row.yesFamilies, row.noFamilies, row.yes, row.no],
+        [SKILL_MIN_FAMILIES, SKILL_MIN_FAMILIES, SKILL_MIN_OUTCOME_FAMILIES, SKILL_MIN_FAMILIES - SKILL_MIN_OUTCOME_FAMILIES, SKILL_MIN_OUTCOME_FAMILIES, SKILL_MIN_FAMILIES - SKILL_MIN_OUTCOME_FAMILIES],
+      );
+      const pooled = computeScorecard(gradeLedger(SKILL_MIN_FAMILIES, SKILL_MIN_OUTCOME_FAMILIES), NOW).projections.byCurvesVersion[0].byHorizon[1];
+      assert.deepEqual(row.brier, { mean: pooled.brier.mean, ci95: pooled.brier.ci95 });
+      assert.ok(row.brier.ci95[0] <= row.brier.mean && row.brier.mean <= row.brier.ci95[1]);
+      assert.deepEqual(row.realizedRate, { count: SKILL_MIN_FAMILIES, successes: SKILL_MIN_OUTCOME_FAMILIES, rate: pooled.realizedRate.rate, ci95: wilsonInterval(SKILL_MIN_OUTCOME_FAMILIES, SKILL_MIN_FAMILIES) });
+    });
+
+    it('withholds the grade one family short of each minimum and keeps the counts', () => {
+      const cases = {
+        'too few families': gradeLedger(SKILL_MIN_FAMILIES - 1, SKILL_MIN_OUTCOME_FAMILIES),
+        'too few YES families': gradeLedger(SKILL_MIN_FAMILIES, SKILL_MIN_OUTCOME_FAMILIES - 1),
+        'too few NO families': gradeLedger(SKILL_MIN_FAMILIES, SKILL_MIN_FAMILIES - SKILL_MIN_OUTCOME_FAMILIES + 1),
+      };
+      for (const [label, ledger] of Object.entries(cases)) {
+        const row = gradeRow(ledger);
+        assert.equal(row.measurable, false, label);
+        assert.equal('brier' in row, false, `${label}: no Brier below the minimum`);
+        assert.equal('realizedRate' in row, false, `${label}: no rate below the minimum`);
+        assert.ok(row.scored > 0 && row.families > 0, `${label}: counts stay`);
+      }
+    });
+
+    it('counts repeated windows of one forecast once, so they cannot unlock a grade', () => {
+      const ledger = Object.fromEntries(Array.from({ length: 3 * SKILL_MIN_FAMILIES }, (_, i) => [
+        `r${i}`,
+        horizonRow('d7', { id: `fc-r${i % 10}`, key: `fc-r${i % 10}@${i}@d7`, projectionCurvesVersion: 1, outcome: i % 2 ? 'YES' : 'NO' }),
+      ]));
+      const row = gradeRow(ledger);
+      assert.equal(row.scored, 3 * SKILL_MIN_FAMILIES);
+      assert.equal(row.families, 10);
+      assert.equal(row.measurable, false);
+    });
+
+    it('grades each curve version apart and never grades unstamped windows', () => {
+      const ledger = {
+        ...gradeLedger(SKILL_MIN_FAMILIES, SKILL_MIN_OUTCOME_FAMILIES),
+        ...Object.fromEntries(Object.entries(gradeLedger(SKILL_MIN_FAMILIES, SKILL_MIN_OUTCOME_FAMILIES, { projectionCurvesVersion: undefined }))
+          .map(([key, row], i) => [`u${key}`, { ...row, id: `fc-u${i}`, key: `fc-u${i}@1@d7` }])),
+        v2: horizonRow('d7', { id: 'fc-v2', key: 'fc-v2@1@d7', projectionCurvesVersion: 2, outcome: 'YES' }),
+      };
+      const { horizonGrades } = computeScorecard(ledger, NOW);
+      assert.deepEqual([...new Set(horizonGrades.rows.map((row) => row.curvesVersion))], [1, 2]);
+      assert.equal(horizonGrades.unversionedScored, SKILL_MIN_FAMILIES);
+      assert.equal(gradeRow(ledger, 'd7', 1).families, SKILL_MIN_FAMILIES, 'unstamped families never join version 1');
+      assert.equal(gradeRow(ledger, 'd7', 1).measurable, true);
+      assert.equal(gradeRow(ledger, 'd7', 2).measurable, false);
+      assert.deepEqual(horizonGrades.rows.filter((row) => row.curvesVersion === 2).map((row) => row.horizon), Object.keys(PROJECTION_HORIZONS));
+    });
+
+    it('labels projections as not probabilities and states the minimums', () => {
+      const { horizonGrades } = computeScorecard({}, NOW);
+      assert.equal(horizonGrades.semantics, 'point_in_time');
+      assert.match(horizonGrades.note, /not a probability/);
+      assert.match(horizonGrades.note, /hand-set curve/);
+      assert.deepEqual(horizonGrades.minimums, { families: SKILL_MIN_FAMILIES, yesFamilies: SKILL_MIN_OUTCOME_FAMILIES, noFamilies: SKILL_MIN_OUTCOME_FAMILIES });
+      assert.deepEqual(horizonGrades.rows, []);
+      assert.equal(horizonGrades.unversionedScored, 0);
+    });
+
+    it('documents the same minimums in both forecast panel docs', () => {
+      const en = readFileSync(new URL('../docs/panels/forecast.mdx', import.meta.url), 'utf8');
+      const zh = readFileSync(new URL('../docs/zh/panels/forecast.mdx', import.meta.url), 'utf8');
+      assert.ok(en.includes(`at least ${SKILL_MIN_FAMILIES} forecast families, with at least ${SKILL_MIN_OUTCOME_FAMILIES} YES families and ${SKILL_MIN_OUTCOME_FAMILIES} NO families`));
+      assert.ok(zh.includes(`至少 ${SKILL_MIN_FAMILIES} 个预测族，其中至少 ${SKILL_MIN_OUTCOME_FAMILIES} 个为 YES、至少 ${SKILL_MIN_OUTCOME_FAMILIES} 个为 NO`));
+      for (const doc of [en, zh]) assert.ok(doc.includes('`horizonGrades`') && doc.includes('`meetsFamilyOutcomeMinimums`'));
+    });
   });
 });
 
@@ -1205,5 +1554,255 @@ describe('skill against the cohort base rate (#8990 item 10)', () => {
 
     assert.equal(rows.political.measurable, false, 'no YES outcome, no reference to beat');
     assert.equal('bss' in rows.political, false);
+  });
+});
+
+describe('go-forward VOID share KPI (#4930)', () => {
+  const AFTER = Date.parse('2026-10-20T06:00:00Z');
+  const OPENED_BEFORE = GO_FORWARD_SINCE_MS - 1;
+  const opened = (at, overrides) => resolved({ firstSeenAt: at, generatedAt: at, resolvedAt: AFTER - DAY_MS, ...overrides });
+  const many = (count, voids) => Array.from({ length: count }, (_, i) => opened(GO_FORWARD_SINCE_MS + DAY_MS, {
+    id: `m${i}`, outcome: i < voids ? 'VOID' : i % 2 ? 'YES' : 'NO', evidence: i < voids ? { reason: 'all_judges_void' } : {},
+  }));
+
+  it('counts only windows first seen on or after the boundary', () => {
+    const scorecard = computeScorecard([
+      opened(OPENED_BEFORE, { id: 'old', outcome: 'VOID', evidence: { reason: 'judged_old_selection' } }),
+      opened(GO_FORWARD_SINCE_MS, { id: 'edge', outcome: 'VOID', evidence: { reason: 'all_judges_void' } }),
+      opened(GO_FORWARD_SINCE_MS + DAY_MS, { id: 'yes', outcome: 'YES' }),
+      opened(GO_FORWARD_SINCE_MS + DAY_MS, { id: 'no', outcome: 'NO' }),
+      opened(GO_FORWARD_SINCE_MS + DAY_MS, { id: 'void-2', outcome: 'VOID', evidence: { reason: 'late_read' } }),
+      { id: 'open', status: 'pending', probability: 0.4, firstSeenAt: GO_FORWARD_SINCE_MS + DAY_MS },
+    ], AFTER);
+
+    assert.equal(GO_FORWARD_SINCE, '2026-10-08');
+    assert.equal(GO_FORWARD_SINCE_MS, Date.parse('2026-10-08T00:00:00Z'));
+    assert.equal(scorecard.totals.void, 3, 'the rolling totals still count the pre-boundary void');
+    assert.deepEqual(scorecard.goForward, {
+      since: '2026-10-08',
+      target: GO_FORWARD_VOID_SHARE_TARGET,
+      minResolved: GO_FORWARD_MIN_RESOLVED,
+      windowTruncated: false,
+      rollingWindowDays: DEFAULT_ROLLING_WINDOW_DAYS,
+      entries: 5,
+      resolved: 4,
+      void: 2,
+      voidShare: 0.5,
+      voidShareCi95: wilsonInterval(2, 4),
+      voidByReason: { all_judges_void: 1, late_read: 1 },
+    });
+  });
+
+  it('leaves unpublished shadow bets out and keeps published state-derived rows (#5525)', () => {
+    const rows = [
+      opened(GO_FORWARD_SINCE_MS, { id: 'bet', generationOrigin: 'bet_engine', probabilitySource: 'ensemble', outcome: 'YES' }),
+      opened(GO_FORWARD_SINCE_MS, { id: 'bet-2', generationOrigin: 'bet_engine', probabilitySource: 'ensemble', outcome: 'NO' }),
+      opened(GO_FORWARD_SINCE_MS, { id: 'energy', generationOrigin: 'state_derived', domain: 'energy', outcome: 'VOID' }),
+      opened(GO_FORWARD_SINCE_MS, { id: 'detector', outcome: 'NO' }),
+    ];
+    const held = computeScorecard(rows, AFTER).goForward;
+    assert.equal(held.resolved, 2);
+    assert.equal(held.void, 1);
+    const promoted = computeScorecard(rows, AFTER, { promoteBetEngine: true }).goForward;
+    assert.equal(promoted.resolved, 4, 'a promoted bet is published, so it counts');
+  });
+
+  it('compares with the target only from the minimum sample', () => {
+    assert.equal(GO_FORWARD_MIN_RESOLVED, 30);
+    const enough = computeScorecard(many(30, 4), AFTER).methodology;
+    assert.match(enough, /Since 8 October 2026, 4 of 30 resolved published forecasts were void \(13\.3%, 95% interval 5\.3% to 29\.7%\); the target is under 15%\./);
+    assert.match(enough, /This counts published forecasts first issued on or after that date, so it leaves out unpublished shadow bets and the voids relabelled in the issue #8990 audit\./);
+    const few = computeScorecard(many(29, 1), AFTER).methodology;
+    assert.match(few, /Since 8 October 2026, 1 of 29 resolved published forecasts was void \(3\.4%, 95% interval 0\.6% to 17\.2%\)\. That is too few to compare with the target of under 15%, which needs at least 30 resolved\. Judged forecasts resolve days after hard ones and have voided more often, so early readings run low\./);
+    assert.doesNotMatch(few, /the target is under 15%/);
+  });
+
+  it('places a window by generatedAt when it has no first sighting', () => {
+    const row = opened(GO_FORWARD_SINCE_MS + DAY_MS, { outcome: 'VOID' });
+    delete row.firstSeenAt;
+    const undated = opened(GO_FORWARD_SINCE_MS + DAY_MS, { id: 'undated', outcome: 'VOID' });
+    delete undated.firstSeenAt;
+    delete undated.generatedAt;
+    const { goForward } = computeScorecard([row, undated], AFTER);
+    assert.equal(goForward.resolved, 1);
+    assert.deepEqual(goForward.voidByReason, { unknown: 1 });
+  });
+
+  it('says none resolved yet instead of a 0% share', () => {
+    const scorecard = computeScorecard([
+      opened(OPENED_BEFORE, { outcome: 'VOID' }),
+      { id: 'open', status: 'pending-judge', probability: 0.4, firstSeenAt: GO_FORWARD_SINCE_MS + DAY_MS },
+    ], AFTER);
+    assert.equal(scorecard.goForward.resolved, 0);
+    assert.equal(scorecard.goForward.voidShare, null);
+    assert.equal(scorecard.goForward.voidShareCi95, null);
+    assert.match(scorecard.methodology, /Since 8 October 2026, no published forecast has resolved yet, so there is no void share to compare with the target of under 15%\./);
+    assert.doesNotMatch(scorecard.methodology, /0\.0%/);
+  });
+
+  it('uses the singular for one resolved forecast', () => {
+    const { methodology } = computeScorecard([opened(GO_FORWARD_SINCE_MS, { outcome: 'NO' })], AFTER);
+    assert.match(methodology, /Since 8 October 2026, 0 of 1 resolved published forecast was void \(0\.0%, 95% interval 0\.0% to 79\.3%\)/);
+  });
+
+  it('names the rolling window once the boundary is older than it', () => {
+    const later = GO_FORWARD_SINCE_MS + (DEFAULT_ROLLING_WINDOW_DAYS + 1) * DAY_MS;
+    const scorecard = computeScorecard([opened(later - DAY_MS, { outcome: 'VOID', resolvedAt: later })], later);
+    assert.equal(scorecard.goForward.windowTruncated, true);
+    assert.match(scorecard.methodology, new RegExp(`In the last ${DEFAULT_ROLLING_WINDOW_DAYS} days, 1 of 1 resolved published forecast was void .* first issued on or after 8 October 2026,`));
+  });
+
+  it('adds no note before the boundary', () => {
+    const scorecard = computeScorecard([], GO_FORWARD_SINCE_MS - 1);
+    assert.doesNotMatch(scorecard.methodology, /8 October 2026/);
+    assert.equal(scorecard.goForward.entries, 0);
+  });
+});
+
+describe('spec-origin follow-through slice (#7067)', () => {
+  const HOUR_MS = 60 * 60 * 1000;
+  const GPS = 'intelligence:gpsjam:v2';
+  const hard = (overrides) => resolved({ spec: { kind: 'hard', sourceFeed: GPS, metricKey: `${GPS}|hexCount(region==Red Sea)` }, deadline: NOW - 3 * DAY_MS, ...overrides });
+  const downgraded = (overrides) => resolved({
+    specOrigin: 'hard_downgraded_unextractable',
+    spec: { kind: 'judged', question: 'q', specOrigin: 'hard_downgraded_unextractable', originalFamily: 'gps', originalSourceFeed: GPS },
+    deadline: NOW - 6 * DAY_MS,
+    ...overrides,
+  });
+
+  it('files rows by origin and family, keeps the legacy hard path beside the downgrade, and drops the #5334 baseline', () => {
+    const ledger = {
+      legacyYes: hard({ id: 'l1', resolvedAt: NOW - 3 * DAY_MS + 2 * HOUR_MS }),
+      legacyVoid: hard({ id: 'l2', outcome: 'VOID', resolvedAt: NOW - 3 * DAY_MS + 4 * HOUR_MS }),
+      gatedHard: hard({ id: 'g1', specOrigin: 'hard', outcome: 'NO', probability: 0.3, resolvedAt: NOW - 3 * DAY_MS + 6 * HOUR_MS }),
+      downOnTime: downgraded({ id: 'd1', resolvedAt: NOW - 6 * DAY_MS + DAY_MS }),
+      // Past deadline + 18h grace + 2d SLA: scored, but not within SLA.
+      downLate: downgraded({ id: 'd2', outcome: 'NO', probability: 0.2, resolvedAt: NOW - 6 * DAY_MS + 3 * DAY_MS }),
+      downPending: { id: 'd3', status: 'pending-judge', specOrigin: 'hard_downgraded_unextractable', domain: 'conflict', spec: { kind: 'judged', originalFamily: 'prediction_market', originalSourceFeed: 'prediction:markets-bootstrap:v1' }, deadline: NOW + DAY_MS },
+      judgedNative: { id: 'j1', status: 'pending-judge', domain: 'political', spec: { kind: 'judged', question: 'q' }, deadline: NOW + DAY_MS },
+      infraBaseline: hard({ id: 'i1', outcome: 'VOID', domain: 'infrastructure', spec: { kind: 'hard', sourceFeed: 'infra:outages:v1' } }),
+    };
+    const { specOrigins } = computeScorecard(ledger, NOW);
+    assert.equal(specOrigins.excludedInfrastructureBaseline, 1);
+    assert.deepEqual(Object.keys(specOrigins.byOrigin).sort(), ['hard', 'hard_downgraded_unextractable', 'legacy']);
+    assert.deepEqual(specOrigins.byOrigin.legacy.gps, {
+      entries: 2, resolved: 2, scored: 1, void: 1, pending: 0, pendingJudge: 0, scoredWithinSla: 1, scoredWithinSlaRate: 0.5, medianLatencyHours: 3,
+    });
+    assert.deepEqual(Object.keys(specOrigins.byOrigin.legacy).sort(), ['gps', 'judged:political']);
+    assert.equal(specOrigins.byOrigin.hard.gps.scored, 1);
+    assert.deepEqual(specOrigins.byOrigin.hard_downgraded_unextractable.gps, {
+      entries: 2, resolved: 2, scored: 2, void: 0, pending: 0, pendingJudge: 0, scoredWithinSla: 1, scoredWithinSlaRate: 0.5, medianLatencyHours: 48,
+    });
+    assert.equal(specOrigins.byOrigin.hard_downgraded_unextractable.prediction_market.pendingJudge, 1);
+    assert.equal(specOrigins.byOrigin.hard_downgraded_unextractable.prediction_market.scoredWithinSlaRate, null);
+  });
+
+  it('keys rows by the dispatch family, not the feed namespace, and leaves bets out', () => {
+    const row = (id, spec, extra = {}) => resolved({ id, spec: { kind: 'hard', ...spec }, deadline: NOW - 3 * DAY_MS, ...extra });
+    const ledger = {
+      shipping: row('s', { sourceFeed: 'supply_chain:shipping:v2' }),
+      commodity: row('c', { sourceFeed: 'market:commodities-bootstrap:v1' }),
+      eer: row('e', { sourceFeed: 'economic:bis:eer:v1' }),
+      chokepoint: row('k', { sourceFeed: 'supply_chain:chokepoints:v4' }),
+      unlisted: row('u', { sourceFeed: 'intelligence:other:v1' }),
+      gated: row('g', { sourceFeed: 'supply_chain:chokepoints:v4', specOrigin: 'hard', specFamily: 'market' }, { specOrigin: 'hard' }),
+      bet: row('b', { sourceFeed: 'prediction:markets-resolution:v1' }, { generationOrigin: 'bet_engine', probabilitySource: 'ensemble' }),
+    };
+    const { specOrigins } = computeScorecard(ledger, NOW);
+    assert.deepEqual(
+      Object.fromEntries(Object.entries(specOrigins.byOrigin.legacy).map(([family, counts]) => [family, counts.entries])),
+      { market: 3, supply_chain: 1, 'feed:intelligence:other:v1': 1 },
+    );
+    assert.equal(specOrigins.byOrigin.hard.market.entries, 1);
+    assert.equal(specOrigins.excludedBetEngine, 1);
+  });
+
+  it('stays off the public scorecard contract', async () => {
+    const { SCORECARD_DECLARED_FIELDS } = await import('../scripts/build-accuracy-page.mjs');
+    for (const field of ['specOrigins', 'withheldAtEmission']) assert.ok(!SCORECARD_DECLARED_FIELDS.includes(field), field);
+  });
+});
+
+describe('ledger totals and funnel count published forecasts only (#8990)', () => {
+  const bet = (overrides) => resolved({ generationOrigin: 'bet_engine', probabilitySource: 'ensemble', ...overrides });
+  const ledger = {
+    detectorYes: resolved({ id: 'd1', outcome: 'YES' }),
+    detectorVoid: resolved({ id: 'd2', outcome: 'VOID' }),
+    // Published, though the headline leaves them out: their VOIDs were shown to users.
+    energyVoid: resolved({ id: 's1', generationOrigin: 'state_derived', domain: 'energy', outcome: 'VOID' }),
+    unattributedNo: resolved({ id: 'u1', generationOrigin: undefined, outcome: 'NO', probability: 0.3 }),
+    detectorJudge: { id: 'd3', generationOrigin: 'detector', status: 'pending-judge', probability: 0.5, spec: { kind: 'judged', deadline: NOW + DAY_MS } },
+    betYes: bet({ id: 'b1', outcome: 'YES' }),
+    betNo: bet({ id: 'b2', outcome: 'NO', probability: 0.2 }),
+    betOpen: bet({ id: 'b3', status: 'pending', outcome: undefined, resolvedAt: undefined, deadline: NOW + DAY_MS }),
+  };
+
+  it('leaves unpromoted shadow bets out, and keeps state-derived and unattributed rows', () => {
+    const scorecard = computeScorecard(ledger, NOW);
+    assert.deepEqual(scorecard.totals, {
+      entries: 5,
+      resolved: 4,
+      pending: 0,
+      pendingJudge: 1,
+      scored: 2,
+      void: 2,
+      voidRate: 0.5,
+      publicationCoverage: 0.4,
+    });
+    assert.equal(scorecard.funnel.resolved, 4);
+    assert.equal(scorecard.funnel.scored, 2);
+    assert.equal(scorecard.funnel.immature, 1, 'the open shadow bet is not in the funnel');
+    assert.equal(scorecard.funnel.matured + scorecard.funnel.immature + scorecard.funnel.maturityUnknown, scorecard.totals.entries);
+  });
+
+  it('keeps reporting shadow bets in their own slices and in the pooled scores', () => {
+    const scorecard = computeScorecard(ledger, NOW);
+    const bets = scorecard.byGenerationOrigin.find((row) => row.generationOrigin === 'bet_engine');
+    assert.equal(bets.resolved, 2);
+    assert.equal(bets.scored, 2);
+    assert.equal(scorecard.betEngine.count, 2);
+    assert.equal(scorecard.overall.count, 4);
+  });
+
+  it('counts a promoted shadow bet as published, as the headline does', () => {
+    const { totals, funnel, skill } = computeScorecard(ledger, NOW, { promoteBetEngine: true });
+    assert.equal(totals.entries, 8);
+    assert.equal(totals.resolved, 6);
+    assert.equal(totals.pending, 1);
+    assert.equal(totals.scored, 4);
+    assert.equal(totals.voidRate, round6(2 / 6));
+    assert.equal(funnel.resolved, 6);
+    assert.equal(skill.count, 3, 'the headline promotes the same bets');
+  });
+
+  it('draws the go-forward cohort from the totals population', () => {
+    const AFTER = Date.parse('2026-10-20T06:00:00Z');
+    const rows = Object.values(ledger).map((row) => ({ ...row, firstSeenAt: GO_FORWARD_SINCE_MS + DAY_MS, resolvedAt: row.status === 'resolved' ? AFTER - DAY_MS : undefined }));
+    for (const promoteBetEngine of [false, true]) {
+      const { totals, goForward } = computeScorecard(rows, AFTER, { promoteBetEngine });
+      assert.equal(goForward.entries, totals.entries);
+      assert.equal(goForward.resolved, totals.resolved);
+      assert.equal(goForward.void, totals.void);
+    }
+  });
+
+  it('states the population in the methodology and marks it with schema version 3', () => {
+    const scorecard = computeScorecard(ledger, NOW);
+    assert.equal(scorecard.schemaVersion, 3);
+    assert.match(scorecard.methodology, /The ledger totals and the maturity funnel count published forecasts only: shadow bets, scored for evidence but never shown, are left out of them\./);
+  });
+});
+
+describe('published ledger population in the docs (#8990)', () => {
+  it('names the schema version and the download field in both languages', () => {
+    for (const path of ['docs/panels/forecast.mdx', 'docs/zh/panels/forecast.mdx']) {
+      const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+      assert.match(text, /`totals` (and|和) `funnel`/, `${path} names both blocks`);
+      assert.ok(text.includes('`schemaVersion` 3'), `${path} names schema 3`);
+      assert.ok(text.includes('ledgerPopulation'), `${path} names the download field`);
+      for (const term of ['isPublishedEntry', 'isPublishedOriginEntry', 'vsMarketSkill', '2026-10-08 resolver run']) {
+        assert.ok(text.includes(term) || (term === '2026-10-08 resolver run' && text.includes('2026-10-08 结算运行')), `${path} names ${term}`);
+      }
+    }
   });
 });
