@@ -3713,6 +3713,25 @@ body.panel-resize-active iframe {
   color: var(--green);
 }
 
+.live-mute-btn:disabled {
+  color: var(--text-dim);
+  cursor: default;
+  opacity: 0.5;
+}
+
+.live-audio-status {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  left: 8px;
+  max-width: calc(100% - 16px);
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.72);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+}
+
 .live-news-fullscreen {
   position: fixed !important;
   top: 0 !important;
@@ -3760,6 +3779,10 @@ body.live-news-fullscreen-active #mapSection.live-news-fullscreen .map-container
   height: auto !important;
   flex: 1 1 auto !important;
   min-height: 0 !important;
+}
+
+body.live-news-fullscreen-active .map-popup {
+  z-index: 10001;
 }
 
 /* Hide map overlays and sibling panels behind fullscreen panel (#829, #859) */
@@ -5033,7 +5056,7 @@ a.item-title:hover {
 }
 
 .velocity-badge.spike {
-  background: rgba(var(--semantic-critical), 0.2);
+  background: color-mix(in srgb, var(--semantic-critical) 20%, transparent);
   color: var(--red);
   animation: pulse-velocity 1.5s infinite;
 }
@@ -5079,7 +5102,7 @@ a.item-title:hover {
 }
 
 .deviation-indicator.spike {
-  background: rgba(var(--semantic-critical), 0.2);
+  background: color-mix(in srgb, var(--semantic-critical) 20%, transparent);
   color: var(--red);
   animation: pulse-alert 1s infinite;
 }
@@ -6561,7 +6584,7 @@ body.playback-mode .status-dot {
 
 /* Conflict zones */
 .conflict-zone {
-  fill: rgba(var(--semantic-critical), 0.2);
+  fill: color-mix(in srgb, var(--semantic-critical) 20%, transparent);
   stroke: var(--red);
   stroke-width: 1;
   stroke-dasharray: 4, 2;
@@ -9455,7 +9478,7 @@ a.prediction-link:hover {
   background: rgba(255, 68, 68, 0.06);
 }
 
-.popup-header.hotspot {
+.popup-header.hotspot-popup {
   background: rgba(68, 255, 136, 0.06);
 }
 
@@ -9478,7 +9501,7 @@ a.prediction-link:hover {
   white-space: nowrap;
 }
 
-.popup-header.hotspot .popup-title {
+.popup-header.hotspot-popup .popup-title {
   color: var(--green);
 }
 
@@ -14527,7 +14550,11 @@ a.prediction-link:hover {
   background: var(--bg);
   border: 1px solid var(--overlay-heavy);
   border-radius: 12px;
-  overflow: hidden;
+  /* Evidence lines can make the panel taller than a short window, and the
+     page itself does not scroll. */
+  max-height: calc(100vh - 72px);
+  overflow-x: hidden;
+  overflow-y: auto;
   box-shadow: 0 8px 32px var(--shadow-color);
 }
 
@@ -14693,6 +14720,14 @@ a.prediction-link:hover {
 
 .pizzint-tension-trend.stable {
   color: var(--text-dim);
+}
+
+.pizzint-tension-evidence {
+  padding: 0 0 4px;
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.35;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
 }
 
 .pizzint-footer {
@@ -21549,7 +21584,7 @@ body.has-breaking-alert .panels-grid {
 }
 
 .posture-critical {
-  background: rgba(var(--semantic-critical), 0.2);
+  background: color-mix(in srgb, var(--semantic-critical) 20%, transparent);
   color: var(--semantic-critical);
 }
 
@@ -21721,7 +21756,7 @@ body.has-breaking-alert .panels-grid {
 }
 
 .posture-strike {
-  background: rgba(var(--semantic-critical), 0.2);
+  background: color-mix(in srgb, var(--semantic-critical) 20%, transparent);
   color: var(--semantic-critical);
   padding: 2px 8px;
   border-radius: 3px;
@@ -26915,6 +26950,30 @@ body.map-width-resizing {
   font-weight: 600;
 }
 
+.api-keys-item-kind-badge {
+  align-self: flex-start;
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  font-weight: 600;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+
+.desktop-keys-count {
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  color: var(--text-dim);
+  margin: -8px 0 12px;
+}
+
+.desktop-keys-count:empty {
+  display: none;
+}
+
+.desktop-keys-count.at-limit {
+  color: var(--text);
+}
+
 .api-keys-revoke-btn,
 .embed-keys-revoke-btn {
   font-size: calc(12px * var(--wm-panel-effective-scale, 1));
@@ -28506,6 +28565,15 @@ body.map-width-resizing {
 .markers-settled .military-vessel-marker.interesting,
 .markers-settled .dark-vessel-indicator,
 .markers-settled .tech-event-marker.upcoming-soon::after {
+  animation: none;
+}
+
+/* Low-end devices (src/utils/device-tier.ts): the page-level live indicators
+   pulse forever, even while their panel is off-screen. Map markers on these
+   devices are settled from the first render by MapComponent. */
+.low-end-device .panel-data-badge.live::before,
+.low-end-device .live-media-shell-dot::before,
+.low-end-device .panel-live-count::before {
   animation: none;
 }
 

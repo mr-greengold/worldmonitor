@@ -763,15 +763,17 @@
       "logCleared": "Дневник изчистен.",
       "worldMonitor": {
         "apiKey": {
-          "title": "Лицензионен / API ключ",
+          "title": "Desktop ключ",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "Абонатите на API Starter и API Business създават този ключ в уеб таблото от Settings → API Keys. Ако пълният ключ е изгубен, отменете го и създайте нов."
+          "description": "За версии без вход. Pro: създайте един в Settings → API Keys в интернета; работят и API-план ключове. За личното ви ползване; споделени или публични разгръщания изискват API план. Помощ: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "ИЛИ",
         "register": {
-          "title": "Нуждаете се от API ключ?",
-          "description": "Вижте worldmonitor.app/docs/api-keys за инструкции стъпка по стъпка. Ръчните API ключове изискват план API Starter или API Business.",
-          "submitBtn": "Вижте API плановете"
+          "submitBtn": "Преглед на плановете"
+        },
+        "signIn": {
+          "title": "Вход с Pro",
+          "description": "Pro работи тук след вход от главния прозорец. Не е необходим ключ."
         }
       },
       "table": {
@@ -1087,7 +1089,8 @@
       "skipToEnd": "Към края"
     },
     "pizzint": {
-      "indexSource": "Индекс: World Monitor · данни за заведенията:",
+      "indexSource": "Индекс: World Monitor",
+      "venueSource": "данни за заведенията:",
       "statusNormal": "НОРМАЛНО",
       "statusNoData": "НЯМА ДАННИ",
       "statusNoBaseline": "НЯМА БАЗОВО НИВО",
@@ -1098,6 +1101,16 @@
       "tensionsTitle": "Геополитични напрежения",
       "tensionsSource": "Напрежение: World Monitor по събития от GDELT",
       "insufficientData": "Недостатъчно данни",
+      "evidenceStrikes": "Съобщени удари за 3 дни ({{countries}}): {{value}}",
+      "evidenceAirports": "Засегнати летища: {{value}}",
+      "evidenceAirportClosed": "Летище {{name}} е затворено",
+      "evidenceAirportHalted": "{{name}}: повечето полети са отменени",
+      "evidenceAirportRestricted": "{{name}}: полетите са ограничени",
+      "evidenceMilitaryAircraft": "Военни самолети ({{country}}) в региона: {{value}}",
+      "evidencePlaAircraft": "Китайски военни самолети край Тайван: {{value}}",
+      "evidencePlaShips": "Китайски военни кораби край Тайван: {{value}}",
+      "evidenceSanctions": "Нови санкции на САЩ тази седмица ({{country}}): {{value}}",
+      "evidenceUsual": "(обичайно {{value}})",
       "pizzaUnavailable": "Данните за активността на пицариите не са налични",
       "source": "Източник:",
       "statusClosed": "ЗАТВОРЕНО",
@@ -1301,7 +1314,8 @@
         "radiationSpike": "Пик на радиация",
         "radiationElevated": "Повишена радиация",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "Ограничения на въздушното пространство NOTAM"
       },
       "tooltip": {
         "earthquake": "Земетресение",
@@ -1333,7 +1347,9 @@
         "sourceIomDtm": "Източник: IOM DTM",
         "sinceDate": "от {{date}}",
         "lastMonth": "миналия месец",
-        "sourceUnhcrOdp": "Източник: Портал за оперативни данни на ВКБООН"
+        "sourceUnhcrOdp": "Източник: Портал за оперативни данни на ВКБООН",
+        "displaced": "разселени",
+        "sourceIdmc": "Източник: IDMC"
       },
       "layerHelp": {
         "title": "Ръководство за слоевете",
@@ -1414,7 +1430,8 @@
           "geoBoundaries": "Демилитаризирани зони, линии на примирие и спорни граници",
           "ciiChoropleth": "Тепловидна карта на Country Instability Index — оцветява страните по оценка (зелено=стабилна, червено=критична)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "Временни ограничения на полетите и ограничено, опасно и забранено въздушно пространство от FAA NOTAM, действащи в момента или започващи в рамките на 24 часа"
         },
         "notes": {
           "timeAffects": "Засяга: Земетресения, Метеорология, Протести, Прекъсвания"
@@ -1773,7 +1790,16 @@
       "staleReport": "Остарял доклад",
       "reported": "Брой",
       "period": "Период",
-      "movementNote": "Всеки ред запазва своя източник, дата на доклада и мярка. Наличности, пристигания и гранични задържания са различни мерки. Източниците могат да се припокриват; не събирайте броя им. WorldMonitor извежда този изглед от свързаните източници; това не означава одобрение от доставчиците."
+      "movementNote": "Всеки ред запазва своя източник, дата на доклада и мярка. Наличности, пристигания и гранични задържания са различни мерки. Източниците могат да се припокриват; не събирайте броя им. WorldMonitor извежда този изглед от свързаните източници; това не означава одобрение от доставчиците.",
+      "recent": "Скорошни",
+      "last30Days": "Последните 30 дни",
+      "newThisWeek": "Ново тази седмица",
+      "conflict": "Конфликт",
+      "disaster": "Бедствие",
+      "surge": "Скок",
+      "recentNote": "IDMC: хора разселени в собствената си страна през последните 30 дни. IDMC публикува данни медианно три седмици след разселването, затова скорошните седмици се попълват със закъснение. „Ново тази седмица\" отчита данни публикувани в последните 7 дни. „Скок\": най-малко 5000 души и три пъти средния месечен брой от предходните пет месеца.",
+      "recentAsOf": "Данни от {{date}}.",
+      "recentMissing": "Няма данни този път от {{countries}}; техните файлове не се зареждат, което не означава нулево преместване."
     },
     "climate": {
       "noAnomalies": "Няма открити значими аномалии",
@@ -2024,6 +2050,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Няма наличен звук",
       "notLive": "{{name}} не е в момента живо",
       "signInToYouTube": "Влез в YouTube",
       "openOnYouTube": "Отворени на YouTube",
@@ -3042,7 +3069,9 @@
         "africa": "Африка"
       },
       "scheduled": "Запл.",
-      "estimated": "Оч."
+      "estimated": "Оч.",
+      "normalOperations": "НОРМАЛНО ФУНКЦИОНИРАНЕ",
+      "open": "ОТВОРЕНО"
     },
     "aircraft": {
       "altitude": "Височина",
@@ -3447,7 +3476,12 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "Венецуела криза",
       "yemen_houthis": "Йемен/Houthis"
-    }
+    },
+    "upcomingForecast": "Предстояща прогноза",
+    "currentForecast": "Текуща прогноза",
+    "expiredForecast": "Изтекла прогноза",
+    "validFrom": "Валидна от",
+    "validUntil": "Валидна до"
   },
   "signals": {
     "context": {

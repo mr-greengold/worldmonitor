@@ -456,15 +456,17 @@
       "logCleared": "Logboek gewist.",
       "worldMonitor": {
         "apiKey": {
-          "title": "Licentie- / API-sleutel",
+          "title": "Desktop-sleutel",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "Abonnees van API Starter en API Business maken deze sleutel in het webdashboard via Settings → API Keys. Als u de volledige sleutel kwijt bent, trekt u deze in en maakt u een vervangende sleutel."
+          "description": "Voor builds zonder aanmelding. Pro: maak er een aan in Settings → API Keys op het web; API-plansleutels werken ook. Voor eigen gebruik; gedeelde of openbare implementaties hebben een API-plan nodig. Help: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "OF",
         "register": {
-          "title": "Een API-sleutel nodig?",
-          "description": "Ga naar worldmonitor.app/docs/api-keys voor stapsgewijze hulp. Handmatige API-sleutels vereisen een API Starter- of API Business-abonnement.",
-          "submitBtn": "API-abonnementen bekijken"
+          "submitBtn": "Abonnementen bekijken"
+        },
+        "signIn": {
+          "title": "Aanmelden met Pro",
+          "description": "Pro werkt hier zodra je je aanmeldt vanuit het hoofdvenster. Geen sleutel nodig."
         }
       },
       "shellTitle": "World Monitor-instellingen",
@@ -603,7 +605,8 @@
         "radiationSpike": "Stralingspiek",
         "radiationElevated": "Verhoogde straling",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "NOTAM-luchtruimbeperkingen"
       },
       "layersTitle": "Lagen",
       "layerSearch": "Lagen zoeken...",
@@ -642,7 +645,9 @@
         "sourceIomDtm": "Bron: IOM DTM",
         "sinceDate": "sinds {{date}}",
         "lastMonth": "vorige maand",
-        "sourceUnhcrOdp": "Bron: UNHCR Operational Data Portal"
+        "sourceUnhcrOdp": "Bron: UNHCR Operational Data Portal",
+        "displaced": "ontheemd",
+        "sourceIdmc": "Bron: IDMC"
       },
       "layerHelp": {
         "title": "Gids voor kaartlagen",
@@ -723,7 +728,8 @@
           "geoBoundaries": "Gedemilitariseerde zones, staakt-het-vuren-lijnen en betwiste grenzen",
           "ciiChoropleth": "Country Instability Index heatmap — landen ingekleurd naar score (groen=stabiel, rood=kritiek)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "Tijdelijke vliegbeperkingen en beperkt, gevaar- en verboden luchtruim van FAA NOTAMs, nu van kracht of binnen 24 uur van start"
         },
         "notes": {
           "timeAffects": "Beïnvloedt: aardbevingen, weer, protesten, stroomstoringen"
@@ -779,7 +785,8 @@
       "info": "INFO"
     },
     "pizzint": {
-      "indexSource": "Index: World Monitor · locatiegegevens:",
+      "indexSource": "Index: World Monitor",
+      "venueSource": "locatiegegevens:",
       "statusNormal": "NORMAAL",
       "statusNoData": "GEEN GEGEVENS",
       "statusNoBaseline": "GEEN REFERENTIE",
@@ -788,6 +795,16 @@
       "tensionsTitle": "Geopolitieke spanningen",
       "tensionsSource": "Spanningen: World Monitor op basis van GDELT-gebeurtenissen",
       "insufficientData": "Onvoldoende gegevens",
+      "evidenceStrikes": "Gemelde aanvallen in 3 dagen ({{countries}}): {{value}}",
+      "evidenceAirports": "Verstoorde luchthavens: {{value}}",
+      "evidenceAirportClosed": "Luchthaven {{name}} gesloten",
+      "evidenceAirportHalted": "{{name}}: meeste vluchten geannuleerd",
+      "evidenceAirportRestricted": "{{name}}: vluchten beperkt",
+      "evidenceMilitaryAircraft": "Militaire vliegtuigen ({{country}}) in de regio: {{value}}",
+      "evidencePlaAircraft": "Chinese militaire vliegtuigen bij Taiwan: {{value}}",
+      "evidencePlaShips": "Chinese marineschepen bij Taiwan: {{value}}",
+      "evidenceSanctions": "Nieuwe Amerikaanse sancties deze week ({{country}}): {{value}}",
+      "evidenceUsual": "(normaal {{value}})",
       "pizzaUnavailable": "Activiteit van pizzeria's niet beschikbaar",
       "source": "Bron:",
       "defcon": "DEFCON {{level}}",
@@ -1109,7 +1126,16 @@
       "staleReport": "Verouderd rapport",
       "reported": "Aantal",
       "period": "Periode",
-      "movementNote": "Elke rij behoudt de bron, rapportdatum en meeteenheid. Populaties, aankomsten en grenscontrole-incidenten zijn verschillende metingen. Bronnen kunnen overlappen; tel hun aantallen niet op. WorldMonitor leidt deze weergave af van de gekoppelde bronnen; dit houdt geen goedkeuring door de aanbieders in."
+      "movementNote": "Elke rij behoudt de bron, rapportdatum en meeteenheid. Populaties, aankomsten en grenscontrole-incidenten zijn verschillende metingen. Bronnen kunnen overlappen; tel hun aantallen niet op. WorldMonitor leidt deze weergave af van de gekoppelde bronnen; dit houdt geen goedkeuring door de aanbieders in.",
+      "recent": "Recent",
+      "last30Days": "Laatste 30 dagen",
+      "newThisWeek": "Nieuw deze week",
+      "conflict": "Conflict",
+      "disaster": "Ramp",
+      "surge": "Toename",
+      "recentNote": "IDMC: mensen ontheemd binnen hun eigen land in de laatste 30 dagen. IDMC publiceert een cijfer gemiddeld drie weken na de ontheemding, dus recente weken worden later ingevuld. Nieuw deze week telt cijfers gepubliceerd in de afgelopen 7 dagen. Toename: ten minste 5.000 mensen en drie keer het maandelijkse gemiddelde van de voorgaande vijf maanden.",
+      "recentAsOf": "Gegevens per {{date}}.",
+      "recentMissing": "Geen gegevens dit keer van {{countries}}; hun bestanden konden niet worden geladen, wat niet nul verplaatsing betekent."
     },
     "populationExposure": {
       "totalAffected": "Totaal getroffen",
@@ -1496,6 +1522,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Audio niet beschikbaar",
       "notLive": "{{name}} is not currently live",
       "openOnYouTube": "Open on YouTube",
       "manage": "Kanalen beheren",
@@ -2657,7 +2684,9 @@
         "africa": "Afrika"
       },
       "scheduled": "Ingepland",
-      "estimated": "Geschat"
+      "estimated": "Geschat",
+      "normalOperations": "NORMALE OPERATIES",
+      "open": "OPEN"
     },
     "cyberThreat": {
       "title": "CYBERDREIGING"
@@ -3063,7 +3092,12 @@
       "position": "Positie",
       "ground": "Op de grond",
       "airborne": "In de lucht"
-    }
+    },
+    "upcomingForecast": "Komende verwachting",
+    "currentForecast": "Actuele verwachting",
+    "expiredForecast": "Verlopen verwachting",
+    "validFrom": "Geldig vanaf",
+    "validUntil": "Geldig tot"
   },
   "signals": {
     "context": {

@@ -52,7 +52,7 @@
 - **Движок двух карт** — 3D-глобус (globe.gl) и плоская карта WebGL (deck.gl) с общим каталогом слоёв карты
 - **Набор панелей** — конкретные реализации панелей для специализированных вариантов
 - **Сквозная корреляция потоков** — сходимость военных, экономических, сигналов бедствий и эскалации
-- **[Country Instability Index (CII)](https://www.worldmonitor.app/country-instability-index/)** — актуальные оценки CII v13, диапазоны и приблизительное 24-часовое движение для 31 страны Tier-1
+- **[Country Instability Index (CII)](https://www.worldmonitor.app/country-instability-index/)** — актуальные оценки CII v14, диапазоны и приблизительное 24-часовое движение для 31 страны Tier-1
 - **Финансовый радар** — биржи, сырьё, криптовалюты и рыночный композит
 - **Локальный AI** — всё на Ollama, без обязательных API-ключей
 - **Варианты сайта** из одной кодовой базы (world, tech, finance, commodity, happy, energy)
@@ -130,6 +130,7 @@ World Monitor рассчитан и на агентов/скрипты, и на 
   ```sh
   npx worldmonitor tools          # разово — список всех MCP-инструментов (ключ не нужен)
   npm install -g worldmonitor     # или установить команду `worldmonitor` (псевдоним `wm`)
+  brew install worldmonitor       # или установить через Homebrew
   worldmonitor risk IR --api-key wm_xxx
   ```
 

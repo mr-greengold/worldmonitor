@@ -766,15 +766,17 @@
       "logCleared": "Jurnalul a fost șters.",
       "worldMonitor": {
         "apiKey": {
-          "title": "Cheie de licență / API",
+          "title": "Cheie desktop",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "Abonații API Starter și API Business creează această cheie în panoul web din Settings → API Keys. Dacă pierdeți cheia completă, revocați-o și creați una nouă."
+          "description": "Pentru compilări fără conectare. Pro: creează una în Settings → API Keys pe web; cheile planului API funcționează și ele. Pentru uz personal; implementările distribuite sau publice necesită un plan API. Ajutor: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "SAU",
         "register": {
-          "title": "Aveți nevoie de o cheie API?",
-          "description": "Consultați worldmonitor.app/docs/api-keys pentru instrucțiuni pas cu pas. Cheile API manuale necesită un plan API Starter sau API Business.",
-          "submitBtn": "Vedeți planurile API"
+          "submitBtn": "Afișează planuri"
+        },
+        "signIn": {
+          "title": "Conectare cu Pro",
+          "description": "Pro funcționează aici după ce te conectezi din fereastra principală. Nici o cheie nu este necesară."
         }
       },
       "table": {
@@ -1090,7 +1092,8 @@
       "skipToEnd": "Treci la final"
     },
     "pizzint": {
-      "indexSource": "Indice: World Monitor · date despre localuri:",
+      "indexSource": "Indice: World Monitor",
+      "venueSource": "date despre localuri:",
       "statusNormal": "NORMAL",
       "statusNoData": "FĂRĂ DATE",
       "statusNoBaseline": "FĂRĂ REFERINȚĂ",
@@ -1101,6 +1104,16 @@
       "tensionsTitle": "Tensiuni geopolitice",
       "tensionsSource": "Tensiuni: World Monitor pe baza evenimentelor GDELT",
       "insufficientData": "Date insuficiente",
+      "evidenceStrikes": "Atacuri raportate în 3 zile ({{countries}}): {{value}}",
+      "evidenceAirports": "Aeroporturi afectate: {{value}}",
+      "evidenceAirportClosed": "Aeroportul {{name}} închis",
+      "evidenceAirportHalted": "{{name}}: majoritatea zborurilor anulate",
+      "evidenceAirportRestricted": "{{name}}: zboruri restricționate",
+      "evidenceMilitaryAircraft": "Avioane militare ({{country}}) în regiune: {{value}}",
+      "evidencePlaAircraft": "Avioane militare chineze lângă Taiwan: {{value}}",
+      "evidencePlaShips": "Nave ale marinei chineze lângă Taiwan: {{value}}",
+      "evidenceSanctions": "Noi sancțiuni SUA săptămâna aceasta ({{country}}): {{value}}",
+      "evidenceUsual": "(de obicei {{value}})",
       "pizzaUnavailable": "Activitatea pizzeriilor nu este disponibilă",
       "source": "Sursa:",
       "statusClosed": "ÎNCHIS",
@@ -1304,7 +1317,8 @@
         "radiationSpike": "Vârf de radiații",
         "radiationElevated": "Radiații ridicate",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "Restricții de spațiu aerian NOTAM"
       },
       "tooltip": {
         "earthquake": "Cutremur",
@@ -1336,7 +1350,9 @@
         "sourceIomDtm": "Sursa: IOM DTM",
         "sinceDate": "din {{date}}",
         "lastMonth": "luna trecută",
-        "sourceUnhcrOdp": "Sursa: Portalul de date operaționale al UNHCR"
+        "sourceUnhcrOdp": "Sursa: Portalul de date operaționale al UNHCR",
+        "displaced": "strămutați",
+        "sourceIdmc": "Sursă: IDMC"
       },
       "layerHelp": {
         "title": "Ghid pentru straturi de hartă",
@@ -1417,7 +1433,8 @@
           "geoBoundaries": "Zone demilitarizate, linii de încetare a focului și granițe disputate",
           "ciiChoropleth": "Hartă termică a Indicelui de instabilitate la nivel de țară — colorează țările după scor (verde=stabil, roșu=critic)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "Restricții temporare de zbor și spațiu aerian restricționat, de pericol și interzis din NOTAM-urile FAA, în vigoare acum sau începând în următoarele 24 de ore"
         },
         "notes": {
           "timeAffects": "Afectează: cutremure, vreme, proteste, întreruperi"
@@ -1777,7 +1794,16 @@
       "staleReport": "Raport învechit",
       "reported": "Număr",
       "period": "Perioadă",
-      "movementNote": "Fiecare rând păstrează sursa, data raportului și măsura. Populațiile, sosirile și evenimentele de control la frontieră sunt măsuri diferite. Sursele se pot suprapune; nu adunați numerele lor. WorldMonitor derivă această vizualizare din sursele indicate; aceasta nu implică susținerea furnizorilor."
+      "movementNote": "Fiecare rând păstrează sursa, data raportului și măsura. Populațiile, sosirile și evenimentele de control la frontieră sunt măsuri diferite. Sursele se pot suprapune; nu adunați numerele lor. WorldMonitor derivă această vizualizare din sursele indicate; aceasta nu implică susținerea furnizorilor.",
+      "recent": "Recent",
+      "last30Days": "Ultimele 30 de zile",
+      "newThisWeek": "Nou această săptămână",
+      "conflict": "Conflict",
+      "disaster": "Dezastru",
+      "surge": "Creștere bruscă",
+      "recentNote": "IDMC: persoane strămutate în interiorul țării lor în ultimele 30 de zile. IDMC publică o cifră într-o medie de trei săptămâni după strămutare, deci săptămânile recente se completează mai târziu. Nou această săptămână numără cifrele publicate în ultimele 7 zile. Creștere bruscă: cel puțin 5.000 de persoane și de trei ori media lunară din precedentele cinci luni.",
+      "recentAsOf": "Date de {{date}}.",
+      "recentMissing": "Fără date în acest moment de la {{countries}}; fișierele lor nu s-au încărcat, ceea ce nu înseamnă deplasare zero."
     },
     "climate": {
       "noAnomalies": "Nu au fost detectate anomalii semnificative",
@@ -2028,6 +2054,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Sunet indisponibil",
       "notLive": "{{name}} nu este live momentan",
       "signInToYouTube": "Conectați-vă la YouTube",
       "openOnYouTube": "Deschide pe YouTube",
@@ -3062,7 +3089,9 @@
         "africa": "Africa"
       },
       "scheduled": "Programat",
-      "estimated": "Est"
+      "estimated": "Est",
+      "normalOperations": "OPERAȚIUNI NORMALE",
+      "open": "DESCHIS"
     },
     "aircraft": {
       "altitude": "Altitudine",
@@ -3467,7 +3496,12 @@
       "uae_ecsr": "EAU/ECSR",
       "venezuela_crisis": "Criza din Venezuela",
       "yemen_houthis": "Yemen/Houthi"
-    }
+    },
+    "upcomingForecast": "Prognoză viitoare",
+    "currentForecast": "Prognoză actuală",
+    "expiredForecast": "Prognoză expirată",
+    "validFrom": "Valabilă de la",
+    "validUntil": "Valabilă până la"
   },
   "signals": {
     "context": {

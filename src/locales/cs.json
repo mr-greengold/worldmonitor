@@ -769,15 +769,17 @@
       "logCleared": "Protokol vymazán.",
       "worldMonitor": {
         "apiKey": {
-          "title": "Licenční / API klíč",
+          "title": "Klíč počítače",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "Předplatitelé API Starter a API Business vytvoří tento klíč na webovém panelu v části Settings → API Keys. Pokud celý klíč ztratíte, zrušte jej a vytvořte náhradní."
+          "description": "Pro buildy bez přihlášení. Pro: vytvořte si klíč v Settings → API Keys na webu; fungují i klíče API plánu. Určeno pro osobní použití; sdílená nebo veřejná nasazení vyžadují plán API. Nápověda: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "NEBO",
         "register": {
-          "title": "Potřebujete API klíč?",
-          "description": "Podrobný návod najdete na worldmonitor.app/docs/api-keys. Ruční API klíče vyžadují tarif API Starter nebo API Business.",
-          "submitBtn": "Zobrazit tarify API"
+          "submitBtn": "Zobrazit plány"
+        },
+        "signIn": {
+          "title": "Přihlášení s Pro",
+          "description": "Pro funguje zde po přihlášení z hlavního okna. Není potřeba klíč."
         }
       },
       "table": {
@@ -1081,7 +1083,8 @@
       "skipToEnd": "Skip to end"
     },
     "pizzint": {
-      "indexSource": "Index: World Monitor · data podniků:",
+      "indexSource": "Index: World Monitor",
+      "venueSource": "data podniků:",
       "statusNormal": "NORMÁLNÍ",
       "statusNoData": "BEZ DAT",
       "statusNoBaseline": "BEZ ZÁKLADU",
@@ -1092,6 +1095,16 @@
       "tensionsTitle": "Geopolitické napětí",
       "tensionsSource": "Napětí: World Monitor na základě událostí GDELT",
       "insufficientData": "Nedostatek dat",
+      "evidenceStrikes": "Hlášené údery za 3 dny ({{countries}}): {{value}}",
+      "evidenceAirports": "Narušená letiště: {{value}}",
+      "evidenceAirportClosed": "Letiště {{name}} uzavřeno",
+      "evidenceAirportHalted": "{{name}}: většina letů zrušena",
+      "evidenceAirportRestricted": "{{name}}: lety omezeny",
+      "evidenceMilitaryAircraft": "Vojenská letadla ({{country}}) v regionu: {{value}}",
+      "evidencePlaAircraft": "Čínská vojenská letadla u Tchaj-wanu: {{value}}",
+      "evidencePlaShips": "Čínské válečné lodě u Tchaj-wanu: {{value}}",
+      "evidenceSanctions": "Nové sankce USA tento týden ({{country}}): {{value}}",
+      "evidenceUsual": "(obvykle {{value}})",
       "pizzaUnavailable": "Aktivita pizzerií není dostupná",
       "source": "Zdroj:",
       "statusClosed": "ZAVŘENO",
@@ -1295,7 +1308,8 @@
         "radiationSpike": "Skokový nárůst radiace",
         "radiationElevated": "Zvýšená radiace",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "Omezení vzdušného prostoru NOTAM"
       },
       "tooltip": {
         "earthquake": "Zemětřesení",
@@ -1327,7 +1341,9 @@
         "sourceIomDtm": "Zdroj: IOM DTM",
         "sinceDate": "od {{date}}",
         "lastMonth": "minulý měsíc",
-        "sourceUnhcrOdp": "Zdroj: Portál operačních dat UNHCR"
+        "sourceUnhcrOdp": "Zdroj: Portál operačních dat UNHCR",
+        "displaced": "vysídleno",
+        "sourceIdmc": "Zdroj: IDMC"
       },
       "layerHelp": {
         "title": "Průvodce mapovými vrstvami",
@@ -1408,7 +1424,8 @@
           "geoBoundaries": "Demilitarizované zóny, linie příměří a sporné hranice",
           "ciiChoropleth": "Tepelná mapa Country Instability Index — barevně rozlišuje země podle skóre (zelená=stabilní, červená=kritické)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "Dočasná omezení letů a omezený, nebezpečný a zakázaný vzdušný prostor z NOTAMů FAA, která jsou právě v platnosti nebo začínají do 24 hodin"
         },
         "notes": {
           "timeAffects": "Ovlivňuje: Zemětřesení, Počasí, Protesty, Výpadky"
@@ -1760,7 +1777,16 @@
       "staleReport": "Zastaralá zpráva",
       "reported": "Počet",
       "period": "Období",
-      "movementNote": "Každý řádek zachovává zdroj, datum zprávy a druh měření. Stavové počty, příjezdy a události hraničních kontrol jsou různá měření. Zdroje se mohou překrývat; jejich počty nesčítejte. WorldMonitor tento přehled odvozuje z odkazovaných zdrojů; neznamená to podporu ze strany poskytovatelů."
+      "movementNote": "Každý řádek zachovává zdroj, datum zprávy a druh měření. Stavové počty, příjezdy a události hraničních kontrol jsou různá měření. Zdroje se mohou překrývat; jejich počty nesčítejte. WorldMonitor tento přehled odvozuje z odkazovaných zdrojů; neznamená to podporu ze strany poskytovatelů.",
+      "recent": "Nedávné",
+      "last30Days": "Posledních 30 dní",
+      "newThisWeek": "Nové tento týden",
+      "conflict": "Konflikt",
+      "disaster": "Katastrofa",
+      "surge": "Nárůst",
+      "recentNote": "IDMC: osoby vysídlené v rámci své země během posledních 30 dní. IDMC zveřejňuje údaje v průměru tři týdny po vysídlení, takže nedávné týdny se doplňují se zpožděním. Nové tento týden počítá údaje zveřejněné v posledních 7 dnech. Nárůst: nejméně 5 000 osob a třikrát měsíční průměr z předchozích pěti měsíců.",
+      "recentAsOf": "Data k {{date}}.",
+      "recentMissing": "Tentokrát žádná data od {{countries}}; jejich soubory se nepodařilo načíst, což neznamená nulové přesídlení."
     },
     "climate": {
       "noAnomalies": "Nebyly zjištěny žádné významné anomálie",
@@ -2011,6 +2037,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Zvuk není k dispozici",
       "notLive": "{{name}} právě nevysílá živě",
       "signInToYouTube": "Přihlaste se do YouTube",
       "openOnYouTube": "Otevřít na YouTube",
@@ -3082,7 +3109,9 @@
         "africa": "Afrika"
       },
       "scheduled": "Plán.",
-      "estimated": "Odhad"
+      "estimated": "Odhad",
+      "normalOperations": "NORMÁLNÍ PROVOZ",
+      "open": "OTEVŘENO"
     },
     "cyberThreat": {
       "title": "KYBERNETICKÁ HROZBA"
@@ -3487,7 +3516,12 @@
       "position": "Poloha",
       "ground": "Na zemi",
       "airborne": "Ve vzduchu"
-    }
+    },
+    "upcomingForecast": "Nadcházející předpověď",
+    "currentForecast": "Aktuální předpověď",
+    "expiredForecast": "Neplatná předpověď",
+    "validFrom": "Platí od",
+    "validUntil": "Platí do"
   },
   "signals": {
     "context": {

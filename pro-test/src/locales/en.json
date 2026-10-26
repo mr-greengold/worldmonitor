@@ -43,7 +43,8 @@
           "Physical metals divergence, minerals concentration & sovereign debt data",
           "Scheduled AI digest + alert rules engine",
           "MCP + SDK access for Claude Desktop & other AI clients (50 calls/day)",
-          "Custom widgets & 10 dashboards (vs 3)"
+          "Custom widgets & 10 dashboards (vs 3)",
+          "Desktop key for the desktop app (2 keys)"
         ],
         "highlightFeatures": [
           "Personal license",
@@ -58,6 +59,7 @@
           "Data export — CSV, JSON & PDF reports",
           "25 custom dashboards (vs 10)",
           "MCP + SDK: 250 calls/day (vs 50)",
+          "Desktop key for the desktop app (3 keys)",
           "Priority support"
         ],
         "highlightFeatures": [
@@ -662,13 +664,13 @@
       "title1": "Free is the observatory.",
       "title2": "Pro is the operations room.",
       "sub": "The dashboard is free at $0 — every map layer except Resilience, no signup. Pro adds the decision layer.",
-      "freeTitle": "Free",
+      "freeTitle": "Free plan",
       "freeDesc": "The free tier is a full product, not a trial. Every map layer except Resilience, all six monitors — no signup, no trial clock.",
       "freeF1": "All map layers except Resilience & curated feeds",
       "freeF2": "Country briefs, hotspots, instability scores",
       "freeF3": "Chokepoints, cables, cascade analysis",
       "freeF4": "Breaking alert pipeline & watchlists",
-      "proTitle": "Pro",
+      "proTitle": "Pro plan",
       "proDesc": "Act on it. The decision layer used in the moments above:",
       "proF1": "WM Analyst — chat across live services, with citations",
       "proF2": "Scenario engine auto-runs hourly on the forecast cron — game disruptions before they hit",
@@ -699,7 +701,7 @@
       "q8": "Do I need an account?",
       "a8": "No. The dashboard works instantly with no signup. An account only matters when you upgrade to Pro or want settings synced across devices.",
       "q9": "Is it open source?",
-      "a9": "Yes — open source under AGPL-3.0 on GitHub: read the code, self-host it, or build on it. Native desktop apps for Windows, macOS and Linux are available too, plus an Android TV app for wall displays.",
+      "a9": "Yes — open source under AGPL-3.0 on GitHub: read the code, self-host it, or build on it. Pro and Pro Business include desktop keys, so your own desktop build can load Pro cloud data; Docker copies run on their own data. Native desktop apps for Windows, macOS and Linux are available too, plus an Android TV app for wall displays.",
       "q10": "Why isn't World Monitor Palantir?",
       "a10": "Palantir makes an institution's own data operational inside that institution. World Monitor starts from the other end: it assembles, normalizes, correlates, and monitors public-world data, then publishes that intelligence layer through a free dashboard and open-source code. Different job, different product.",
       "q11": "Which World Monitor license do I need?",

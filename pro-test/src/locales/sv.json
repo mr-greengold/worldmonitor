@@ -81,7 +81,7 @@
     "windowTitle": "worldmonitor.app — Live-dashboard",
     "openFullScreen": "Öppna helskärm",
     "tryLiveDashboard": "Prova live-dashboarden",
-    "iframeTitle": "World Monitor — Live Intelligence Dashboard",
+    "iframeTitle": "World Monitor — Live-dashboard för underrättelser",
     "description": "3D WebGL-globs · interaktiva kartlager · realtids marknads-, makro-, geopolitiska, energi- och infrastrukturdata"
   },
   "socialProof": {
@@ -161,7 +161,7 @@
     "oneKey": "Live-tjänster, 1 nyckel",
     "oneKeyDesc": "Finnhub, FRED, ACLED, UCDP, NASA FIRMS, AISStream, OpenSky och fler — alla aktiva, inga separata registreringar.",
     "deliveryLabel": "Välj hur intelligence hittar dig",
-    "supplyChainLab": "Supply-Chain Stress Lab",
+    "supplyChainLab": "Stresstestlabb för leveranskedjan",
     "supplyChainLabDesc": "Modellera en kostnadschock över länder och sektorer. Rangordna råvaruöversälj efter beroende av flaskhalsar. Spåra koncentration från gruva till raffin och SGE–COMEX-premiumskillnaden — serien som rör sig före rubrikerna.",
     "roadmapNote": "På vägkartan: orbitövervakning, längre historik, premiumkartlager."
   },
@@ -244,7 +244,7 @@
     "infraLayers": "Infrastrukturlager",
     "satellite": "Orbital övervakning",
     "connectorsRow": "Konnektorer",
-    "deployment": "Deployment",
+    "deployment": "Driftsättning",
     "securityRow": "Säkerhet",
     "f5_15min": "5-15 minuter",
     "fLt60s": "<60 sekunder",
@@ -331,7 +331,7 @@
   },
   "soonBadge": "Snart",
   "meta": {
-    "title": "World Monitor Pro | AI Intelligence & MCP",
+    "title": "World Monitor Pro | AI-underrättelser och MCP",
     "description": "World Monitor Pro lägger till en AI-analytiker, schemalagda intelligenssammanfattningar, anpassade widgetar, marknadsundersökningar och MCP-åtkomst till live-data för geopolitik och finans.",
     "ogTitle": "World Monitor Pro | Geopolitisk AI",
     "ogDescription": "Fråga den, prenumerera på den, bygg på den. WM Analyst chat, en AI-sammandrag enligt ditt schema (dagligen, två gånger dagligen eller veckovis), anpassad widgetbyggare och MCP för Claude/GPT — över live-tjänster under en nyckel."
@@ -372,7 +372,8 @@
           "Data om fysisk metallskillnad, mineralkoncentration och statsskuld",
           "Schemalagd AI-sammanfattning och varningsregelmotor",
           "MCP + SDK-åtkomst för Claude Desktop och andra AI-klienter (50 samtal/dag)",
-          "Anpassade widgetar och 10 instrumentpaneler (mot 3)"
+          "Anpassade widgetar och 10 instrumentpaneler (mot 3)",
+          "Skrivbordsnyckel för skrivbordsappen (2 nycklar)"
         ],
         "highlightFeatures": [
           "Personlig licens",
@@ -432,6 +433,7 @@
           "Dataexport — CSV, JSON & PDF-rapporter",
           "25 anpassade instrumentpaneler (mot 10)",
           "MCP + SDK: 250 samtal/dag (mot 50)",
+          "Skrivbordsnyckel för skrivbordsappen (3 nycklar)",
           "Prioriterad support"
         ],
         "highlightFeatures": [
@@ -599,7 +601,7 @@
       "s5l": "Instabilitetsindex · direkt",
       "s6l": "Resilienserbjudanden",
       "s7l": "Undersjöiska kablar",
-      "s8l": "Pipelines & LNG",
+      "s8l": "Rörledningar och LNG",
       "s9l": "AI-datacenter kartlagda",
       "s10l": "Bedömda hotspots",
       "s11l": "Börser & tillgångar",
@@ -650,13 +652,13 @@
       "title1": "Gratis är observatoriet.",
       "title2": "Pro är operationsrummet.",
       "sub": "Instrumentpanelen är gratis för $0 — varje kartlager förutom Resilience, ingen registrering. Pro lägger till beslutslagret.",
-      "freeTitle": "Gratis",
+      "freeTitle": "Gratisplan",
       "freeDesc": "Den kostnadsfria nivån är en fullständig produkt, inte en testversion. Varje kartlager förutom Resilience, alla sex övervakningar — ingen registrering, ingen testklocka.",
       "freeF1": "Alla kartlager utom Resilience & kurerade flöden",
       "freeF2": "Landsbeskrivningar, hotspots, instabilitetsscore",
       "freeF3": "Flaskhalsar, kablar, kaskadanalys",
       "freeF4": "Breaking-varningstransport och bevakningslistor",
-      "proTitle": "Pro",
+      "proTitle": "Pro-plan",
       "proDesc": "Agera på det. Beslutslagret som används i momenten ovan:",
       "proF1": "WM Analyst — chatta över live-tjänster, med citat",
       "proF2": "Scenariomotor & Route Explorer — simulera störningar innan de inträffar",
@@ -686,7 +688,7 @@
       "q8": "Behöver jag ett konto?",
       "a8": "Nej. Instrumentbrädan fungerar omedelbar utan registrering. Ett konto spelar endast roll när du uppgraderar till Pro eller vill synkronisera inställningar mellan enheter.",
       "q9": "Är det öppen källkod?",
-      "a9": "Ja — öppen källkod under AGPL-3.0 på GitHub: läs koden, själv-host den, eller bygg vidare på den. Interna skrivbordsprogram för Windows, macOS och Linux är också tillgängliga, plus en Android TV-app för väggdisplajer.",
+      "a9": "Ja — öppen källkod under AGPL-3.0 på GitHub: läs koden, själv-host eller bygg vidare på den. Pro och Pro Business inkluderar skrivbordsnycklar, så din egen skrivbordsbuild kan ladda Pro-molndata; Docker-kopior körs på egen data. Inbyggda skrivbordsappar för Windows, macOS och Linux är också tillgängliga, plus en Android TV-app för väggdisplayer.",
       "q10": "Varför är World Monitor inte Palantir?",
       "a10": "Palantir gör en institutions egna data operationell inom den institutionen. World Monitor börjar från andra änden: det samlar, normaliserar, korrelerar och övervakar offentlig världsdata, och publicerar sedan det intelligensskiktet genom en gratis instrumentpanel och öppen källkod. Olika uppgift, olika produkt.",
       "q11": "Vilken World Monitor-licens behöver jag?",

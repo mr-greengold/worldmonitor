@@ -259,6 +259,29 @@ describe("claimSubscription anonymous ownership proof", () => {
     expect(rows.oldSub).toBeNull();
   });
 
+  test("moves anonymous checkout session rows to the claimant so account deletion finds them", async () => {
+    process.env.DODO_IDENTITY_SIGNING_SECRET = SIGNING_SECRET;
+    const t = convexTest(schema, modules);
+    await seedAnonClaimState(t);
+    await t.run((ctx) => ctx.db.insert("checkoutSessionEvents", {
+      userId: ANON_USER_ID,
+      productId: PRODUCT_CATALOG.pro_monthly.dodoProductId!,
+      sessionId: "cks_anon_claim_001",
+      anonymous: true,
+      occurredAt: NOW,
+    }));
+
+    await t.withIdentity(CLAIMANT_A).mutation(api.payments.billing.claimSubscription, {
+      anonId: ANON_USER_ID,
+      claimToken: await signAnonClaimToken(ANON_USER_ID),
+    });
+
+    expect(await t.run((ctx) => ctx.db.query("checkoutSessionEvents").collect())).toEqual([
+      // `anonymous` keeps recording how the checkout started.
+      expect.objectContaining({ userId: CLAIMANT_A.subject, sessionId: "cks_anon_claim_001", anonymous: true }),
+    ]);
+  });
+
   test("keeps existing higher-tier entitlement precedence when proof is valid", async () => {
     process.env.DODO_IDENTITY_SIGNING_SECRET = SIGNING_SECRET;
     const t = convexTest(schema, modules);
@@ -3412,6 +3435,35 @@ describe("payments billing missed renewal reconciliation", () => {
     expect(entitlement?.planKey).toBe("free");
   });
 
+  test("maps a remote `paused` status to local expired and downgrades entitlement", async () => {
+    const t = convexTest(schema, modules);
+    const stalePeriodEnd = NOW - DAY_MS;
+    await seedStaleActiveForReconcile(t, { suffix: "paused", currentPeriodEnd: stalePeriodEnd });
+
+    const summary = await t.action(
+      internal.payments.billing.reconcileMissedDodoRenewals,
+      {
+        now: NOW,
+        remoteSubscriptionsForTest: [
+          {
+            subscription_id: "sub_paused",
+            product_id: PRODUCT_CATALOG.pro_monthly.dodoProductId!,
+            status: "paused",
+            previous_billing_date: new Date(NOW - 31 * DAY_MS).toISOString(),
+            next_billing_date: new Date(stalePeriodEnd).toISOString(),
+          },
+        ],
+      },
+    );
+
+    expect(summary).toMatchObject({ inspected: 1, reconciled: 1, skipped: 0, failed: 0 });
+
+    const sub = await readSub(t, "paused");
+    const entitlement = await readEntitlement(t, TEST_USER_ID);
+    expect(sub?.status).toBe("expired");
+    expect(entitlement?.planKey).toBe("free");
+  });
+
   test("marks a remote-cancelled subscription cancelled and downgrades once the period has ended", async () => {
     const t = convexTest(schema, modules);
     const stalePeriodEnd = NOW - DAY_MS;
@@ -3512,7 +3564,7 @@ describe("payments billing missed renewal reconciliation", () => {
   test("skips an unsupported remote status, escalates, and backs the row off", async () => {
     const t = convexTest(schema, modules);
     const stalePeriodEnd = NOW - DAY_MS;
-    await seedStaleActiveForReconcile(t, { suffix: "paused", currentPeriodEnd: stalePeriodEnd });
+    await seedStaleActiveForReconcile(t, { suffix: "unknown", currentPeriodEnd: stalePeriodEnd });
 
     const summary = await t.action(
       internal.payments.billing.reconcileMissedDodoRenewals,
@@ -3520,9 +3572,9 @@ describe("payments billing missed renewal reconciliation", () => {
         now: NOW,
         remoteSubscriptionsForTest: [
           {
-            subscription_id: "sub_paused",
+            subscription_id: "sub_unknown",
             product_id: PRODUCT_CATALOG.pro_monthly.dodoProductId!,
-            status: "paused",
+            status: "not_a_dodo_status",
             previous_billing_date: new Date(NOW - 31 * DAY_MS).toISOString(),
             next_billing_date: new Date(stalePeriodEnd).toISOString(),
           },
@@ -3532,7 +3584,7 @@ describe("payments billing missed renewal reconciliation", () => {
 
     expect(summary).toMatchObject({ inspected: 1, reconciled: 0, skipped: 1, failed: 0 });
 
-    const sub = await readSub(t, "paused");
+    const sub = await readSub(t, "unknown");
     expect(sub?.status).toBe("active");
     expect(sub?.currentPeriodEnd).toBe(stalePeriodEnd);
     expect(sub?.reconcileFailureCount).toBe(1);

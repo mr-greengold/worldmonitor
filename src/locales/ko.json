@@ -760,15 +760,17 @@
       "logCleared": "로그가 삭제되었습니다.",
       "worldMonitor": {
         "apiKey": {
-          "title": "라이선스 / API 키",
+          "title": "데스크톱 키",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "API Starter 및 API Business 구독자는 웹 대시보드의 Settings → API Keys에서 이 키를 생성합니다. 전체 키를 분실한 경우 기존 키를 취소하고 새 키를 생성하세요."
+          "description": "로그인이 없는 빌드의 경우입니다. Pro: 웹의 Settings → API Keys에서 생성하세요. API 플랜 키도 작동합니다. 개인 사용용이며, 공유 또는 공개 배포는 API 플랜이 필요합니다. 도움말: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "또는",
         "register": {
-          "title": "API 키가 필요하신가요?",
-          "description": "단계별 안내는 worldmonitor.app/docs/api-keys에서 확인하세요. 수동 API 키에는 API Starter 또는 API Business 요금제가 필요합니다.",
-          "submitBtn": "API 요금제 보기"
+          "submitBtn": "플랜 보기"
+        },
+        "signIn": {
+          "title": "Pro로 로그인",
+          "description": "메인 창에서 로그인하면 이곳에서 Pro를 사용할 수 있습니다. 키가 필요하지 않습니다."
         }
       },
       "table": {
@@ -1084,7 +1086,8 @@
       "skipToEnd": "Skip to end"
     },
     "pizzint": {
-      "indexSource": "지수: World Monitor · 매장 데이터:",
+      "indexSource": "지수: World Monitor",
+      "venueSource": "매장 데이터:",
       "statusNormal": "정상",
       "statusNoData": "데이터 없음",
       "statusNoBaseline": "기준 없음",
@@ -1095,6 +1098,16 @@
       "tensionsTitle": "지정학적 긴장",
       "tensionsSource": "긴장도: GDELT 이벤트를 바탕으로 World Monitor가 산출",
       "insufficientData": "데이터 부족",
+      "evidenceStrikes": "3일간 보고된 공격 ({{countries}}): {{value}}",
+      "evidenceAirports": "운영 차질 공항: {{value}}",
+      "evidenceAirportClosed": "{{name}} 공항 폐쇄",
+      "evidenceAirportHalted": "{{name}}: 대부분의 항공편 결항",
+      "evidenceAirportRestricted": "{{name}}: 항공편 제한",
+      "evidenceMilitaryAircraft": "지역 내 군용기 ({{country}}): {{value}}",
+      "evidencePlaAircraft": "대만 인근 중국 군용기: {{value}}",
+      "evidencePlaShips": "대만 인근 중국 해군 함정: {{value}}",
+      "evidenceSanctions": "이번 주 미국 신규 제재 ({{country}}): {{value}}",
+      "evidenceUsual": "(평소 {{value}})",
       "pizzaUnavailable": "피자 가게 활동 데이터를 사용할 수 없습니다",
       "source": "출처:",
       "statusClosed": "폐점",
@@ -1298,7 +1311,8 @@
         "radiationSpike": "방사능 급증",
         "radiationElevated": "상승된 방사능",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "NOTAM 공역 제한"
       },
       "tooltip": {
         "earthquake": "지진",
@@ -1330,7 +1344,9 @@
         "sourceIomDtm": "출처: IOM DTM",
         "sinceDate": "{{date}} 이후",
         "lastMonth": "지난달",
-        "sourceUnhcrOdp": "출처: UNHCR 운영 데이터 포털"
+        "sourceUnhcrOdp": "출처: UNHCR 운영 데이터 포털",
+        "displaced": "실향민",
+        "sourceIdmc": "출처: IDMC"
       },
       "layerHelp": {
         "title": "지도 레이어 가이드",
@@ -1411,7 +1427,8 @@
           "geoBoundaries": "비무장지대, 휴전선 및 분쟁 경계선",
           "ciiChoropleth": "Country Instability Index 히트맵 — 점수별 국가 표시(녹색=안정, 적색=심각)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "FAA NOTAM에서 현재 시행 중이거나 24시간 이내에 시작되는 임시 비행 제한, 제한된 공역, 위험 및 금지 공역"
         },
         "notes": {
           "timeAffects": "영향 대상: 지진, 기상, 시위, 장애"
@@ -1769,7 +1786,16 @@
       "staleReport": "오래된 보고서",
       "reported": "수치",
       "period": "기간",
-      "movementNote": "각 행은 출처, 보고 날짜와 측정 기준을 유지합니다. 특정 시점의 인구, 도착자 수와 국경 단속 사건 수는 서로 다른 지표입니다. 출처 간에 중복이 있을 수 있으므로 수치를 합산하지 마세요. WorldMonitor는 연결된 출처에서 이 보기를 생성하며, 이는 제공 기관의 지지를 뜻하지 않습니다."
+      "movementNote": "각 행은 출처, 보고 날짜와 측정 기준을 유지합니다. 특정 시점의 인구, 도착자 수와 국경 단속 사건 수는 서로 다른 지표입니다. 출처 간에 중복이 있을 수 있으므로 수치를 합산하지 마세요. WorldMonitor는 연결된 출처에서 이 보기를 생성하며, 이는 제공 기관의 지지를 뜻하지 않습니다.",
+      "recent": "최근",
+      "last30Days": "지난 30일",
+      "newThisWeek": "이번 주 신규",
+      "conflict": "분쟁",
+      "disaster": "재해",
+      "surge": "급증",
+      "recentNote": "IDMC: 지난 30일간 국내 실향민. IDMC는 실향 발생 후 중앙값 3주 뒤에 통계를 발표하므로 최근 주간 데이터는 늦게 입력됩니다. 이번 주 신규는 지난 7일간 발표된 통계를 집계합니다. 급증: 최소 5,000명 이상이며 지난 5개월 월평균의 3배 이상.",
+      "recentAsOf": "{{date}} 기준 데이터입니다.",
+      "recentMissing": "{{countries}}에서 이번에 데이터를 받지 못했습니다. 파일 로드에 실패했으므로 국내이동이 없다는 뜻은 아닙니다."
     },
     "climate": {
       "noAnomalies": "중대한 이상 감지되지 않음",
@@ -2020,6 +2046,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "오디오를 사용할 수 없습니다",
       "notLive": "{{name}}은(는) 현재 라이브 중이 아닙니다",
       "signInToYouTube": "YouTube 로그인",
       "openOnYouTube": "YouTube에서 열기",
@@ -3022,7 +3049,9 @@
         "africa": "아프리카"
       },
       "scheduled": "예정",
-      "estimated": "추정"
+      "estimated": "추정",
+      "normalOperations": "정상 운항",
+      "open": "운영 중"
     },
     "aircraft": {
       "altitude": "고도",
@@ -3427,7 +3456,12 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "베네수엘라 위기",
       "yemen_houthis": "예멘/후티"
-    }
+    },
+    "upcomingForecast": "예정된 예보",
+    "currentForecast": "현재 유효한 예보",
+    "expiredForecast": "만료된 예보",
+    "validFrom": "유효 시작",
+    "validUntil": "유효 종료"
   },
   "signals": {
     "context": {

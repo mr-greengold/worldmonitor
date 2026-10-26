@@ -249,7 +249,7 @@
     "f5_15min": "5-15 minut",
     "fLt60s": "<60 sekund",
     "fPerRequest": "Na żądanie",
-    "fLiveEdge": "Live-edge",
+    "fLiveEdge": "Na żywo",
     "f50panels": "Panele",
     "fWhiteLabel": "White-label",
     "fBYOK": "BYOK",
@@ -331,9 +331,9 @@
   },
   "soonBadge": "Wkrótce",
   "meta": {
-    "title": "World Monitor Pro | AI Intelligence & MCP",
+    "title": "World Monitor Pro | Analiza AI i MCP",
     "description": "World Monitor Pro dodaje analityka AI, zaplanowane digesty wywiadowcze, niestandardowe widżety, badania rynku oraz dostęp MCP do danych geopolitycznych i finansowych na żywo.",
-    "ogTitle": "World Monitor Pro | Geopolitical AI",
+    "ogTitle": "World Monitor Pro | Geopolityczna AI",
     "ogDescription": "Pytaj, subskrybuj, buduj na bazie. WM Analyst chat — podsumowanie AI według Twojego harmonogramu (codziennie, dwa razy dziennie lub tygodniowo), konstruktor custom widgetów i MCP dla Claude/GPT — na wszystkich live usługach pod jednym kluczem."
   },
   "pricing": {
@@ -372,7 +372,8 @@
           "Rozbieżność metali fizycznych, koncentracja minerałów i dane długu suwerennego",
           "Zaplanowany digest AI + silnik reguł alertów",
           "Dostęp do MCP + SDK dla Claude Desktop i innych klientów AI (50 wywołań/dzień)",
-          "Niestandardowe widgety i 10 dashboardów (zamiast 3)"
+          "Niestandardowe widgety i 10 dashboardów (zamiast 3)",
+          "Klucz desktopowy do aplikacji na pulpit (2 klucze)"
         ],
         "highlightFeatures": [
           "Licencja osobista",
@@ -432,6 +433,7 @@
           "Eksport danych — raporty CSV, JSON i PDF",
           "25 niestandardowych pulpitów (zamiast 10)",
           "MCP + SDK: 250 wywołań/dzień (vs 50)",
+          "Klucz desktopowy do aplikacji na pulpit (3 klucze)",
           "Priorytetowe wsparcie"
         ],
         "highlightFeatures": [
@@ -478,7 +480,7 @@
       "ctaFree": "Darmowe · Bez rejestracji · Wczytuje się w sekundy",
       "ctaSecondary": "Zobacz, jak go używają ↓",
       "trustUsers": "2M+ użytkowników",
-      "trustOpenSource": "Open source · AGPL-3.0",
+      "trustOpenSource": "Otwarty kod · AGPL-3.0",
       "screenshotAlt": "Żywa mapa inteligencji World Monitor — globalna mapa z warstwami konfliktów, transportu i rynków",
       "plateNote": "Przechwycone z żywej mapy — kliknij, aby ją otworzyć",
       "trustBuild": "Buduj na jej podstawie:",
@@ -650,13 +652,13 @@
       "title1": "Bezpłatny to obserwatorium.",
       "title2": "Pro to pokój operacyjny.",
       "sub": "Dashboard jest darmowy — $0 — każda warstwa mapy oprócz Resilience, bez rejestracji. Pro dodaje warstwę decyzyjną.",
-      "freeTitle": "Bezpłatny",
+      "freeTitle": "Plan bezpłatny",
       "freeDesc": "Wersja darmowa to pełny produkt, a nie wersja próbna. Każda warstwa mapy oprócz Resilience, wszystkie sześć monitorów — bez rejestracji, bez licznika próby.",
       "freeF1": "Wszystkie warstwy map poza Resilience i kluczowanymi kanałami",
       "freeF2": "Briefingi krajów, punkty hotspot, wyniki niestabilności",
       "freeF3": "Punkty krytyczne, kable, analiza kaskadowa",
       "freeF4": "Potok alertów na bieżąco i listy obserwacyjne",
-      "proTitle": "Pro",
+      "proTitle": "Plan Pro",
       "proDesc": "Działaj. Warstwa decyzyjna używana w momencie opisanym powyżej:",
       "proF1": "WM Analyst — czat na live usługach, z cytowaniami",
       "proF2": "Silnik scenariuszy i Route Explorer — przewiduj zakłócenia zanim się pojawią",
@@ -686,7 +688,7 @@
       "q8": "Czy potrzebuję konta?",
       "a8": "Nie. Pulpit nawigacyjny działa natychmiast bez rejestracji. Konto ma znaczenie tylko gdy uaktualnisz do Pro lub chcesz synchronizować ustawienia na różnych urządzeniach.",
       "q9": "Czy to open source?",
-      "a9": "Tak — open source na AGPL-3.0 na GitHub: przeczytaj kod, samodzielnie go hostuj, lub na nim buduj. Natywne aplikacje desktopowe dla Windows, macOS i Linux są również dostępne, a także aplikacja Android TV do wyświetlaczy ściennych.",
+      "a9": "Tak — otwarte oprogramowanie na licencji AGPL-3.0 na GitHub: przeczytaj kod, samodzielnie go hostuj lub na nim buduj. Pro i Pro Business zawierają klucze desktopowe, więc Twoja własna kompilacja desktopowa może ładować dane chmury Pro; instancje Docker działają na własnych danych. Dostępne są też natywne aplikacje desktopowe dla Windows, macOS i Linux, plus aplikacja Android TV do wyświetlaczy ściennych.",
       "q10": "Dlaczego World Monitor nie jest Palantir?",
       "a10": "Palantir sprawia, że własne dane instytucji stają się operacyjne w ramach tej instytucji. World Monitor zaczyna od drugiej strony: zbiera, normalizuje, koreluje i monitoruje dane z publicznej domeny, następnie publikuje tę warstwę analizy poprzez bezpłatny dashboard i kod open-source. Inne zadanie, inny produkt.",
       "q11": "Której licencji World Monitor potrzebuję?",

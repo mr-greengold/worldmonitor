@@ -6,7 +6,7 @@ import { readFileSync as originalReadFileSync, existsSync, readdirSync, mkdirSyn
 import { tmpdir } from 'node:os';
 import { MACHINE_READABLE_URLS } from '../scripts/build-sitemap.mjs';
 import { nonDefaultLandingLocales } from '../shared/indexable-landing-locales.ts';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 function readFileSync(path, options) {
   const content = originalReadFileSync(path, options);
   if (typeof content === 'string') {
@@ -83,7 +83,7 @@ const frontendDockerfileSource = readFileSync(resolve(__dirname, '../docker/Dock
 const dockerignoreSource = readFileSync(resolve(__dirname, '../.dockerignore'), 'utf-8');
 const vercelIgnoreSource = readFileSync(resolve(__dirname, '../scripts/vercel-ignore.sh'), 'utf-8');
 const variantDashboardSource = readFileSync(resolve(__dirname, '../src/config/variant-dashboard-html.ts'), 'utf-8');
-const SPA_HTML_CACHE_SOURCE = '/((?!api|mcp|a2a|ask|oauth|assets|blog|docs|country-instability-index|countries|chokepoints|compare|crises|tools|research|reference|changelog|sources|use-cases|accuracy|src|tmp|server|embed|embed\\.html|favico|map-styles|data|textures|pro|sw\\.js|workbox-[a-f0-9]+\\.js|manifest\\.webmanifest|offline\\.html|robots\\.txt|robots\\.www\\.txt|robots\\.variant\\.txt|robots\\.api\\.txt|sitemap\\.xml|sitemap-main\\.xml|schemamap\\.xml|sandbox|llms\\.txt|llms-full\\.txt|llms\\*\\.txt|openapi\\.yaml|openapi\\.json|plugin\\.json|auth\\.md|pricing\\.md|support\\.md|ai-search\\.md|agents\\.md|developers\\.md|developers/llms\\.txt|mcp-server\\.md|openapi\\.md|sdks\\.md|world-monitor\\.md|api-versioning\\.md|agent\\.txt|\\.well-known|wm-widget-sandbox\\.html|mcp-grant\\.html|mcp-grant|desktop-sign-in\\.html|desktop-sign-in|.*\\.md$).*)';
+const SPA_HTML_CACHE_SOURCE = '/((?!api|mcp|a2a|ask|oauth|assets|blog|docs|country-instability-index|countries|chokepoints|compare|crises|tools|research|reference|changelog|sources|use-cases|accuracy|monitor-the-situation|src|tmp|server|embed|embed\\.html|favico|map-styles|data|textures|pro|sw\\.js|workbox-[a-f0-9]+\\.js|manifest\\.webmanifest|offline\\.html|robots\\.txt|robots\\.www\\.txt|robots\\.variant\\.txt|robots\\.api\\.txt|sitemap\\.xml|sitemap-main\\.xml|schemamap\\.xml|sandbox|llms\\.txt|llms-full\\.txt|llms\\*\\.txt|openapi\\.yaml|openapi\\.json|plugin\\.json|auth\\.md|pricing\\.md|support\\.md|ai-search\\.md|agents\\.md|developers\\.md|developers/llms\\.txt|mcp-server\\.md|openapi\\.md|sdks\\.md|world-monitor\\.md|api-versioning\\.md|agent\\.txt|\\.well-known|wm-widget-sandbox\\.html|mcp-grant\\.html|mcp-grant|desktop-sign-in\\.html|desktop-sign-in|.*\\.md$).*)';
 const GLOBAL_SECURITY_HEADER_SOURCE = '/((?!docs|embed|embed\\.html|wm-widget-sandbox\\.html).*)';
 const APP_ROOT_HOST_PATTERN = '^(?:(?:www|tech|finance|commodity|happy|energy)\\.)?worldmonitor\\.app$';
 const WEBMCP_PRODUCTION_HOST_PATTERN = '^(?:www|tech|finance|commodity|happy|energy)\\.worldmonitor\\.app$';
@@ -662,6 +662,15 @@ describe('crawlable content corpus deployment contracts', () => {
     assert.ok(!packageJson.scripts['build:full'].includes('npm run build:blog &&'), 'build:full must not regenerate inventory facts inside build:blog');
   });
 
+  it('builds frontend assets on the host platform and keeps nginx on the target platform', () => {
+    const stages = frontendDockerfileSource.match(/^FROM .+$/gm);
+    assert.equal(stages.length, 2);
+    assert.match(stages[0], /^FROM --platform=\$BUILDPLATFORM node:.+ AS builder$/);
+    assert.match(stages[1], /^FROM nginx:.+ AS runtime$/);
+    assert.match(frontendDockerfileSource, /^COPY --from=builder \/app\/dist\/ \.\/$/m);
+    assert.doesNotMatch(frontendDockerfileSource, /^COPY --from=builder .*node_modules/m);
+  });
+
   it('builds Vercel when corpus source files change', () => {
     assert.ok(vercelIgnoreSource.includes("'CHANGELOG.md'"));
     assert.ok(vercelIgnoreSource.includes("'docs/snapshots/'"));
@@ -673,6 +682,9 @@ describe('crawlable content corpus deployment contracts', () => {
       'scripts/unranked-country-inventory.mjs',
       'scripts/build-use-cases.mjs',
       'scripts/build-accuracy-page.mjs',
+      'scripts/build-situation-page.mjs',
+      'scripts/situation-page/',
+      'scripts/slugify.mjs',
       'scripts/crawlable-sources-page.mjs',
       'scripts/source-origin.mjs',
       'scripts/source-origin.d.mts',
@@ -711,6 +723,9 @@ describe('crawlable content corpus deployment contracts', () => {
         'scripts/unranked-country-inventory.mjs',
         'scripts/build-use-cases.mjs',
         'scripts/build-accuracy-page.mjs',
+        'scripts/build-situation-page.mjs',
+        'scripts/situation-page/sections.mjs',
+        'scripts/slugify.mjs',
         'scripts/crawlable-sources-page.mjs',
         'scripts/source-origin.mjs',
         'scripts/source-origin.d.mts',
@@ -795,6 +810,84 @@ describe('crawlable content corpus deployment contracts', () => {
     }
   });
 
+  it('builds a deliberate same-commit redeploy on main so rotated env vars reach production (#8216)', () => {
+    const fixture = mkdtempSync(join(tmpdir(), 'wm-vercel-redeploy-'));
+    try {
+      const fixtureEnv = { ...process.env };
+      for (const key of ['GIT_COMMON_DIR', 'GIT_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY', 'GIT_WORK_TREE']) {
+        delete fixtureEnv[key];
+      }
+      const git = (...args) => execFileSync('git', args, { cwd: fixture, env: fixtureEnv, encoding: 'utf8' });
+      git('init', '-q');
+      git('config', 'user.email', 'test@example.com');
+      git('config', 'user.name', 'Test');
+      writeFileSync(join(fixture, 'README.md'), 'base\n');
+      git('add', 'README.md');
+      git('commit', '-qm', 'base');
+      const deployed = git('rev-parse', 'HEAD').trim();
+      const run = (previous) => spawnSync('/bin/bash', [resolve(__dirname, '../scripts/vercel-ignore.sh')], {
+        cwd: fixture,
+        env: { ...fixtureEnv, VERCEL_GIT_COMMIT_REF: 'main', VERCEL_GIT_PREVIOUS_SHA: previous },
+        encoding: 'utf8',
+      });
+
+      // Vercel sets VERCEL_GIT_PREVIOUS_SHA to the last successful deployment, so it
+      // equals HEAD only when that same commit is redeployed after an env change.
+      const redeploy = run(deployed);
+      assert.ifError(redeploy.error);
+      assert.equal(redeploy.status, 1, 'a same-commit redeploy must build');
+
+      mkdirSync(join(fixture, 'scripts'), { recursive: true });
+      writeFileSync(join(fixture, 'scripts/seed-unrelated.mjs'), 'seed\n');
+      git('add', '.');
+      git('commit', '-qm', 'seed only');
+      const push = run(deployed);
+      assert.ifError(push.error);
+      assert.equal(push.status, 0, 'a new commit with no web changes must still skip');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('builds a same-commit preview redeploy when the shallow clone has no origin/main', () => {
+    const fixture = mkdtempSync(join(tmpdir(), 'wm-vercel-preview-redeploy-'));
+    try {
+      const fixtureEnv = { ...process.env };
+      for (const key of ['GIT_COMMON_DIR', 'GIT_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY', 'GIT_WORK_TREE']) {
+        delete fixtureEnv[key];
+      }
+      const git = (...args) => execFileSync('git', args, { cwd: fixture, env: fixtureEnv, encoding: 'utf8' });
+      git('init', '-q');
+      git('config', 'user.email', 'test@example.com');
+      git('config', 'user.name', 'Test');
+      writeFileSync(join(fixture, 'README.md'), 'base\n');
+      git('add', 'README.md');
+      git('commit', '-qm', 'base');
+      const deployed = git('rev-parse', 'HEAD').trim();
+      const run = (previous) => spawnSync('/bin/bash', [resolve(__dirname, '../scripts/vercel-ignore.sh')], {
+        cwd: fixture,
+        env: { ...fixtureEnv, VERCEL_GIT_COMMIT_REF: 'feat/env-flag', VERCEL_GIT_PREVIOUS_SHA: previous },
+        encoding: 'utf8',
+      });
+
+      // Vercel's preview clone has no origin/main, so the script falls back to
+      // PREVIOUS_SHA. A redeploy to pick up a preview env var sets it to HEAD.
+      const redeploy = run(deployed);
+      assert.ifError(redeploy.error);
+      assert.equal(redeploy.status, 1, 'a same-commit preview redeploy must build');
+
+      mkdirSync(join(fixture, 'scripts'), { recursive: true });
+      writeFileSync(join(fixture, 'scripts/seed-unrelated.mjs'), 'seed\n');
+      git('add', '.');
+      git('commit', '-qm', 'seed only');
+      const push = run(deployed);
+      assert.ifError(push.error);
+      assert.equal(push.status, 0, 'a new preview commit with no web changes must still skip');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   it('keeps corpus inputs available in Docker build contexts', () => {
     const markdownIgnore = dockerignoreSource.indexOf('*.md');
     const changelogInclude = dockerignoreSource.indexOf('!CHANGELOG.md');
@@ -838,6 +931,14 @@ describe('crawlable content corpus deployment contracts', () => {
   // pointing at these files, and a disallowed URL is a claim Google is
   // forbidden to verify (#7660).
   it('marks the machine-readable data surface noindex without touching corpus HTML or the AI-citation surface (#8608)', () => {
+    const dataHeaderRules = vercelConfig.headers
+      .filter(({ source }) => /\.(?:json|ya?ml)$/i.test(source))
+      .filter(({ source }) => !source.replaceAll('\\', '').startsWith('/.well-known/'));
+    for (const { source, headers } of dataHeaderRules) {
+      const robotsTag = headers.find(({ key }) => key.toLowerCase() === 'x-robots-tag');
+      assert.equal(robotsTag?.value ?? null, 'noindex, follow', source);
+    }
+
     const dataFiles = [
       // Corpus dataset downloads - scripts/build-crawlable-corpus.mjs.
       '/country-instability-index/cii-ranking.json',
@@ -1694,6 +1795,15 @@ describe('welcome landing page routing', () => {
       assert.ok(apiRedirect, `expected a redirect for ${source}`);
       assert.equal(apiRedirect.destination, '/docs/api-reference');
       assert.equal(apiRedirect.permanent, false);
+    }
+  });
+
+  it('redirects bare /docs to the docs home permanently, with or without a trailing slash', () => {
+    for (const source of ['/docs', '/docs/']) {
+      const docsRedirect = vercelConfig.redirects.find((r) => r.source === source);
+      assert.ok(docsRedirect, `expected a redirect for ${source}`);
+      assert.equal(docsRedirect.destination, '/docs/documentation');
+      assert.equal(docsRedirect.permanent, true);
     }
   });
 
@@ -2745,6 +2855,14 @@ describe('security header guardrails', () => {
     assert.ok(mediaSrc.includes('https:'), 'Tauri CSP media-src must allow https: for direct HLS CDN streams');
   });
 
+  it('desktop (Tauri) CSP limits cleartext WebSockets to loopback dev servers', () => {
+    const tauriConfig = JSON.parse(readFileSync(resolve(__dirname, '../src-tauri/tauri.conf.json'), 'utf-8'));
+    const connectSrc = getCspDirectiveTokens(tauriConfig.app.security.csp, 'connect-src');
+    const cleartextWebSockets = connectSrc.filter((token) => token === 'ws:' || token.startsWith('ws://')).sort();
+    assert.deepEqual(cleartextWebSockets, ['ws://127.0.0.1:*', 'ws://localhost:*'], 'only Vite HMR on loopback may use a cleartext WebSocket under tauri dev');
+    assert.ok(connectSrc.includes('wss:'), 'Tauri CSP connect-src must keep wss: for the relay');
+  });
+
   it('desktop (Tauri) CSP admits the production Clerk Frontend API and Turnstile (#9134)', () => {
     // loadClerkUmd() derives the script host from the publishable key, so a
     // pk_live build loads clerk.browser.js and ui.browser.js from
@@ -3515,7 +3633,29 @@ describe('agent readiness: api-catalog + openapi build', () => {
       !JSON.stringify({ url: card.url, serverUrl: card.serverUrl }).includes('mintlify.dev'),
       'docs card endpoint fields must not point at the dead mintlify.dev host'
     );
-    assert.ok(Array.isArray(card.tools) && card.tools.length >= 1, 'docs card must list at least one tool');
+    assert.deepEqual(card.remotes, [{ type: 'streamable-http', url: WORKING }], 'docs card remotes[].url must name the facade');
+    // Under the v1 $schema the live tools/list is authoritative; the docs
+    // server is anonymous, so a copied tools[] only goes stale.
+    assert.equal(card.tools, undefined, 'docs card must not carry tools[]');
+  });
+
+  it('publishes the docs server card where card-following scanners look', () => {
+    // orank resolves a card per MCP server from ai-catalog.json entries or
+    // <server URL>/server-card, matched on remotes[].url. The Link header
+    // alone left the docs server without a card.
+    const catalog = JSON.parse(readFileSync(resolve(__dirname, '../public/.well-known/ai-catalog.json'), 'utf-8'));
+    const docsEntry = catalog.entries.find((e) => e.url === 'https://www.worldmonitor.app/.well-known/mcp/docs-server-card.json');
+    assert.ok(docsEntry, 'ai-catalog must list the docs MCP server card');
+    assert.equal(docsEntry.type, 'application/mcp-server-card+json');
+
+    const rewrites = vercelConfig.rewrites;
+    const cardIdx = rewrites.findIndex((r) => r.source === '/docs/mcp/server-card');
+    const mintlifyIdx = rewrites.findIndex((r) => r.source === '/docs/:match*');
+    assert.ok(cardIdx >= 0, 'missing /docs/mcp/server-card rewrite');
+    assert.equal(rewrites[cardIdx].destination, '/.well-known/mcp/docs-server-card.json');
+    assert.ok(cardIdx < mintlifyIdx, '/docs/mcp/server-card must precede the Mintlify /docs proxy');
+    assert.equal(getHeaderValueForSource('/docs/mcp/server-card', 'Content-Type'), 'application/json; charset=utf-8');
+    assert.equal(getHeaderValueForSource('/docs/mcp/server-card', 'Access-Control-Allow-Origin'), '*');
   });
 
   it('the api host root has its own context object', () => {
@@ -3880,11 +4020,14 @@ describe('agent readiness: MCP/OAuth origin alignment', () => {
       // WorkOS auth.md agent_auth discovery block (only `anonymous` is honest —
       // WM has no ID-JAG identity endpoint, so identity_assertion is not advertised).
       assert.ok(json.agent_auth, `agent_auth block present for ${host}`);
-      // The apex is the one host that does not serve /auth.md: Cloudflare
-      // 301s it to www (ARCHITECTURE.md §2), so the apex advertises www.
-      const skillHost = host === 'worldmonitor.app' ? 'www.worldmonitor.app' : host;
-      assert.equal(json.agent_auth.skill, `https://${skillHost}/auth.md`, `skill names a host that serves /auth.md for ${host}`);
+      // Scanners require skill == <issuer>/auth.md. The apex serves it because
+      // /auth.md is exempt from the Cloudflare apex→www 301 (ARCHITECTURE.md §2).
+      assert.equal(json.agent_auth.skill, `https://${host}/auth.md`, `skill is the issuer's /auth.md for ${host}`);
       assert.equal(json.agent_auth.register_uri, `https://${host}/oauth/register`);
+      // auth.md v0.2's identity_endpoint takes {"type":"anonymous"} and returns
+      // an identity_assertion; /oauth/register is RFC 7591 DCR, so it must not
+      // be advertised under that key.
+      assert.equal(json.agent_auth.identity_endpoint, undefined);
       assert.deepEqual(json.agent_auth.identity_types_supported, ['anonymous']);
       // Only `access_token` — an api_key is user-minted (carries a user
       // identity), so it is not an anonymous-registration credential.
@@ -4850,7 +4993,9 @@ describe('agent readiness: crawl-budget disallows (#7660)', () => {
           // bare prose mention (`// [sw_lat, sw_lon, …]` documenting an array
           // order) is not a parameter and must not trip this.
           const asQueryKey = new RegExp(`['"\`]${needle}['"\`]|[?&]${needle}=`);
-          if (asQueryKey.test(body)) acc.push({ path: full, apiScoped: body.includes('/api/') });
+          // MCP tool arguments travel in JSON-RPC POST bodies, never in a URL.
+          const mcpArgument = relative(resolve(__dirname, '..'), full).startsWith(join('api', 'mcp') + sep);
+          if (asQueryKey.test(body)) acc.push({ path: full, apiScoped: body.includes('/api/') || mcpArgument });
         }
         return acc;
       };
@@ -5064,10 +5209,6 @@ describe('agent readiness: registry branding + ARD catalog', () => {
 });
 
 describe('variant subdomain dashboard SEO (#4996)', () => {
-  // No hardcoded variant list: every set is extracted from its real source
-  // and compared BIDIRECTIONALLY, so adding a variant to any one surface
-  // (middleware host map, generator, vercel.json rewrites) without the
-  // others fails here instead of shipping a subdomain with full-brand meta.
   const dashboardRewrites = vercelConfig.rewrites.filter((r) => r.source === '/dashboard');
 
   const rewriteVariants = dashboardRewrites
@@ -5078,10 +5219,6 @@ describe('variant subdomain dashboard SEO (#4996)', () => {
     })
     .sort();
 
-  const middlewareVariants = [...middlewareSource.matchAll(/'([a-z]+)\.worldmonitor\.app': '([a-z]+)'/g)]
-    .map((m) => m[2])
-    .sort();
-
   const variantHtmlSource = readFileSync(resolve(__dirname, '../src/config/variant-dashboard-html.ts'), 'utf-8');
   const generatorArrayMatch = variantHtmlSource.match(/WEB_DASHBOARD_VARIANTS = \[([^\]]+)\]/);
   const generatorVariants = (generatorArrayMatch?.[1] ?? '')
@@ -5090,14 +5227,12 @@ describe('variant subdomain dashboard SEO (#4996)', () => {
     .filter(Boolean)
     .sort();
 
-  it('extracted all three variant sets (extraction regressions fail loudly)', () => {
+  it('extracts both the rewrite and generator variant sets', () => {
     assert.ok(rewriteVariants.length > 0, 'no host-conditioned /dashboard rewrites found in vercel.json');
-    assert.ok(middlewareVariants.length > 0, 'VARIANT_HOST_MAP extraction from middleware.ts found nothing');
     assert.ok(generatorVariants.length > 0, 'WEB_DASHBOARD_VARIANTS extraction from variant-dashboard-html.ts found nothing');
   });
 
-  it('vercel.json rewrites, middleware host map, and the generator cover the SAME variant set (bidirectional)', () => {
-    assert.deepEqual(rewriteVariants, middlewareVariants, 'vercel.json /dashboard host rewrites vs middleware VARIANT_HOST_MAP diverged');
+  it('vercel.json rewrites and the generator cover the same variant set', () => {
     assert.deepEqual(rewriteVariants, generatorVariants, 'vercel.json /dashboard host rewrites vs WEB_DASHBOARD_VARIANTS diverged');
   });
 

@@ -842,15 +842,17 @@
       "logCleared": "Dnevnik obrisan.",
       "worldMonitor": {
         "apiKey": {
-          "title": "Ključ licence / API ključ",
+          "title": "Ključ za desktop",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "Pretplatnici na API Starter i API Business stvaraju ovaj ključ na web nadzornoj ploči putem Settings → API Keys. Ako izgubiš cijeli ključ, opozovi ga i izradi zamjenski."
+          "description": "Za izdanja bez prijave. Pro: kreirajte ga u Settings → API Keys na webu; radi i s ključevima za API plan. Za vlastitu upotrebu; deljene ili javne instalacije trebaju API plan. Pomoć: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "ILI",
         "register": {
-          "title": "Trebaš API ključ?",
-          "description": "Detaljne upute potraži na worldmonitor.app/docs/api-keys. Ručni API ključevi zahtijevaju plan API Starter ili API Business.",
-          "submitBtn": "Prikaži API planove"
+          "submitBtn": "Prikazi planove"
+        },
+        "signIn": {
+          "title": "Prijava s Pro",
+          "description": "Pro funkcionira ovdje čim se prijavite iz glavnog prozora. Ključ nije potreban."
         }
       },
       "table": {
@@ -1237,7 +1239,8 @@
       "skipToEnd": "Preskoči na kraj"
     },
     "pizzint": {
-      "indexSource": "Indeks: World Monitor · podaci o objektima:",
+      "indexSource": "Indeks: World Monitor",
+      "venueSource": "podaci o objektima:",
       "statusNormal": "NORMALNO",
       "statusNoData": "NEMA PODATAKA",
       "statusNoBaseline": "NEMA OSNOVE",
@@ -1248,6 +1251,16 @@
       "tensionsTitle": "Geopolitička napetost",
       "tensionsSource": "Napetosti: World Monitor na temelju događaja GDELT-a",
       "insufficientData": "Nedovoljno podataka",
+      "evidenceStrikes": "Prijavljeni napadi u 3 dana ({{countries}}): {{value}}",
+      "evidenceAirports": "Pogođene zračne luke: {{value}}",
+      "evidenceAirportClosed": "Zračna luka {{name}} zatvorena",
+      "evidenceAirportHalted": "{{name}}: većina letova otkazana",
+      "evidenceAirportRestricted": "{{name}}: letovi ograničeni",
+      "evidenceMilitaryAircraft": "Vojni zrakoplovi ({{country}}) u regiji: {{value}}",
+      "evidencePlaAircraft": "Kineski vojni zrakoplovi kod Tajvana: {{value}}",
+      "evidencePlaShips": "Kineski ratni brodovi kod Tajvana: {{value}}",
+      "evidenceSanctions": "Nove sankcije SAD-a ovaj tjedan ({{country}}): {{value}}",
+      "evidenceUsual": "(uobičajeno {{value}})",
       "pizzaUnavailable": "Aktivnost pizzerija nije dostupna",
       "source": "Izvor:",
       "statusClosed": "ZATVORENO",
@@ -1451,7 +1464,8 @@
         "speciesRecovery": "Oporavak vrsta",
         "renewableInstallations": "Čista energija",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "NOTAM ograničenja zračnog prostora"
       },
       "tooltip": {
         "earthquake": "Zemljotres",
@@ -1483,7 +1497,9 @@
         "sourceIomDtm": "Izvor: IOM DTM",
         "sinceDate": "od {{date}}",
         "lastMonth": "prošli mjesec",
-        "sourceUnhcrOdp": "Izvor: UNHCR-ov portal operativnih podataka"
+        "sourceUnhcrOdp": "Izvor: UNHCR-ov portal operativnih podataka",
+        "displaced": "raseljeni",
+        "sourceIdmc": "Izvor: IDMC"
       },
       "layerHelp": {
         "title": "Vodič slojeva mape",
@@ -1564,7 +1580,8 @@
           "geoBoundaries": "Demilitarizirane zone, linije primirja i sporne granice",
           "ciiChoropleth": "Toplinska mapa indeksa nestabilnosti države — boje zemlje prema bodovima (zelena=stabilna, crvena=kritična)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "Privremena ograničenja letenja i ograničeni, opasni i zabranjeni zračni prostor prema FAA NOTAM-ima, koji su trenutno na snazi ili počinju u roku od 24 sata"
         },
         "notes": {
           "timeAffects": "Utječe na: Zemljotresi, Vrijeme, Protesti, Prekidi"
@@ -1924,7 +1941,16 @@
       "staleReport": "Zastarjelo izvješće",
       "reported": "Broj",
       "period": "Razdoblje",
-      "movementNote": "Svaki redak zadržava svoj izvor, datum izvješća i mjeru. Broj prisutnih osoba, dolasci i događaji granične kontrole različite su mjere. Izvori se mogu preklapati; ne zbrajajte njihove brojeve. WorldMonitor izvodi ovaj prikaz iz povezanih izvora; to ne podrazumijeva odobrenje pružatelja."
+      "movementNote": "Svaki redak zadržava svoj izvor, datum izvješća i mjeru. Broj prisutnih osoba, dolasci i događaji granične kontrole različite su mjere. Izvori se mogu preklapati; ne zbrajajte njihove brojeve. WorldMonitor izvodi ovaj prikaz iz povezanih izvora; to ne podrazumijeva odobrenje pružatelja.",
+      "recent": "Nedavno",
+      "last30Days": "Posljednjih 30 dana",
+      "newThisWeek": "Novo ovaj tjedan",
+      "conflict": "Konflikt",
+      "disaster": "Katastrofa",
+      "surge": "Skok",
+      "recentNote": "IDMC: ljudi raseljeni u svojoj zemlji u posljednjih 30 dana. IDMC objavljuje podatke prosječno tri tjedna nakon raseljavanja, pa se nedavni tjedni popunjavaju kasnije. Novo ovaj tjedan broji podatke objavljene u posljednjih 7 dana. Skok: najmanje 5.000 ljudi i tri puta veći od mjesečnog prosjeka prethodnih pet mjeseci.",
+      "recentAsOf": "Podaci od {{date}}.",
+      "recentMissing": "Nema podataka ovaj put od {{countries}}; njihove datoteke se nisu učitale, što ne znači nula premještanja."
     },
     "climate": {
       "noAnomalies": "Nisu detektirane značajne anomalije",
@@ -2370,6 +2396,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Zvuk nije dostupan",
       "notLive": "{{name}} trenutno nije aktivna",
       "signInToYouTube": "Prijavi se na YouTube",
       "openOnYouTube": "Otvori na YouTube-u",
@@ -3140,7 +3167,9 @@
         "apac": "Azija i Pacifik",
         "mena": "Bliski istok",
         "africa": "Afrika"
-      }
+      },
+      "normalOperations": "NORMALNO POSLOVANJE",
+      "open": "OTVORENO"
     },
     "aircraft": {
       "altitude": "Nadmorska visina",
@@ -3547,7 +3576,12 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "Venezuelanska Kriza",
       "yemen_houthis": "Jemen/Houthiji"
-    }
+    },
+    "upcomingForecast": "Nadolazeća prognoza",
+    "currentForecast": "Trenutačna prognoza",
+    "expiredForecast": "Istekla prognoza",
+    "validFrom": "Vrijedi od",
+    "validUntil": "Vrijedi do"
   },
   "signals": {
     "context": {

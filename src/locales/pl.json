@@ -846,15 +846,17 @@
       "logCleared": "Log wyczyszczony.",
       "worldMonitor": {
         "apiKey": {
-          "description": "Subskrybenci API Starter i API Business tworzą ten klucz w panelu internetowym przez Settings → API Keys. Jeśli pełny klucz zostanie utracony, unieważnij go i utwórz nowy.",
+          "description": "Dla wersji bez logowania. Pro: utwórz klucz w Settings → API Keys na stronie; klucze z planu API też działają. Do użytku osobistego; wdrożenia współdzielone lub publiczne wymagają planu API. Pomoc: worldmonitor.app/docs/api-keys",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "title": "Klucz licencyjny / API"
+          "title": "Klucz desktopowy"
         },
         "dividerOr": "LUB",
         "register": {
-          "description": "Instrukcje krok po kroku znajdziesz na worldmonitor.app/docs/api-keys. Ręczne klucze API wymagają planu API Starter lub API Business.",
-          "submitBtn": "Zobacz plany API",
-          "title": "Potrzebujesz klucza API?"
+          "submitBtn": "Wyświetl plany"
+        },
+        "signIn": {
+          "title": "Zaloguj się za pomocą Pro",
+          "description": "Pro działa tutaj po zalogowaniu się z głównego okna. Klucz nie jest potrzebny."
         }
       },
       "shellTitle": "Ustawienia World Monitor",
@@ -1112,7 +1114,8 @@
         "radiationSpike": "Skok radioaktywności",
         "radiationElevated": "Podwyższona radioaktywność",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "Ograniczenia przestrzeni powietrznej NOTAM"
       },
       "layersTitle": "Warstwy",
       "layerSearch": "Szukaj warstw...",
@@ -1151,7 +1154,9 @@
         "sourceIomDtm": "Źródło: IOM DTM",
         "sinceDate": "od {{date}}",
         "lastMonth": "w zeszłym miesiącu",
-        "sourceUnhcrOdp": "Źródło: Portal danych operacyjnych UNHCR"
+        "sourceUnhcrOdp": "Źródło: Portal danych operacyjnych UNHCR",
+        "displaced": "wysiedleni",
+        "sourceIdmc": "Źródło: IDMC"
       },
       "layerHelp": {
         "title": "Przewodnik po warstwach mapy",
@@ -1232,7 +1237,8 @@
           "geoBoundaries": "Strefy zdemilitaryzowane, linie zawieszenia broni i sporne granice",
           "ciiChoropleth": "Mapa ciepła Country Instability Index — koduje kraje według wyniku (zielony=stabilny, czerwony=krytyczny)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "Tymczasowe ograniczenia lotów oraz strefy ograniczone, niebezpieczne i zakazane z NOTAM-ów FAA, obowiązujące obecnie lub rozpoczynające się w ciągu 24 godzin"
         },
         "notes": {
           "timeAffects": "Wpływ na: Trzęsienia ziemi, Pogoda, Protesty, Przestoje"
@@ -1288,7 +1294,8 @@
       "info": "INFO"
     },
     "pizzint": {
-      "indexSource": "Indeks: World Monitor · dane lokali:",
+      "indexSource": "Indeks: World Monitor",
+      "venueSource": "dane lokali:",
       "statusNormal": "NORMALNIE",
       "statusNoData": "BRAK DANYCH",
       "statusNoBaseline": "BRAK POZIOMU ODNIESIENIA",
@@ -1297,6 +1304,16 @@
       "tensionsTitle": "Napięcia geopolityczne",
       "tensionsSource": "Napięcia: World Monitor na podstawie zdarzeń GDELT",
       "insufficientData": "Niewystarczające dane",
+      "evidenceStrikes": "Zgłoszone ataki w ciągu 3 dni ({{countries}}): {{value}}",
+      "evidenceAirports": "Lotniska z utrudnieniami: {{value}}",
+      "evidenceAirportClosed": "Lotnisko {{name}} zamknięte",
+      "evidenceAirportHalted": "{{name}}: większość lotów odwołana",
+      "evidenceAirportRestricted": "{{name}}: loty ograniczone",
+      "evidenceMilitaryAircraft": "Samoloty wojskowe ({{country}}) w regionie: {{value}}",
+      "evidencePlaAircraft": "Chińskie samoloty wojskowe w pobliżu Tajwanu: {{value}}",
+      "evidencePlaShips": "Chińskie okręty wojenne w pobliżu Tajwanu: {{value}}",
+      "evidenceSanctions": "Nowe sankcje USA w tym tygodniu ({{country}}): {{value}}",
+      "evidenceUsual": "(zwykle {{value}})",
       "pizzaUnavailable": "Dane o aktywności pizzerii są niedostępne",
       "source": "Źródło:",
       "defcon": "DEFCON {{level}}",
@@ -1550,7 +1567,16 @@
       "staleReport": "Nieaktualny raport",
       "reported": "Liczba",
       "period": "Okres",
-      "movementNote": "Każdy wiersz zachowuje źródło, datę raportu i rodzaj pomiaru. Stany ludności, przybycia i zdarzenia kontroli granicznej to różne miary. Źródła mogą się pokrywać; nie sumuj ich wartości. WorldMonitor opracowuje ten widok na podstawie podanych źródeł; nie oznacza to poparcia ze strony dostawców."
+      "movementNote": "Każdy wiersz zachowuje źródło, datę raportu i rodzaj pomiaru. Stany ludności, przybycia i zdarzenia kontroli granicznej to różne miary. Źródła mogą się pokrywać; nie sumuj ich wartości. WorldMonitor opracowuje ten widok na podstawie podanych źródeł; nie oznacza to poparcia ze strony dostawców.",
+      "recent": "Ostatnie",
+      "last30Days": "Ostatnie 30 dni",
+      "newThisWeek": "Nowe w tym tygodniu",
+      "conflict": "Konflikt",
+      "disaster": "Katastrofa",
+      "surge": "Nagły wzrost",
+      "recentNote": "IDMC: osoby wysiedlone w granicach ich kraju w ostatnich 30 dnach. IDMC publikuje dane medianę trzy tygodnie po wysiedleniu, więc ostatnie tygodnie są uzupełniane z opóźnieniem. Nowe w tym tygodniu liczy dane opublikowane w ciągu ostatnich 7 dni. Nagły wzrost: co najmniej 5000 osób i trzy razy średnia miesięczna z pięciu poprzednich miesięcy.",
+      "recentAsOf": "Dane z {{date}}.",
+      "recentMissing": "Brak danych tym razem z {{countries}}; ich pliki nie załadowały się, co nie oznacza zerowego przemieszczenia."
     },
     "populationExposure": {
       "totalAffected": "Całkowita liczba dotkniętych",
@@ -1888,6 +1914,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Dźwięk niedostępny",
       "notLive": "{{name}} is not currently live",
       "openOnYouTube": "Open on YouTube",
       "manage": "Zarządzaj kanałami",
@@ -3081,7 +3108,9 @@
         "africa": "Afryka"
       },
       "scheduled": "Plan.",
-      "estimated": "Szcz."
+      "estimated": "Szcz.",
+      "normalOperations": "NORMALNE OPERACJE",
+      "open": "OTWARTE"
     },
     "cyberThreat": {
       "title": "CYBERZAGROŻENIE"
@@ -3487,7 +3516,12 @@
       "position": "Pozycja",
       "ground": "Na ziemi",
       "airborne": "W powietrzu"
-    }
+    },
+    "upcomingForecast": "Nadchodząca prognoza",
+    "currentForecast": "Aktualna prognoza",
+    "expiredForecast": "Wygasła prognoza",
+    "validFrom": "Ważna od",
+    "validUntil": "Ważna do"
   },
   "signals": {
     "context": {

@@ -760,15 +760,17 @@
       "logCleared": "Đã xóa log.",
       "worldMonitor": {
         "apiKey": {
-          "title": "Khóa giấy phép / API",
+          "title": "Khóa Desktop",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "Người đăng ký API Starter và API Business tạo khóa này trong bảng điều khiển web tại Settings → API Keys. Nếu mất khóa đầy đủ, hãy thu hồi và tạo khóa thay thế."
+          "description": "Cho các bản dựng không có đăng nhập. Pro: tạo khóa trong Settings → API Keys trên web; khóa API-plan cũng hoạt động. Dành cho sử dụng cá nhân; các triển khai chia sẻ hoặc công khai cần một API plan. Trợ giúp: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "HOẶC",
         "register": {
-          "title": "Bạn cần khóa API?",
-          "description": "Xem worldmonitor.app/docs/api-keys để được hướng dẫn từng bước. Khóa API thủ công yêu cầu gói API Starter hoặc API Business.",
-          "submitBtn": "Xem các gói API"
+          "submitBtn": "Xem các gói"
+        },
+        "signIn": {
+          "title": "Đăng nhập với Pro",
+          "description": "Pro hoạt động ở đây sau khi bạn đăng nhập từ cửa sổ chính. Không cần khóa."
         }
       },
       "table": {
@@ -1084,7 +1086,8 @@
       "skipToEnd": "Tới cuối"
     },
     "pizzint": {
-      "indexSource": "Chỉ số: World Monitor · dữ liệu địa điểm:",
+      "indexSource": "Chỉ số: World Monitor",
+      "venueSource": "dữ liệu địa điểm:",
       "statusNormal": "BÌNH THƯỜNG",
       "statusNoData": "KHÔNG CÓ DỮ LIỆU",
       "statusNoBaseline": "KHÔNG CÓ MỐC CHUẨN",
@@ -1095,6 +1098,16 @@
       "tensionsTitle": "Căng thẳng Địa chính trị",
       "tensionsSource": "Căng thẳng: World Monitor tính từ các sự kiện GDELT",
       "insufficientData": "Không đủ dữ liệu",
+      "evidenceStrikes": "Các cuộc tấn công được báo cáo trong 3 ngày ({{countries}}): {{value}}",
+      "evidenceAirports": "Sân bay bị gián đoạn: {{value}}",
+      "evidenceAirportClosed": "Sân bay {{name}} đóng cửa",
+      "evidenceAirportHalted": "{{name}}: hầu hết chuyến bay bị hủy",
+      "evidenceAirportRestricted": "{{name}}: chuyến bay bị hạn chế",
+      "evidenceMilitaryAircraft": "Máy bay quân sự ({{country}}) trong khu vực: {{value}}",
+      "evidencePlaAircraft": "Máy bay quân sự Trung Quốc gần Đài Loan: {{value}}",
+      "evidencePlaShips": "Tàu hải quân Trung Quốc gần Đài Loan: {{value}}",
+      "evidenceSanctions": "Lệnh trừng phạt mới của Mỹ tuần này ({{country}}): {{value}}",
+      "evidenceUsual": "(thường {{value}})",
       "pizzaUnavailable": "Không có dữ liệu hoạt động của các tiệm pizza",
       "source": "Nguồn:",
       "statusClosed": "ĐÓNG CỬA",
@@ -1298,7 +1311,8 @@
         "radiationSpike": "Đột tăng bức xạ",
         "radiationElevated": "Bức xạ tăng cao",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "Hạn chế không phận NOTAM"
       },
       "tooltip": {
         "earthquake": "Động đất",
@@ -1330,7 +1344,9 @@
         "sourceIomDtm": "Nguồn: IOM DTM",
         "sinceDate": "kể từ {{date}}",
         "lastMonth": "tháng trước",
-        "sourceUnhcrOdp": "Nguồn: Cổng dữ liệu hoạt động của UNHCR"
+        "sourceUnhcrOdp": "Nguồn: Cổng dữ liệu hoạt động của UNHCR",
+        "displaced": "người phải rời bỏ nơi ở",
+        "sourceIdmc": "Nguồn: IDMC"
       },
       "layerHelp": {
         "title": "Hướng dẫn Lớp Bản đồ",
@@ -1411,7 +1427,8 @@
           "geoBoundaries": "Khu phi quân sự, đường ngừng bắn và ranh giới tranh chấp",
           "ciiChoropleth": "Bản đồ nhiệt Chỉ số Bất ổn định Đất nước — tô màu các quốc gia theo điểm số (xanh=ổn định, đỏ=tới hạn)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "Hạn chế bay tạm thời và không phận bị hạn chế, nguy hiểm và bị cấm từ NOTAM của FAA, có hiệu lực ngay bây giờ hoặc bắt đầu trong vòng 24 giờ"
         },
         "notes": {
           "timeAffects": "Ảnh hưởng: Động đất, Thời tiết, Biểu tình, Gián đoạn"
@@ -1769,7 +1786,16 @@
       "staleReport": "Báo cáo đã cũ",
       "reported": "Số lượng",
       "period": "Kỳ",
-      "movementNote": "Mỗi hàng giữ nguyên nguồn, ngày báo cáo và chỉ số. Số dân tại một thời điểm, số người đến và số sự kiện kiểm soát biên giới là các chỉ số khác nhau. Các nguồn có thể trùng lặp; không cộng số liệu của chúng. WorldMonitor tạo chế độ xem này từ các nguồn được liên kết; điều này không hàm ý sự chứng thực của nhà cung cấp."
+      "movementNote": "Mỗi hàng giữ nguyên nguồn, ngày báo cáo và chỉ số. Số dân tại một thời điểm, số người đến và số sự kiện kiểm soát biên giới là các chỉ số khác nhau. Các nguồn có thể trùng lặp; không cộng số liệu của chúng. WorldMonitor tạo chế độ xem này từ các nguồn được liên kết; điều này không hàm ý sự chứng thực của nhà cung cấp.",
+      "recent": "Gần đây",
+      "last30Days": "30 ngày qua",
+      "newThisWeek": "Mới trong tuần này",
+      "conflict": "Xung đột",
+      "disaster": "Thảm họa",
+      "surge": "Bùng phát",
+      "recentNote": "IDMC: những người phải rời bỏ nơi ở nhưng vẫn ở trong nước mình trong 30 ngày qua. IDMC công bố số liệu trung vị khoảng ba tuần sau khi người dân phải di dời, nên các tuần gần đây được cập nhật muộn. Mới trong tuần này đếm các số liệu được công bố trong 7 ngày qua. Bùng phát: ít nhất 5.000 người và gấp ba lần mức trung bình hằng tháng của năm tháng trước đó.",
+      "recentAsOf": "Dữ liệu tính đến {{date}}.",
+      "recentMissing": "Không có dữ liệu từ {{countries}} lần này; tệp của họ không tải được, điều này không có nghĩa là không có người di cư."
     },
     "climate": {
       "noAnomalies": "Không phát hiện bất thường đáng kể",
@@ -2020,6 +2046,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Âm thanh không khả dụng",
       "notLive": "{{name}} hiện không phát trực tiếp",
       "signInToYouTube": "Đăng nhập YouTube",
       "openOnYouTube": "Mở trên YouTube",
@@ -3022,7 +3049,9 @@
         "africa": "Châu Phi"
       },
       "scheduled": "Lịch",
-      "estimated": "Dự kiến"
+      "estimated": "Dự kiến",
+      "normalOperations": "HOẠT ĐỘNG BÌNH THƯỜNG",
+      "open": "MỞ CỬA"
     },
     "aircraft": {
       "altitude": "Độ cao",
@@ -3427,7 +3456,12 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "Khủng hoảng Venezuela",
       "yemen_houthis": "Yemen/Houthis"
-    }
+    },
+    "upcomingForecast": "Dự báo sắp tới",
+    "currentForecast": "Dự báo hiện hành",
+    "expiredForecast": "Dự báo hết hạn",
+    "validFrom": "Có hiệu lực từ",
+    "validUntil": "Có hiệu lực đến"
   },
   "signals": {
     "context": {

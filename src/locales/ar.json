@@ -782,15 +782,17 @@
       },
       "worldMonitor": {
         "apiKey": {
-          "title": "مفتاح الترخيص / API",
+          "title": "مفتاح سطح المكتب",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "ينشئ مشتركو API Starter وAPI Business هذا المفتاح في لوحة الويب ضمن Settings → API Keys. إذا فُقد المفتاح الكامل، فألغِه وأنشئ بديلاً."
+          "description": "للإصدارات بدون تسجيل دخول. Pro: أنشئ واحداً في Settings → API Keys على الويب؛ تعمل أيضاً مفاتيح خطة API. للاستخدام الشخصي؛ النشرات المشتركة أو العامة تحتاج إلى خطة API. المساعدة: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "أو",
         "register": {
-          "title": "هل تحتاج إلى مفتاح API؟",
-          "description": "راجع worldmonitor.app/docs/api-keys للحصول على إرشادات خطوة بخطوة. تتطلب مفاتيح API اليدوية خطة API Starter أو API Business.",
-          "submitBtn": "عرض خطط API"
+          "submitBtn": "عرض الخطط"
+        },
+        "signIn": {
+          "title": "تسجيل الدخول باستخدام Pro",
+          "description": "يعمل Pro هنا بعد تسجيل الدخول من النافذة الرئيسية. لا توجد حاجة لمفتاح."
         }
       },
       "shellTitle": "إعدادات مراقب العالم",
@@ -1050,7 +1052,8 @@
       "skipToEnd": "Skip to end"
     },
     "pizzint": {
-      "indexSource": "المؤشر: World Monitor · بيانات المطاعم:",
+      "indexSource": "المؤشر: World Monitor",
+      "venueSource": "بيانات المطاعم:",
       "statusNormal": "طبيعي",
       "statusNoData": "لا توجد بيانات",
       "statusNoBaseline": "لا يوجد خط أساس",
@@ -1061,6 +1064,16 @@
       "tensionsTitle": "التوترات الجيوسياسية",
       "tensionsSource": "التوترات: World Monitor استنادًا إلى أحداث GDELT",
       "insufficientData": "بيانات غير كافية",
+      "evidenceStrikes": "ضربات مُبلَّغ عنها خلال 3 أيام ({{countries}}): {{value}}",
+      "evidenceAirports": "مطارات متعطلة: {{value}}",
+      "evidenceAirportClosed": "مطار {{name}} مغلق",
+      "evidenceAirportHalted": "{{name}}: إلغاء معظم الرحلات",
+      "evidenceAirportRestricted": "{{name}}: رحلات مقيدة",
+      "evidenceMilitaryAircraft": "طائرات عسكرية ({{country}}) في المنطقة: {{value}}",
+      "evidencePlaAircraft": "طائرات عسكرية صينية قرب تايوان: {{value}}",
+      "evidencePlaShips": "سفن بحرية صينية قرب تايوان: {{value}}",
+      "evidenceSanctions": "عقوبات أمريكية جديدة هذا الأسبوع ({{country}}): {{value}}",
+      "evidenceUsual": "(المعتاد {{value}})",
       "pizzaUnavailable": "نشاط مطاعم البيتزا غير متاح",
       "source": "المصدر:",
       "statusClosed": "مغلق",
@@ -1264,7 +1277,8 @@
         "radiationSpike": "ارتفاع حاد في الإشعاع",
         "radiationElevated": "إشعاع مرتفع",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "قيود المجال الجوي NOTAM"
       },
       "tooltip": {
         "earthquake": "زلزال",
@@ -1296,7 +1310,9 @@
         "sourceIomDtm": "المصدر: IOM DTM",
         "sinceDate": "منذ {{date}}",
         "lastMonth": "الشهر الماضي",
-        "sourceUnhcrOdp": "المصدر: بوابة بيانات العمليات التابعة للمفوضية"
+        "sourceUnhcrOdp": "المصدر: بوابة بيانات العمليات التابعة للمفوضية",
+        "displaced": "نازحون",
+        "sourceIdmc": "المصدر: المركز الدولي لمراقبة النزوح"
       },
       "layerHelp": {
         "title": "دليل طبقات الخريطة",
@@ -1377,7 +1393,8 @@
           "geoBoundaries": "مناطق منزوعة السلاح وخطوط الهدنة والحدود المتنازع عليها",
           "ciiChoropleth": "خريطة حرارية لمؤشر عدم الاستقرار القطري — تلون الدول حسب التقييم (أخضر=مستقرة، أحمر=حرجة)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "قيود الطيران المؤقتة والمجال الجوي المقيد والخطر والمحظور من إشعارات FAA NOTAM، سارية الآن أو تبدأ خلال 24 ساعة"
         },
         "notes": {
           "timeAffects": "يؤثر على: الزلازل، الطقس، الاحتجاجات، الانقطاعات"
@@ -1652,7 +1669,16 @@
       "staleReport": "تقرير قديم",
       "reported": "العدد",
       "period": "الفترة",
-      "movementNote": "يحتفظ كل صف بمصدره وتاريخ تقريره ونوع القياس. أعداد السكان في وقت محدد وأعداد الوصول وحوادث ضبط الحدود مقاييس مختلفة. قد تتداخل المصادر؛ لا تجمع أعدادها. اشتق WorldMonitor هذا العرض من المصادر المرتبطة؛ ولا يعني ذلك تأييد أي جهة مزودة."
+      "movementNote": "يحتفظ كل صف بمصدره وتاريخ تقريره ونوع القياس. أعداد السكان في وقت محدد وأعداد الوصول وحوادث ضبط الحدود مقاييس مختلفة. قد تتداخل المصادر؛ لا تجمع أعدادها. اشتق WorldMonitor هذا العرض من المصادر المرتبطة؛ ولا يعني ذلك تأييد أي جهة مزودة.",
+      "recent": "الأحدث",
+      "last30Days": "آخر 30 يوماً",
+      "newThisWeek": "جديد هذا الأسبوع",
+      "conflict": "نزوح بسبب النزاع",
+      "disaster": "نزوح بسبب الكارثة",
+      "surge": "ارتفاع مفاجئ",
+      "recentNote": "المركز الدولي لمراقبة النزوح: الأشخاص النازحون داخل بلدهم خلال آخر 30 يوماً. ينشر المركز الدولي لمراقبة النزوح الأرقام بعد حوالي ثلاثة أسابيع من النزوح، لذلك تملأ الأسابيع الأخيرة البيانات بتأخر. يحسب \"جديد هذا الأسبوع\" الأرقام المنشورة خلال آخر 7 أيام. الارتفاع المفاجئ: 5,000 شخص على الأقل وثلاثة أضعاف المتوسط الشهري للأشهر الخمسة السابقة.",
+      "recentAsOf": "البيانات كما هي في {{date}}.",
+      "recentMissing": "لا توجد بيانات هذه المرة من {{countries}}؛ فشل تحميل ملفاتهم، وهذا لا يعني صفر نزوح."
     },
     "climate": {
       "noAnomalies": "لم يتم رصد شذوذات مهمة",
@@ -1896,6 +1922,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "الصوت غير متاح",
       "notLive": "{{name}} is not currently live",
       "openOnYouTube": "Open on YouTube",
       "manage": "إدارة القنوات",
@@ -3122,7 +3149,9 @@
         "africa": "أفريقيا"
       },
       "scheduled": "مجدول",
-      "estimated": "متوقع"
+      "estimated": "متوقع",
+      "normalOperations": "العمليات الطبيعية",
+      "open": "مفتوح"
     },
     "cyberThreat": {
       "title": "تهديد سيبراني"
@@ -3527,7 +3556,12 @@
       "position": "الموقع",
       "ground": "على الأرض",
       "airborne": "في الجو"
-    }
+    },
+    "upcomingForecast": "توقعات قادمة",
+    "currentForecast": "توقعات سارية",
+    "expiredForecast": "توقعات منتهية",
+    "validFrom": "صالحة من",
+    "validUntil": "صالحة حتى"
   },
   "signals": {
     "context": {

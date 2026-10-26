@@ -760,15 +760,17 @@
       "logCleared": "ログをクリア済。",
       "worldMonitor": {
         "apiKey": {
-          "title": "ライセンス / APIキー",
+          "title": "デスクトップキー",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "API StarterまたはAPI Businessの利用者は、ウェブダッシュボードのSettings → API Keysからこのキーを作成します。完全なキーを紛失した場合は、失効させて新しいキーを作成してください。"
+          "description": "サインインなしのビルド向け。Pro：ウェブのSettings → API Keysで作成してください。APIプランのキーも使用できます。個人使用向け。共有またはパブリックデプロイメントはAPIプランが必要です。ヘルプ：worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "または",
         "register": {
-          "title": "APIキーが必要ですか？",
-          "description": "手順についてはworldmonitor.app/docs/api-keysをご覧ください。手動APIキーにはAPI StarterまたはAPI Businessプランが必要です。",
-          "submitBtn": "APIプランを見る"
+          "submitBtn": "プランを表示"
+        },
+        "signIn": {
+          "title": "Proでサインイン",
+          "description": "メインウィンドウからサインインすると、ここでProが使用できます。キーは不要です。"
         }
       },
       "table": {
@@ -1084,7 +1086,8 @@
       "skipToEnd": "Skip to end"
     },
     "pizzint": {
-      "indexSource": "指数: World Monitor · 店舗データ:",
+      "indexSource": "指数: World Monitor",
+      "venueSource": "店舗データ:",
       "statusNormal": "通常",
       "statusNoData": "データなし",
       "statusNoBaseline": "基準なし",
@@ -1095,6 +1098,16 @@
       "tensionsTitle": "地政学的緊張",
       "tensionsSource": "緊張度：GDELTのイベントに基づくWorld Monitorの算出値",
       "insufficientData": "データ不足",
+      "evidenceStrikes": "3日間に報告された攻撃（{{countries}}）：{{value}}",
+      "evidenceAirports": "影響を受けた空港：{{value}}",
+      "evidenceAirportClosed": "{{name}}空港 閉鎖",
+      "evidenceAirportHalted": "{{name}}：大半の便が欠航",
+      "evidenceAirportRestricted": "{{name}}：運航制限",
+      "evidenceMilitaryAircraft": "地域内の軍用機（{{country}}）：{{value}}",
+      "evidencePlaAircraft": "台湾付近の中国軍用機：{{value}}",
+      "evidencePlaShips": "台湾付近の中国海軍艦艇：{{value}}",
+      "evidenceSanctions": "今週の米国の新たな制裁（{{country}}）：{{value}}",
+      "evidenceUsual": "（通常 {{value}}）",
       "pizzaUnavailable": "ピザ店の活動データを取得できません",
       "source": "ソース:",
       "statusClosed": "閉鎖",
@@ -1298,7 +1311,8 @@
         "radiationSpike": "放射線スパイク",
         "radiationElevated": "放射線上昇",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "NOTAM飛行制限空域"
       },
       "tooltip": {
         "earthquake": "地震",
@@ -1330,7 +1344,9 @@
         "sourceIomDtm": "出典：IOM DTM",
         "sinceDate": "{{date}}以降",
         "lastMonth": "先月",
-        "sourceUnhcrOdp": "出典：UNHCR運用データポータル"
+        "sourceUnhcrOdp": "出典：UNHCR運用データポータル",
+        "displaced": "避難民",
+        "sourceIdmc": "出典: IDMC"
       },
       "layerHelp": {
         "title": "マップレイヤーガイド",
@@ -1411,7 +1427,8 @@
           "geoBoundaries": "非武装地帯、停戦ライン、係争境界線",
           "ciiChoropleth": "Country Instability Index ヒートマップ — スコア別に国をカラーリング(緑=安定、赤=深刻)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "FAA NOTAMの一時的飛行制限および制限空域、危険空域、禁止空域。現在有効、または24時間以内に開始予定"
         },
         "notes": {
           "timeAffects": "影響: 地震、気象、抗議活動、障害"
@@ -1769,7 +1786,16 @@
       "staleReport": "古い報告",
       "reported": "件数",
       "period": "期間",
-      "movementNote": "各行は出典、報告日、指標を保持します。ある時点の人口、到着者数、国境取締りの事案数は異なる指標です。出典の対象が重複する場合があるため、数値を合計しないでください。WorldMonitorはリンク先の出典からこの表示を作成しており、提供元による支持を意味しません。"
+      "movementNote": "各行は出典、報告日、指標を保持します。ある時点の人口、到着者数、国境取締りの事案数は異なる指標です。出典の対象が重複する場合があるため、数値を合計しないでください。WorldMonitorはリンク先の出典からこの表示を作成しており、提供元による支持を意味しません。",
+      "recent": "最近",
+      "last30Days": "過去30日間",
+      "newThisWeek": "今週の新規",
+      "conflict": "紛争",
+      "disaster": "災害",
+      "surge": "急増",
+      "recentNote": "IDMC: 過去30日間に自国内で避難した人口。IDMCは避難から中央値で3週間後に数字を公表するため、最近の週は遅れて埋められます。今週の新規は過去7日間に公表された数字を計算します。急増: 少なくとも5,000人かつ過去5ヶ月間の月平均の3倍以上。",
+      "recentAsOf": "データは{{date}}時点です。",
+      "recentMissing": "今回は{{countries}}のデータがありません。ファイルの読み込みに失敗したためで、避難者がゼロという意味ではありません。"
     },
     "climate": {
       "noAnomalies": "重大な異常は検出されず",
@@ -2020,6 +2046,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "音声を利用できません",
       "notLive": "{{name}} is not currently live",
       "signInToYouTube": "YouTubeにサインイン",
       "openOnYouTube": "Open on YouTube",
@@ -3022,7 +3049,9 @@
         "africa": "アフリカ"
       },
       "scheduled": "予定",
-      "estimated": "推定"
+      "estimated": "推定",
+      "normalOperations": "通常運用",
+      "open": "運用中"
     },
     "aircraft": {
       "altitude": "高度",
@@ -3427,7 +3456,12 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "ベネズエラ危機",
       "yemen_houthis": "イエメン/フーシ"
-    }
+    },
+    "upcomingForecast": "今後の予報",
+    "currentForecast": "現在有効な予報",
+    "expiredForecast": "期限切れの予報",
+    "validFrom": "有効開始",
+    "validUntil": "有効期限"
   },
   "signals": {
     "context": {

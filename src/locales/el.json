@@ -763,15 +763,17 @@
       "logCleared": "Το αρχείο καταγραφής καθαρίστηκε.",
       "worldMonitor": {
         "apiKey": {
-          "title": "Κλειδί άδειας / API",
+          "title": "Κλειδί επιφάνειας εργασίας",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "Οι συνδρομητές API Starter και API Business δημιουργούν αυτό το κλειδί στον διαδικτυακό πίνακα από Settings → API Keys. Αν χαθεί το πλήρες κλειδί, ανακαλέστε το και δημιουργήστε ένα νέο."
+          "description": "Για εκδόσεις χωρίς σύνδεση. Pro: δημιουργήστε ένα στο Settings → API Keys στο web· τα κλειδιά σχεδίου API λειτουργούν επίσης. Για δική σας χρήση· οι κοινόχρηστες ή δημόσιες ανάπτυξες χρειάζονται σχέδιο API. Βοήθεια: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "Ή",
         "register": {
-          "title": "Χρειάζεστε κλειδί API;",
-          "description": "Δείτε το worldmonitor.app/docs/api-keys για οδηγίες βήμα προς βήμα. Τα μη αυτόματα κλειδιά API απαιτούν πρόγραμμα API Starter ή API Business.",
-          "submitBtn": "Προβολή προγραμμάτων API"
+          "submitBtn": "Προβολή σχεδίων"
+        },
+        "signIn": {
+          "title": "Σύνδεση με Pro",
+          "description": "Το Pro λειτουργεί εδώ μόλις συνδεθείτε από το κύριο παράθυρο. Δεν απαιτείται κλειδί."
         }
       },
       "table": {
@@ -1087,7 +1089,8 @@
       "skipToEnd": "Skip to end"
     },
     "pizzint": {
-      "indexSource": "Δείκτης: World Monitor · δεδομένα καταστημάτων:",
+      "indexSource": "Δείκτης: World Monitor",
+      "venueSource": "δεδομένα καταστημάτων:",
       "statusNormal": "ΚΑΝΟΝΙΚΟ",
       "statusNoData": "ΧΩΡΙΣ ΔΕΔΟΜΕΝΑ",
       "statusNoBaseline": "ΧΩΡΙΣ ΒΑΣΗ",
@@ -1098,6 +1101,16 @@
       "tensionsTitle": "Γεωπολιτικές Εντάσεις",
       "tensionsSource": "Εντάσεις: World Monitor με βάση συμβάντα GDELT",
       "insufficientData": "Ανεπαρκή δεδομένα",
+      "evidenceStrikes": "Αναφερθέντα πλήγματα σε 3 ημέρες ({{countries}}): {{value}}",
+      "evidenceAirports": "Αεροδρόμια με διαταραχές: {{value}}",
+      "evidenceAirportClosed": "Το αεροδρόμιο {{name}} έκλεισε",
+      "evidenceAirportHalted": "{{name}}: ακυρώθηκαν οι περισσότερες πτήσεις",
+      "evidenceAirportRestricted": "{{name}}: περιορισμοί πτήσεων",
+      "evidenceMilitaryAircraft": "Στρατιωτικά αεροσκάφη ({{country}}) στην περιοχή: {{value}}",
+      "evidencePlaAircraft": "Κινεζικά στρατιωτικά αεροσκάφη κοντά στην Ταϊβάν: {{value}}",
+      "evidencePlaShips": "Κινεζικά πολεμικά πλοία κοντά στην Ταϊβάν: {{value}}",
+      "evidenceSanctions": "Νέες κυρώσεις ΗΠΑ αυτή την εβδομάδα ({{country}}): {{value}}",
+      "evidenceUsual": "(συνήθως {{value}})",
       "pizzaUnavailable": "Η δραστηριότητα των πιτσαριών δεν είναι διαθέσιμη",
       "source": "Πηγή:",
       "statusClosed": "ΚΛΕΙΣΤΟ",
@@ -1301,7 +1314,8 @@
         "radiationSpike": "Αιχμή ραδιενέργειας",
         "radiationElevated": "Αυξημένη ραδιενέργεια",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "Περιορισμοί Εναέριου Χώρου NOTAM"
       },
       "tooltip": {
         "earthquake": "Σεισμός",
@@ -1333,7 +1347,9 @@
         "sourceIomDtm": "Πηγή: IOM DTM",
         "sinceDate": "από {{date}}",
         "lastMonth": "τον προηγούμενο μήνα",
-        "sourceUnhcrOdp": "Πηγή: Πύλη Επιχειρησιακών Δεδομένων της Ύπατης Αρμοστείας"
+        "sourceUnhcrOdp": "Πηγή: Πύλη Επιχειρησιακών Δεδομένων της Ύπατης Αρμοστείας",
+        "displaced": "εκτοπισμένοι",
+        "sourceIdmc": "Πηγή: IDMC"
       },
       "layerHelp": {
         "title": "Οδηγός Επιπέδων Χάρτη",
@@ -1414,7 +1430,8 @@
           "geoBoundaries": "Αποστρατικοποιημένες ζώνες, γραμμές εκεχειρίας και αμφισβητούμενα σύνορα",
           "ciiChoropleth": "Θερμικός χάρτης Country Instability Index — χρώματα χώρες κατά βαθμό (πράσινο=σταθερή, κόκκινο=κρίσιμη)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "Προσωρινοί περιορισμοί πτήσης και περιορισμένος, επικίνδυνος και απαγορευμένος εναέριος χώρος από FAA NOTAMs, σε ισχύ τώρα ή ξεκινώντας εντός 24 ωρών"
         },
         "notes": {
           "timeAffects": "Επηρεάζει: Σεισμούς, Καιρό, Διαμαρτυρίες, Διακοπές"
@@ -1773,7 +1790,16 @@
       "staleReport": "Παρωχημένη αναφορά",
       "reported": "Πλήθος",
       "period": "Περίοδος",
-      "movementNote": "Κάθε γραμμή διατηρεί την πηγή, την ημερομηνία αναφοράς και το μέτρο της. Οι πληθυσμοί, οι αφίξεις και τα περιστατικά συνοριακού ελέγχου είναι διαφορετικά μέτρα. Οι πηγές ενδέχεται να αλληλεπικαλύπτονται· μην αθροίζετε τα πλήθη τους. Το WorldMonitor παράγει αυτή την προβολή από τις συνδεδεμένες πηγές· δεν υπονοείται έγκριση από τους παρόχους."
+      "movementNote": "Κάθε γραμμή διατηρεί την πηγή, την ημερομηνία αναφοράς και το μέτρο της. Οι πληθυσμοί, οι αφίξεις και τα περιστατικά συνοριακού ελέγχου είναι διαφορετικά μέτρα. Οι πηγές ενδέχεται να αλληλεπικαλύπτονται· μην αθροίζετε τα πλήθη τους. Το WorldMonitor παράγει αυτή την προβολή από τις συνδεδεμένες πηγές· δεν υπονοείται έγκριση από τους παρόχους.",
+      "recent": "Πρόσφατα",
+      "last30Days": "Τελευταίες 30 ημέρες",
+      "newThisWeek": "Νέα αυτήν την εβδομάδα",
+      "conflict": "Σύγκρουση",
+      "disaster": "Καταστροφή",
+      "surge": "Αιχμή",
+      "recentNote": "IDMC: άνθρωποι εκτοπισμένοι εντός της χώρας τους τις τελευταίες 30 ημέρες. Το IDMC δημοσιεύει ένα στοιχείο κατά μέσο όρο τρεις εβδομάδες μετά τον εκτοπισμό, επομένως οι πρόσφατες εβδομάδες συμπληρώνονται αργά. Τα νέα αυτήν την εβδομάδα μετρούν στοιχεία που δημοσιεύθηκαν τις τελευταίες 7 ημέρες. Αιχμή: τουλάχιστον 5.000 άνθρωποι και τρεις φορές ο μηνιαίος μέσος όρος των προηγούμενων πέντε μηνών.",
+      "recentAsOf": "Δεδομένα κατά {{date}}.",
+      "recentMissing": "Χωρίς δεδομένα αυτή τη φορά από {{countries}}· τα αρχεία τους δεν φορτώθηκαν, που δεν σημαίνει μηδενική μετακίνηση."
     },
     "climate": {
       "noAnomalies": "Δεν ανιχνεύθηκαν σημαντικές ανωμαλίες",
@@ -2024,6 +2050,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Ο ήχος δεν είναι διαθέσιμος",
       "notLive": "Το {{name}} δεν είναι ζωντανά αυτή τη στιγμή",
       "signInToYouTube": "Σύνδεση στο YouTube",
       "openOnYouTube": "Άνοιγμα στο YouTube",
@@ -3042,7 +3069,9 @@
         "africa": "Αφρική"
       },
       "scheduled": "Προγρ.",
-      "estimated": "Εκτ."
+      "estimated": "Εκτ.",
+      "normalOperations": "ΚΑΝΟΝΙΚΗ ΛΕΙΤΟΥΡΓΙΑ",
+      "open": "ΑΝΟΙΚΤΟ"
     },
     "aircraft": {
       "altitude": "Υψόμετρο",
@@ -3447,7 +3476,12 @@
       "uae_ecsr": "ΗΑΕ/ECSR",
       "venezuela_crisis": "Κρίση Βενεζουέλας",
       "yemen_houthis": "Υεμένη/Χούθι"
-    }
+    },
+    "upcomingForecast": "Επερχόμενη πρόγνωση",
+    "currentForecast": "Τρέχουσα πρόγνωση",
+    "expiredForecast": "Ληγμένη πρόγνωση",
+    "validFrom": "Ισχύει από",
+    "validUntil": "Ισχύει έως"
   },
   "signals": {
     "context": {

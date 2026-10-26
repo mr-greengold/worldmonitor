@@ -859,16 +859,18 @@
       "sidecarUnreachable": "Sidecar not reachable.",
       "logCleared": "Log cleared.",
       "worldMonitor": {
+        "signIn": {
+          "title": "Sign in with Pro",
+          "description": "Pro works here once you sign in from the main window. No key needed."
+        },
         "apiKey": {
-          "title": "License / API Key",
+          "title": "Desktop key",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "API Starter and API Business subscribers create this key on the web dashboard under Settings → API Keys. If a full key is lost, revoke it and create a replacement."
+          "description": "For builds without sign-in. Pro: create one in Settings → API Keys on the web; API-plan keys also work. For your own use; shared or public deployments need an API plan. Help: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "OR",
         "register": {
-          "title": "Need an API key?",
-          "description": "See worldmonitor.app/docs/api-keys for step-by-step help. Manual API keys require an API Starter or API Business plan.",
-          "submitBtn": "View API plans"
+          "submitBtn": "View plans"
         }
       },
       "table": {
@@ -1251,7 +1253,8 @@
       "skipToEnd": "Skip to end"
     },
     "pizzint": {
-      "indexSource": "Index: World Monitor · venue data:",
+      "indexSource": "Index: World Monitor",
+      "venueSource": "venue data:",
       "statusNormal": "NORMAL",
       "statusNoData": "NO DATA",
       "statusNoBaseline": "NO BASELINE",
@@ -1262,6 +1265,16 @@
       "tensionsTitle": "Geopolitical Tensions",
       "tensionsSource": "Tensions: World Monitor from GDELT events",
       "insufficientData": "Insufficient data",
+      "evidenceStrikes": "Reported strikes on {{countries}} in 3 days: {{value}}",
+      "evidenceAirports": "Airports disrupted: {{value}}",
+      "evidenceAirportClosed": "{{name}} airport closed",
+      "evidenceAirportHalted": "{{name}}: most flights cancelled",
+      "evidenceAirportRestricted": "{{name}}: flights restricted",
+      "evidenceMilitaryAircraft": "{{country}} military aircraft in the region: {{value}}",
+      "evidencePlaAircraft": "Chinese military aircraft near Taiwan: {{value}}",
+      "evidencePlaShips": "Chinese navy ships near Taiwan: {{value}}",
+      "evidenceSanctions": "New US sanctions on {{country}} this week: {{value}}",
+      "evidenceUsual": "(usual {{value}})",
       "pizzaUnavailable": "Pizza activity unavailable",
       "source": "Source:",
       "statusClosed": "CLOSED",
@@ -1465,7 +1478,8 @@
         "speciesRecovery": "Species Recovery",
         "renewableInstallations": "Clean Energy",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "NOTAM Airspace Restrictions"
       },
       "tooltip": {
         "earthquake": "Earthquake",
@@ -1497,7 +1511,9 @@
         "sourceIomDtm": "Source: IOM DTM",
         "sinceDate": "since {{date}}",
         "lastMonth": "last month",
-        "sourceUnhcrOdp": "Source: UNHCR Operational Data Portal"
+        "sourceUnhcrOdp": "Source: UNHCR Operational Data Portal",
+        "displaced": "displaced",
+        "sourceIdmc": "Source: IDMC"
       },
       "layerHelp": {
         "title": "Map Layers Guide",
@@ -1578,7 +1594,8 @@
           "geoBoundaries": "Demilitarized zones, ceasefire lines, and disputed boundaries",
           "ciiChoropleth": "Country Instability Index heat-map — colors countries by score (green=stable, red=critical)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "Temporary flight restrictions and restricted, danger and prohibited airspace from FAA NOTAMs, in effect now or starting within 24 hours"
         },
         "notes": {
           "timeAffects": "Affects: Earthquakes, Weather, Protests, Outages"
@@ -1937,7 +1954,16 @@
       "reported": "Count",
       "period": "Period",
       "crossBorderNote": "UN Refugee Agency Operational Data Portal: people who crossed borders in each crisis, from the latest country reports. Situations overlap, so they are not added together.",
-      "movementNote": "Each row keeps its source, report date and measure. Stocks, arrivals and encounter events are different measures. Sources can overlap; do not add their counts. WorldMonitor derives this view from the linked sources; no provider endorsement is implied."
+      "movementNote": "Each row keeps its source, report date and measure. Stocks, arrivals and encounter events are different measures. Sources can overlap; do not add their counts. WorldMonitor derives this view from the linked sources; no provider endorsement is implied.",
+      "recent": "Recent",
+      "last30Days": "Last 30 days",
+      "newThisWeek": "New this week",
+      "conflict": "Conflict",
+      "disaster": "Disaster",
+      "surge": "Surge",
+      "recentNote": "IDMC: people displaced within their country in the last 30 days. IDMC publishes a figure a median of three weeks after the displacement, so recent weeks fill in late. New this week counts figures published in the last 7 days. Surge: at least 5,000 people and three times the monthly average of the previous five months.",
+      "recentAsOf": "Data as of {{date}}.",
+      "recentMissing": "No data this time from {{countries}}; their files failed to load, which is not zero displacement."
     },
     "climate": {
       "noAnomalies": "No significant anomalies detected",
@@ -2414,6 +2440,7 @@
       "idleKeepPlayingToast": "Live video will keep playing when idle. Change in Settings › Media."
     },
     "liveNews": {
+      "audioUnavailable": "Audio unavailable",
       "notLive": "{{name}} is not currently live",
       "embedBlocked": "YouTube won’t play {{name}} inside other sites right now",
       "unavailable": "{{name}} can’t be played right now",
@@ -3116,6 +3143,8 @@
       "departureDelay": "DEPARTURE DELAYS",
       "arrivalDelay": "ARRIVAL DELAYS",
       "delaysReported": "DELAYS REPORTED",
+      "normalOperations": "NORMAL OPERATIONS",
+      "open": "OPEN",
       "closure": "AIRPORT CLOSURE",
       "delays": "DELAYS",
       "avgDelay": "AVG DELAY",
@@ -3267,6 +3296,11 @@
     "time": "Time",
     "area": "Area",
     "expires": "Expires",
+    "upcomingForecast": "Upcoming forecast",
+    "currentForecast": "Current forecast",
+    "expiredForecast": "Expired forecast",
+    "validFrom": "Valid from",
+    "validUntil": "Valid until",
     "aisGapSpike": "Spike in ship tracking gaps",
     "chokepointCongestion": "CHOKEPOINT CONGESTION",
     "darkening": "DARKENING",

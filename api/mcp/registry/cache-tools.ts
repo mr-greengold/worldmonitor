@@ -6,8 +6,11 @@ import { CAPITAL_FLOW_PAIR_LEG_SCHEMA, CAPITAL_FLOWS_MAX_COUNTRIES, CAPITAL_FLOW
 import ISO2_TO_ISO3 from '../../../shared/iso2-to-iso3.js';
 import { MARKET_ASSET_CLASSES } from '../../../shared/panel-admission';
 import { normalizeSocialVelocity } from '../../_social-velocity.js';
+// @ts-expect-error - existing Edge-safe JavaScript module has no declaration.
+import { assessContentAge } from '../../_content-age.js';
 import { projectNaturalEventsRetention } from '../../_natural-events-dashboard.js';
-import { presentNaturalDisastersPanel } from '../_natural-disasters-reuse';
+import { NATURAL_DISASTER_EVENT_LISTS, presentNaturalDisastersPanel } from '../_natural-disasters-reuse';
+import { GEO_FILTER_OUTPUT_SCHEMA, GEO_FILTER_PROPERTIES, attachGeoFilter, filterEventLists, locationPoint, locator, oldestDatedRows, parseEventFilter, pointAt, type EventList } from '../_geo-filter';
 import { CHINA_MACRO_REQUIRED_SERIES } from '../../../shared/china-macro-contract.js';
 import {
   normalizeChinaMacroObservations,
@@ -132,6 +135,9 @@ function resolveEurostatCountryFilter(raw: unknown): string[] {
   });
 }
 
+// IDMC rows per events-view call: 100 full rows stay well inside the output budget.
+const IDU_EVENTS_MAX = 100;
+
 // The UNHCR seeder stores `{ summary: { year, globalTotals, countries, topFlows } }`.
 // executeTool then files that value under the cache-key label `summary`, so the
 // lists live at `data.summary.summary.*`. Hoist the inner object so `limit`,
@@ -158,8 +164,13 @@ const IRAN_EVENTS_ENABLED = (process.env.IRAN_EVENTS_ENABLED ?? 'false').toLower
 const CONFLICT_EVENTS_OUTPUT_BUDGET_BYTES = 128 * 1024;
 const CONFLICT_EVENTS_DATA_BUDGET_BYTES = CONFLICT_EVENTS_OUTPUT_BUDGET_BYTES - 1024;
 const CONFLICT_EVENT_LISTS = ['ucdp-events', 'iran-events', 'events'] as const;
+const CONFLICT_EVENT_LOCATED_LISTS: EventList[] = [
+  { label: 'ucdp-events', list: 'events', locator: locator(locationPoint, 'dateStart') },
+  { label: 'iran-events', list: 'events', locator: locator(row => pointAt(row.latitude, row.longitude) ?? locationPoint(row), 'timestamp') },
+  { label: 'events', list: 'events', locator: locator(locationPoint, 'occurredAt') },
+];
 const CONFLICT_EVENTS_FRESHNESS_CHECKS: [FreshnessCheck, ...FreshnessCheck[]] = [
-  { key: 'seed-meta:conflict:ucdp-events', maxStaleMin: 30 },
+  { key: 'seed-meta:conflict:ucdp-events', maxStaleMin: 420, honorContentAge: true },
   { key: 'seed-meta:unrest:events', maxStaleMin: 120 },
 ];
 const CONFLICT_PANEL_COLLECTIONS: [string, string][] = [['ucdp-events', 'events'], ['events', 'events'], ['scores', 'ciiScores'], ...(IRAN_EVENTS_ENABLED ? [['iran-events', 'events'] as [string, string]] : [])];
@@ -290,7 +301,10 @@ export function conflictPanelReuseUntil(value: unknown, now = Date.now()): numbe
   const cachedAt = Date.parse(value.cached_at as string);
   const source = value.conflict_source as ConflictSourceObservation;
   if (cachedAt > now || (source.ucdp.fetchedAt ?? Number.POSITIVE_INFINITY) > now) return null;
-  const deadline = cachedAt + Math.min(...CONFLICT_EVENTS_FRESHNESS_CHECKS.map(check => check.maxStaleMin)) * 60_000;
+  const content = assessContentAge(source.ucdp, now);
+  if (content?.contentStale) return null;
+  const contentDeadline = content ? content.newestItemAt! + (content.maxContentAgeMin + 0.5) * 60_000 : Number.POSITIVE_INFINITY;
+  const deadline = Math.min(contentDeadline, cachedAt + Math.min(...CONFLICT_EVENTS_FRESHNESS_CHECKS.map(check => check.maxStaleMin)) * 60_000);
   return deadline > now ? deadline : null;
 }
 
@@ -301,6 +315,8 @@ export function projectConflictSourceObservation(value: unknown): ConflictSource
     if (typeof value.candidateVersion === 'string' || value.candidateVersion === null) ucdp.candidateVersion = value.candidateVersion;
     if (typeof value.candidateComplete === 'boolean') ucdp.candidateComplete = value.candidateComplete;
     if (Number.isSafeInteger(value.annualFailedPages) && (value.annualFailedPages as number) >= 0) ucdp.annualFailedPages = value.annualFailedPages as number;
+    if ('newestItemAt' in value) ucdp.newestItemAt = typeof value.newestItemAt === 'number' && Number.isFinite(value.newestItemAt) ? value.newestItemAt : null;
+    if (typeof value.maxContentAgeMin === 'number' && Number.isFinite(value.maxContentAgeMin)) ucdp.maxContentAgeMin = value.maxContentAgeMin;
   }
   return { ucdp };
 }
@@ -309,6 +325,7 @@ function filterConflictEvents(data: Record<string, unknown>, params: Record<stri
   const country = argStr(params.country);
   const minFatal = argNum(params.min_fatalities);
   const limit = argNum(params.limit) ?? DEFAULT_LIST_LIMIT;
+  const stored = oldestDatedRows(data, CONFLICT_EVENT_LOCATED_LISTS);
   if (country) {
     narrowNested(data, 'ucdp-events', 'events', (e) => ciIncludes(e.country, country));
     narrowNested(data, 'events', 'events', (e) => ciIncludes(e.country, country));
@@ -318,8 +335,9 @@ function filterConflictEvents(data: Record<string, unknown>, params: Record<stri
     narrowNested(data, 'ucdp-events', 'events', (e) => (argNum(e.deathsBest) ?? 0) >= minFatal);
     narrowNested(data, 'events', 'events', (e) => (argNum(e.fatalities) ?? 0) >= minFatal);
   }
+  const geo = filterEventLists(data, CONFLICT_EVENT_LOCATED_LISTS, params, 'get_conflict_events', stored);
   for (const label of CONFLICT_EVENT_LISTS) capNested(data, label, 'events', limit);
-  return data;
+  return attachGeoFilter(data, geo);
 }
 
 export function filterConflictPanelEvents(data: Record<string, unknown>, params: Record<string, unknown>): Record<string, unknown> {
@@ -1325,7 +1343,7 @@ export const CACHE_TOOLS: ToolDef[] = [
     title: 'Armed conflict and unrest events',
     _uiResourceUri: CONFLICT_EVENTS_UI_URI,
     _outputBudgetBytes: CONFLICT_EVENTS_OUTPUT_BUDGET_BYTES,
-    description: 'Return the seeded conflict snapshot: active armed-conflict events (UCDP and Iran tracker) and unrest events with coordinates, fatalities and dates, plus country risk scores. UCDP data is flagged stale after 30 minutes, unrest after 2 hours. Event-level records; no narrative or forecasts. Seeded-cache read with no live fetch: weight 1 on API plans, included in the signed-in free allowance. country matches event country names and the alpha-2 code on risk scores; min_fatalities drops events below a count; limit caps each list (default 30, 0 for no cap). Dedicated paid connections reuse one panel allocation across openings and filters; refresh with request_id starts a new one; authorized panel_request reads report current usage when confirmed. API and free allowances retain per-tool billing and reject paid controls.',
+    description: 'Return the seeded conflict snapshot: active armed-conflict events (UCDP and Iran tracker) and unrest events with coordinates, fatalities and dates, plus country risk scores. UCDP fetches expire after 7 hours, event content after 90 days; unrest after 2 hours. Event-level records; no narrative or forecasts. Seeded-cache read with no live fetch: weight 1 on API plans, included in the signed-in free allowance. country matches event country names and the alpha-2 code on risk scores; min_fatalities drops events below a count; limit caps each list (default 30, 0 for no cap). Dedicated paid connections reuse one panel allocation across openings and filters; refresh with request_id starts a new one; authorized panel_request reads report current usage when confirmed. API and free allowances retain per-tool billing and reject paid controls. bbox or lat/lon/radius_km limit the area, since_days the last N days; geo_filter counts rows lacking coordinates or dates.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1341,6 +1359,7 @@ export const CACHE_TOOLS: ToolDef[] = [
         panel_request: { type: 'string', description: 'Paid conflict panel receipt for bounded internal filtered reads without another daily allocation.' },
         refresh: { type: 'boolean', description: 'Request one new paid conflict panel allocation. Requires request_id and no panel_request.' },
         request_id: { type: 'string', format: 'uuid', description: 'Retry identity for an explicit paid refresh. Reuse the ID to avoid another allocation.' },
+        ...GEO_FILTER_PROPERTIES,
       },
       required: [],
     },
@@ -1403,6 +1422,7 @@ export const CACHE_TOOLS: ToolDef[] = [
             returned_event_count: { type: 'number' },
           },
         },
+        geo_filter: GEO_FILTER_OUTPUT_SCHEMA,
       }) as { properties: Record<string, unknown> };
       return {
         ...envelope,
@@ -1414,6 +1434,7 @@ export const CACHE_TOOLS: ToolDef[] = [
             properties: { ucdp: { type: 'object', properties: {
               fetchedAt: { type: 'number' }, candidateVersion: { type: ['string', 'null'] },
               candidateComplete: { type: 'boolean' }, annualFailedPages: { type: 'integer', minimum: 0 },
+              newestItemAt: { type: ['number', 'null'] }, maxContentAgeMin: { type: 'number' },
             } } },
           },
         },
@@ -1421,6 +1442,7 @@ export const CACHE_TOOLS: ToolDef[] = [
     })(),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _summarize: summarizeConflictEvents,
+    _validateArgs: params => { parseEventFilter(params, 'get_conflict_events'); },
     _postFilter: (data, params) => presentConflictEvents(filterConflictEvents(data, params), params),
     _cacheKeys: [
       'conflict:ucdp-events:v1',
@@ -1451,7 +1473,7 @@ export const CACHE_TOOLS: ToolDef[] = [
     name: 'get_aviation_status',
     title: 'Airport delays and airspace closures',
     _outputBudgetBytes: 131072,
-    description: 'Return the seeded airport disruption snapshot: one alert row per monitored airport (about 85 major airports worldwide) with iata, name, country and severity, built from AviationStack delay aggregates for international hubs, FAA ASWS delays for US airports and ICAO NOTAM closures. Seeded about every 30 minutes and flagged stale after 90. The snapshot holds every monitored airport, so most rows are severity "normal" unless disrupted_only=true, and the default limit of 30 returns only part of it (0 for the whole list). Airport-level status only; no fares, schedules or flight tracks. Seeded-cache read with no live fetch: weight 1 on API plans, included in the signed-in free allowance. country is a case-insensitive name substring, iata selects one airport, limit caps the list (default 30, 0 for no cap).',
+    description: 'Return the seeded airport disruption snapshot: one alert row per monitored airport (about 85 major airports worldwide) with iata, name, country and severity, built from AviationStack delay aggregates for international hubs, FAA ASWS delays for US airports and FAA NMS and ICAO NOTAM closures. Seeded about every 30 minutes and flagged stale after 90. The snapshot holds every monitored airport, so most rows are severity "normal" unless disrupted_only=true, and the default limit of 30 returns only part of it (0 for the whole list). Airport-level status only; no fares, schedules or flight tracks. Seeded-cache read with no live fetch: weight 1 on API plans, included in the signed-in free allowance. country is a case-insensitive name substring, iata selects one airport, limit caps the list (default 30, 0 for no cap).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1669,7 +1691,7 @@ export const CACHE_TOOLS: ToolDef[] = [
     title: 'Earthquakes, wildfires and natural hazards',
     _uiResourceUri: NATURAL_DISASTERS_UI_URI,
     _outputBudgetBytes: 131072,
-    description: 'Recent M4.5+ earthquakes (USGS and Earthquakes Canada / NRCan), active wildfires (NASA FIRMS), and natural hazard events. Pro panels charge one allocation per opening; repeated views reuse the admission. Snapshot reuse is bounded by source clocks and known health, not complete provider coverage. An oversized response simplifies or omits storm geometry and regional detail, with explicit transportCoverage counts; a jmespath projection that fits returns the original detail.',
+    description: 'Recent M4.5+ earthquakes (USGS and Earthquakes Canada / NRCan), active wildfires (NASA FIRMS), and natural hazard events. Pro panels charge one allocation per opening; repeated views reuse the admission. Snapshot reuse is bounded by source clocks and known health, not complete provider coverage. An oversized response simplifies or omits storm geometry and regional detail, with explicit transportCoverage counts; a jmespath projection that fits returns the original detail. bbox or lat/lon/radius_km limit the area, since_days the last N days; geo_filter counts rows lacking coordinates or dates.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1684,6 +1706,7 @@ export const CACHE_TOOLS: ToolDef[] = [
         min_magnitude: { type: 'number', description: 'Drop earthquakes and natural events below this magnitude.' },
         active_only: { type: 'boolean', description: 'Keep only natural events that are still active (not closed).' },
         limit: { type: 'number', description: 'Cap each hazard list to at most this many items (default 30, pass 0 for no cap).' },
+        ...GEO_FILTER_PROPERTIES,
       },
       required: [],
     },
@@ -1730,6 +1753,7 @@ export const CACHE_TOOLS: ToolDef[] = [
           } } },
         },
       },
+      geo_filter: GEO_FILTER_OUTPUT_SCHEMA,
       }) as { properties: Record<string, unknown> };
       return { ...schema, properties: { ...schema.properties, transportCoverage: {
         type: 'object', required: ['count_scope', 'details'], properties: {
@@ -1753,22 +1777,25 @@ export const CACHE_TOOLS: ToolDef[] = [
     _postFilter: (data, params) => {
       const minMag = argNum(params.min_magnitude);
       data.events = projectNaturalEventsRetention(data.events);
+      const stored = oldestDatedRows(data, NATURAL_DISASTER_EVENT_LISTS);
       const limit = (argNum(params.limit) ?? DEFAULT_LIST_LIMIT);
       if (minMag != null) {
         narrowNested(data, 'earthquakes', 'earthquakes', (q) => (argNum(q.magnitude) ?? 0) >= minMag);
         narrowNested(data, 'events', 'events', (e) => (argNum(e.magnitude) ?? 0) >= minMag);
       }
       if (argBool(params.active_only)) narrowNested(data, 'events', 'events', (e) => e.closed === false);
+      const geo = filterEventLists(data, NATURAL_DISASTER_EVENT_LISTS, params, 'get_natural_disasters', stored);
       capNested(data, 'earthquakes', 'earthquakes', limit);
       capNested(data, 'fires', 'fireDetections', limit);
       capNested(data, 'events', 'events', limit);
       const ds = argStrList(params.dataset);
       if (ds.length > 0) {
         const map: Record<string, string> = { earthquakes: 'earthquakes', wildfires: 'fires', other: 'events' };
-        return selectDatasets(data, compact(ds.map((d) => map[d])));
+        return attachGeoFilter(selectDatasets(data, compact(ds.map((d) => map[d]))), geo);
       }
-      return data;
+      return attachGeoFilter(data, geo);
     },
+    _validateArgs: params => { parseEventFilter(params, 'get_natural_disasters'); },
     _fitToBudget: (result, budgetBytes, args) => presentNaturalDisastersPanel(result, budgetBytes, argBool(args.summary)),
     _cacheKeys: [
       'seismology:earthquakes:v1',
@@ -2539,7 +2566,7 @@ export const CACHE_TOOLS: ToolDef[] = [
                 },
                 trend: { type: 'object', properties: {
                   measure: { type: 'string', enum: ['stock', 'monthly'] },
-                  points: { type: 'array', items: { type: 'array', minItems: 2, maxItems: 2, prefixItems: [{ type: 'string' }, { type: 'number' }], items: false } },
+                  points: { type: 'array', items: { type: 'array', minItems: 2, maxItems: 2, prefixItems: [{ type: 'string' }, { type: 'number' }], items: { not: {} } } },
                   latestDelta: { type: ['number', 'null'] }, latestDays: { type: ['number', 'null'] }, accelerating: { type: 'boolean' },
                 } },
               },
@@ -2585,26 +2612,83 @@ export const CACHE_TOOLS: ToolDef[] = [
   },
   {
     name: 'get_displacement_data',
-    _validateArgs: params => { resolveCountryFilter(params.countries, 'countries'); },
+    _validateArgs: params => {
+      resolveCountryFilter(params.countries, 'countries');
+      if (params.view !== undefined && !['annual', 'movements', 'events', 'regions'].includes(params.view as string)) {
+        throw new RpcValidationError('get_displacement_data', [{ field: 'view', description: 'Expected "annual", "movements", "events" or "regions".' }]);
+      }
+    },
     title: 'Refugee and displacement counts',
     _outputBudgetBytes: 131072,
-    description: 'Read UNHCR annual displacement stocks for summary.year: global totals, per-country refugees, asylum seekers, IDPs and stateless people by origin, hosted totals and major origin-to-asylum flows with known centroids. Defaults to annual; no year selection, and the latest published year may be prior. Annual data stale after 60 hours. view=movements returns dated UNHCR reports, UK arrivals, CBP encounters, Frontex detections and Panama Darién arrivals with separate source health. Encounters are events, not unique people. Sources overlap; do not sum. route selects an exact movement route/situation ID. countries matches origin or asylum. limit caps lists (default 30, 0 for all projected rows). Read-only seeded cache; API weight 1, included in signed-in free allowance.',
+    description: 'Read UNHCR annual displacement stocks for summary.year: global totals, per-country refugees, asylum seekers, IDPs and stateless people by origin, hosted totals and top origin-to-asylum flows. Default view annual; the latest published year may be prior; stale after 60 hours. view=movements: dated UNHCR reports, UK arrivals, CBP encounters, Frontex detections and Panama Darién arrivals with per-source health; encounters are events, not people; route picks one route/situation ID. view=events: IDMC internal displacement, per-country 30-day totals (conflict/disaster), newlyReported7d, surge vs prior 150 days, located figures from 180 days; posted ~3 weeks late. view=regions: IOM DTM latest round per operation: IDPs by cause, first-level region and region-to-region flow. Sources and operations overlap; never sum. events/regions stale after 48 hours. countries matches origin or asylum. limit caps lists (default 30, 0 = all; events max 100). Read-only seeded cache; API weight 1, included in signed-in free allowance.',
     inputSchema: {
       type: 'object',
       properties: {
-        view: { type: 'string', enum: ['annual', 'movements'], description: 'Default annual. movements returns source-dated operational movement reports.' },
+        view: { type: 'string', enum: ['annual', 'movements', 'events', 'regions'], description: 'Default annual. movements returns source-dated operational movement reports. events returns IDMC internal displacement in iduEvents. regions returns IOM DTM operations in dtmRegions.' },
         route: { type: 'string', maxLength: 120, description: 'Exact route or situation ID in the movements view.' },
         countries: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Country names, ISO alpha-2, or alpha-3 codes to keep (e.g. ["Syria","UA","AFG"]). Matches both per-country totals and origin/asylum flows. Omit for all. Unresolved inputs return Invalid params.',
+          description: 'Country names, ISO alpha-2, or alpha-3 codes to keep (e.g. ["Syria","UA","AFG"]). Matches per-country totals, origin/asylum flows, IDMC rows and DTM operations. Omit for all. Unresolved names and alpha-3 codes return Invalid params; an unknown two-letter code matches nothing.',
         },
-        limit: { type: 'number', description: 'Cap the per-country and top-flow lists to at most this many items (default 30, pass 0 for no cap).' },
+        limit: { type: 'number', description: 'Cap the per-country, top-flow, IDMC and DTM operation lists to at most this many items (default 30, pass 0 for no cap; IDMC events stay capped at 100).' },
       },
       required: [],
     },
-    _attribution: 'data.crossBorderMovements.movements[].{source: source, sourceUrl: sourceUrl, license: license, licenseUrl: licenseUrl, notice: notice}',
+    _attribution: 'data.crossBorderMovements.movements[].{source: source, sourceUrl: sourceUrl, license: license, licenseUrl: licenseUrl, notice: notice} || data.iduEvents.attribution || data.dtmRegions.attribution',
     outputSchema: cacheEnvelope({
+      iduEvents: {
+        type: ['object', 'null'],
+        description: 'Present with view "events".',
+        properties: {
+          source: { type: 'string' },
+          windowFrom: { type: 'string', description: 'First displacement date (YYYY-MM-DD) in events.' },
+          missingCountries: { type: 'array', items: { type: 'string' }, description: 'ISO3 codes whose file failed at seed time. Partial failure, not zero displacement.' },
+          countries: { type: 'array', items: { type: 'object', properties: {
+            countryCode: { type: 'string' }, countryName: { type: 'string' },
+            displaced30d: { type: 'number' }, conflict30d: { type: 'number' }, disaster30d: { type: 'number' }, events30d: { type: 'number' },
+            newlyReported7d: { type: 'number', description: 'Figures published in the last 7 days, whatever the displacement date.' },
+            latestDisplacementDate: { type: 'string' },
+            baselineMonthly: { type: 'number', description: 'Monthly mean of the 150 days before the 30-day window.' },
+            surge: { type: 'boolean', description: 'displaced30d is at least 5,000 and 3x baselineMonthly.' },
+          } } },
+          events: { type: 'array', items: { type: 'object', properties: {
+            id: { type: 'string' }, countryCode: { type: 'string' }, countryName: { type: 'string' },
+            displacementType: { type: 'string', enum: ['Conflict', 'Disaster'] }, figure: { type: 'number' }, qualifier: { type: 'string' },
+            displacementDate: { type: 'string' }, startDate: { type: 'string' }, endDate: { type: 'string' },
+            eventId: { type: 'string' }, eventName: { type: 'string' }, category: { type: 'string' }, hazardType: { type: 'string' },
+            locationName: { type: 'string' }, locationAccuracy: { type: 'string' }, sources: { type: 'string' },
+            createdAt: { type: 'string', description: 'Date IDMC published the figure.' },
+            location: { type: 'object', properties: { latitude: { type: 'number' }, longitude: { type: 'number' } } },
+          } } },
+          attribution: { type: 'object', properties: {
+            source: { type: 'string' }, sourceUrl: { type: 'string' }, hdxUrl: { type: 'string' }, license: { type: 'string' }, licenseUrl: { type: 'string' },
+          } },
+        },
+      },
+      dtmRegions: {
+        type: ['object', 'null'],
+        description: 'Present with view "regions".',
+        properties: {
+          source: { type: 'string' },
+          lookbackFrom: { type: 'string', description: 'Oldest reporting date (YYYY-MM-DD) an operation may have.' },
+          operations: { type: 'array', description: 'Latest survey round per IOM DTM operation, largest first. Operations in one country can overlap; do not add them.', items: { type: 'object', properties: {
+            countryCode: { type: 'string' }, countryName: { type: 'string' }, operation: { type: 'string' },
+            reportingDate: { type: 'string' }, roundNumber: { type: 'number' }, totalIdps: { type: 'number' },
+            reasons: { type: 'array', items: { type: 'object', properties: { reason: { type: 'string' }, idps: { type: 'number' } } } },
+            regions: { type: 'array', items: { type: 'object', properties: {
+              pcode: { type: 'string', description: 'OCHA P-code; empty when DTM gave none.' }, name: { type: 'string' }, idps: { type: 'number' },
+              location: { type: 'object', properties: { latitude: { type: 'number' }, longitude: { type: 'number' } } },
+            } } },
+            flows: { type: 'array', description: 'Largest region-to-region routes, up to 30: IDPs in the destination who fled the origin.', items: { type: 'object', properties: {
+              originPcode: { type: 'string' }, originName: { type: 'string' }, destinationPcode: { type: 'string' }, destinationName: { type: 'string' }, idps: { type: 'number' },
+              originLocation: { type: 'object', properties: { latitude: { type: 'number' }, longitude: { type: 'number' } } },
+              destinationLocation: { type: 'object', properties: { latitude: { type: 'number' }, longitude: { type: 'number' } } },
+            } } },
+          } } },
+          attribution: { type: 'object', properties: { source: { type: 'string' }, sourceUrl: { type: 'string' }, notice: { type: 'string' } } },
+        },
+      },
       crossBorderMovements: { type: 'object', properties: { movements: { type: 'array', items: { type: 'object', properties: { id: {type: 'string'}, route: {type: 'string'}, kind: {type: 'string'}, measure: {type: 'string'}, countryCode: {type: 'string'}, originCode: {type: 'string'}, asOf: {type: 'string'}, count: {type: 'number'}, last7Days: {type: 'number'}, last30Days: {type: 'number'}, changePct: {type: 'number'}, stockChange: {type: 'number'}, stockChangeSince: {type: 'string'}, surge: {type: 'boolean'}, stale: {type: 'boolean'}, source: {type: 'string'}, sourceUrl: {type: 'string'}, license: {type: 'string'}, licenseUrl: {type: 'string'}, notice: {type: 'string'} } } }, sources: {type: 'array', items: {type: 'object'}}, dataAvailable: {type: 'boolean'} } },
       summary: {
         type: ['object', 'null'],
@@ -2648,10 +2732,38 @@ export const CACHE_TOOLS: ToolDef[] = [
       if (codes.length > 0) {
         narrowNested(data, 'summary', 'countries', (c) => matchesCode(c.code, codes));
         narrowNested(data, 'summary', 'topFlows', (f) => matchesCode(f.originCode, codes) || matchesCode(f.asylumCode, codes));
+        narrowNested(data, 'iduEvents', 'countries', (c) => matchesCode(c.countryCode, codes));
+        narrowNested(data, 'iduEvents', 'events', (e) => matchesCode(e.countryCode, codes));
+        narrowNested(data, 'dtmRegions', 'operations', (op) => matchesCode(op.countryCode, codes));
       }
       capNested(data, 'summary', 'countries', limit);
       capNested(data, 'summary', 'topFlows', limit);
+      capNested(data, 'iduEvents', 'countries', limit);
+      capNested(data, 'iduEvents', 'events', limit > 0 ? Math.min(limit, IDU_EVENTS_MAX) : IDU_EVENTS_MAX);
+      capNested(data, 'dtmRegions', 'operations', limit);
       return data;
+    },
+    _project: (data) => {
+      const isSnapshot = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
+      const { iduEvents, dtmRegions } = data;
+      let projected = data;
+      if (isSnapshot(iduEvents)) {
+        projected = { ...projected, iduEvents: { ...iduEvents, attribution: {
+          source: 'Internal Displacement Monitoring Centre (IDMC), Internal Displacement Updates',
+          sourceUrl: 'https://www.internal-displacement.org/',
+          hdxUrl: 'https://data.humdata.org/organization/international-displacement-monitoring-centre-idmc',
+          license: 'CC BY-IGO',
+          licenseUrl: 'https://creativecommons.org/licenses/by/3.0/igo/',
+        } } };
+      }
+      if (isSnapshot(dtmRegions)) {
+        projected = { ...projected, dtmRegions: { ...dtmRegions, attribution: {
+          source: 'International Organization for Migration (IOM), Displacement Tracking Matrix (DTM)',
+          sourceUrl: 'https://dtm.iom.int/',
+          notice: 'Latest survey round per operation. Operations in one country can overlap; do not add their totals.',
+        } } };
+      }
+      return projected;
     },
     // Dynamic-year key resolved once at module evaluation — mirrors the
     // STANDALONE_KEYS pattern in api/health.js:147. The UNHCR seeder publishes
@@ -2659,15 +2771,19 @@ export const CACHE_TOOLS: ToolDef[] = [
     // is intentionally excluded — the executeTool label-walk would strip the
     // year segment from both keys and collide on the same `summary` label,
     // causing the second result to overwrite the first.
-    _cacheKeys: [`displacement:summary:v1:${new Date().getUTCFullYear()}`, ...CROSS_BORDER_SOURCES.map(source => source.key)],
-    _cacheLabels: Object.fromEntries(CROSS_BORDER_SOURCES.map(source => [source.key, source.id])),
-    _freshnessChecks: [{ key: 'seed-meta:displacement:summary', maxStaleMin: 3600 }, ...CROSS_BORDER_SOURCES.map(source => ({ key: `seed-meta:${source.key.replace(/:v1$/, '')}`, maxStaleMin: 2880, honorContentAge: true, ...(source.id === 'odp' ? {} : { contentFreshnessActivationKey: `seed-activated:displacement:border-${source.id}` }) }))],
+    _cacheKeys: [`displacement:summary:v1:${new Date().getUTCFullYear()}`, 'displacement:idmc-idu:v1', 'displacement:dtm:v1', ...CROSS_BORDER_SOURCES.map(source => source.key)],
+    _cacheLabels: { 'displacement:idmc-idu:v1': 'iduEvents', 'displacement:dtm:v1': 'dtmRegions', ...Object.fromEntries(CROSS_BORDER_SOURCES.map(source => [source.key, source.id])) },
+    // The events and regions budgets match SEED_META.idmcIduDisplacement and
+    // SEED_META.dtmDisplacement in api/health.js; the DTM seed-meta also
+    // carries the 90-day round-age budget.
+    _freshnessChecks: [{ key: 'seed-meta:displacement:summary', maxStaleMin: 3600 }, { key: 'seed-meta:displacement:idmc-idu', maxStaleMin: 2880, minRecordCount: 500 }, { key: 'seed-meta:displacement:dtm', maxStaleMin: 2880, minRecordCount: 15, honorContentAge: true }, ...CROSS_BORDER_SOURCES.map(source => ({ key: `seed-meta:${source.key.replace(/:v1$/, '')}`, maxStaleMin: 2880, honorContentAge: true, ...(source.id === 'odp' ? {} : { contentFreshnessActivationKey: `seed-activated:displacement:border-${source.id}` }) }))],
     // Audit miss: handler uses cachedFetchJson with a year-suffixed key the
     // audit's regex couldn't statically resolve. The op IS covered by this
     // tool — same underlying displacement:summary:v1:<year> cache.
     _apiPaths: [
       'GET /api/displacement/v1/get-displacement-summary',
       'GET /api/displacement/v1/get-cross-border-movements',
+      'GET /api/displacement/v1/get-internal-displacement',
     ],
   },
   {
@@ -3044,7 +3160,7 @@ export const CACHE_TOOLS: ToolDef[] = [
     _validateArgs: params => { resolveCountryFilter(params.country, 'country'); },
     title: 'Climate anomalies and disasters',
     _outputBudgetBytes: 131072,
-    description: 'Return the seeded climate bundle: temperature and precipitation anomalies against 30-year WMO normals, climate-relevant disaster alerts (ReliefWeb, GDACS, FIRMS), the NOAA Mauna Loa CO2 trend, OpenAQ/WAQI PM2.5 station readings, NSIDC/NOAA Arctic sea-ice extent and ocean-heat indicators, active weather alerts and climate news. Each sub-dataset carries its own seed time and staleness budget (anomalies are flagged stale after 2 h, CO2 and sea ice after 2 days). Seeded-cache read with no live fetch: weight 1 on API plans, included in the signed-in free allowance. dataset selects sub-datasets, country narrows the disaster and air-quality lists, limit caps each list (default 30, 0 for no cap).',
+    description: 'Return the seeded climate bundle: temperature and precipitation anomalies against 30-year WMO normals, climate-relevant disaster alerts (ReliefWeb, GDACS, FIRMS), the NOAA Mauna Loa CO2 trend, OpenAQ/WAQI PM2.5 station readings, NSIDC/NOAA Arctic sea-ice extent and ocean-heat indicators, active weather alerts and climate news. Freshness follows each source seed time and budget (anomalies 9 h, CO2 3 days, sea ice 2 days), plus producer content-age limits for anomalies and news. Seeded-cache read with no live fetch: weight 1 on API plans, included in the signed-in free allowance. dataset selects sub-datasets, country narrows the disaster and air-quality lists, limit caps each list (default 30, 0 for no cap).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -3094,12 +3210,12 @@ export const CACHE_TOOLS: ToolDef[] = [
     },
     _cacheKeys: ['climate:anomalies:v2', 'climate:disasters:v1', 'climate:co2-monitoring:v1', 'climate:air-quality:v1', 'climate:ocean-ice:v1', 'climate:news-intelligence:v1', 'weather:alerts:v1'],
     _freshnessChecks: [
-      { key: 'seed-meta:climate:anomalies', maxStaleMin: 120 },
+      { key: 'seed-meta:climate:anomalies', maxStaleMin: 540, honorContentAge: true },
       { key: 'seed-meta:climate:disasters', maxStaleMin: 720 },
-      { key: 'seed-meta:climate:co2-monitoring', maxStaleMin: 2880 },
+      { key: 'seed-meta:climate:co2-monitoring', maxStaleMin: 4320 },
       { key: 'seed-meta:health:air-quality', maxStaleMin: 180 },
       { key: 'seed-meta:climate:ocean-ice', maxStaleMin: 2880 },
-      { key: 'seed-meta:climate:news-intelligence', maxStaleMin: 90 },
+      { key: 'seed-meta:climate:news-intelligence', maxStaleMin: 90, honorContentAge: true },
       { key: 'seed-meta:weather:alerts', maxStaleMin: 45 },
     ],
     _apiPaths: [

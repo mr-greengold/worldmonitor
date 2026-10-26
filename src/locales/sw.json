@@ -838,15 +838,17 @@
       "logCleared": "Kumbukumbu imefutwa.",
       "worldMonitor": {
         "apiKey": {
-          "title": "Leseni / Kitufe cha API",
+          "title": "Ufunguo wa Desktop",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "API Starter na API Business waliojisajili huunda ufunguo huu kwenye dashibodi ya wavuti chini ya Settings → API Keys. Ufunguo kamili ukipotea, ubatilishe na uunde mbadala."
+          "description": "Kwa matolani bila kuingia. Pro: tengeneza mmoja katika Settings → API Keys kwenye wavuti; vifunguo vya mpango wa API pia vinafanya kazi. Kwa matumizi yako; uwekaji wa pamoja au wa umma unahitaji mpango wa API. Msaada: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "AU",
         "register": {
-          "title": "Je, unahitaji ufunguo wa API?",
-          "description": "Tazama worldmonitor.app/docs/api-keys kwa usaidizi wa hatua kwa hatua. Vifunguo vya mwongozo vinahitaji API Starter au API Business plan.",
-          "submitBtn": "Tazama mipango ya API"
+          "submitBtn": "Tazama mipango"
+        },
+        "signIn": {
+          "title": "Ingia kwa Pro",
+          "description": "Pro inafanya kazi hapa baada ya kuingia kutoka kwa dirisha kuu. Hamna ufunguo unaohitajika."
         }
       },
       "table": {
@@ -1229,7 +1231,8 @@
       "skipToEnd": "Ruka hadi mwisho"
     },
     "pizzint": {
-      "indexSource": "Faharasa: World Monitor · data za maeneo:",
+      "indexSource": "Faharasa: World Monitor",
+      "venueSource": "data za maeneo:",
       "statusNormal": "KAWAIDA",
       "statusNoData": "HAKUNA DATA",
       "statusNoBaseline": "HAKUNA MSINGI",
@@ -1240,6 +1243,16 @@
       "tensionsTitle": "Mvutano wa Kijiografia",
       "tensionsSource": "Mivutano: World Monitor kwa kutumia matukio ya GDELT",
       "insufficientData": "Data haitoshi",
+      "evidenceStrikes": "Mashambulizi yaliyoripotiwa ndani ya siku 3 ({{countries}}): {{value}}",
+      "evidenceAirports": "Viwanja vya ndege vilivyoathirika: {{value}}",
+      "evidenceAirportClosed": "Uwanja wa ndege wa {{name}} umefungwa",
+      "evidenceAirportHalted": "{{name}}: safari nyingi za ndege zimefutwa",
+      "evidenceAirportRestricted": "{{name}}: safari za ndege zimezuiliwa",
+      "evidenceMilitaryAircraft": "Ndege za kijeshi ({{country}}) katika eneo: {{value}}",
+      "evidencePlaAircraft": "Ndege za kijeshi za China karibu na Taiwan: {{value}}",
+      "evidencePlaShips": "Meli za jeshi la wanamaji la China karibu na Taiwan: {{value}}",
+      "evidenceSanctions": "Vikwazo vipya vya Marekani wiki hii ({{country}}): {{value}}",
+      "evidenceUsual": "(kawaida {{value}})",
       "pizzaUnavailable": "Data ya shughuli za migahawa ya pizza haipatikani",
       "source": "Chanzo:",
       "statusClosed": "IMEFUNGWA",
@@ -1443,7 +1456,8 @@
         "speciesRecovery": "Urejeshaji wa Aina",
         "renewableInstallations": "Nishati Safi",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "Vikwazo vya Anga la NOTAM"
       },
       "tooltip": {
         "earthquake": "Tetemeko la ardhi",
@@ -1475,7 +1489,9 @@
         "sourceIomDtm": "Chanzo: IOM DTM",
         "sinceDate": "tangu {{date}}",
         "lastMonth": "mwezi uliopita",
-        "sourceUnhcrOdp": "Chanzo: Tovuti ya Data za Kiutendaji ya UNHCR"
+        "sourceUnhcrOdp": "Chanzo: Tovuti ya Data za Kiutendaji ya UNHCR",
+        "displaced": "waliokimbia makazi",
+        "sourceIdmc": "Chanzo: IDMC"
       },
       "layerHelp": {
         "title": "Mwongozo wa Tabaka za Ramani",
@@ -1556,7 +1572,8 @@
           "geoBoundaries": "Maeneo yasiyoruhusiwa kijeshi, njia za kusitisha mapigano, na mipaka yenye mizozo",
           "ciiChoropleth": "Ramani ya joto ya Fahirisi ya Kutokuwa na Uthabiti wa Nchi — rangizo nchi kwa alama (kijani=imara, nyekundu=muhimu)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "Vikwazo vya kuruka kwa muda na anga yenye vikwazo, hatari na iliyokatazwa kutoka kwa NOTAMs za FAA, inayotumika sasa au kuanza ndani ya saa 24"
         },
         "notes": {
           "timeAffects": "Athari: Matetemeko ya Ardhi, Hali ya Hewa, Maandamano, Kukatika"
@@ -1915,7 +1932,16 @@
       "staleReport": "Ripoti iliyopitwa na wakati",
       "reported": "Idadi",
       "period": "Kipindi",
-      "movementNote": "Kila safu huhifadhi chanzo chake, tarehe ya ripoti na kipimo. Idadi ya watu waliopo, waliowasili na matukio ya udhibiti wa mipaka ni vipimo tofauti. Vyanzo vinaweza kuhesabu watu wale wale; usijumlishe idadi zao. WorldMonitor huunda mwonekano huu kutoka vyanzo vilivyounganishwa; hii haimaanishi uidhinishaji na watoa data."
+      "movementNote": "Kila safu huhifadhi chanzo chake, tarehe ya ripoti na kipimo. Idadi ya watu waliopo, waliowasili na matukio ya udhibiti wa mipaka ni vipimo tofauti. Vyanzo vinaweza kuhesabu watu wale wale; usijumlishe idadi zao. WorldMonitor huunda mwonekano huu kutoka vyanzo vilivyounganishwa; hii haimaanishi uidhinishaji na watoa data.",
+      "recent": "Hivi karibuni",
+      "last30Days": "Siku 30 za mwisho",
+      "newThisWeek": "Mpya wiki hii",
+      "conflict": "Mgogoro",
+      "disaster": "Janga",
+      "surge": "Mlipuko",
+      "recentNote": "IDMC: watu waliohama ndani ya nchi yao katika siku 30 za mwisho. IDMC hutoa takwimu wastani wa wiki tatu baada ya uhamiaji, hivyo wiki za hivi karibuni zijaza na chelewa. Mpya wiki hii inakokotoa takwimu zilizochapishwa katika siku 7 za mwisho. Mlipuko: angalau watu 5,000 na mara tatu ya wastani wa kila mwezi wa miezi mitano iliyopita.",
+      "recentAsOf": "Data hadi {{date}}.",
+      "recentMissing": "Hakuna data wakati huu kutoka {{countries}}; faili zao hazikupakiwa. Hii haimaanishi kuwa hakuna watu waliokimbia makazi."
     },
     "climate": {
       "noAnomalies": "Hakuna hitilafu muhimu zilizogunduliwa",
@@ -2362,6 +2388,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Sauti haipatikani",
       "notLive": "{{name}} hapatikani kwa sasa",
       "signInToYouTube": "Ingia kwenye YouTube",
       "openOnYouTube": "Fungua kwenye YouTube",
@@ -3111,7 +3138,9 @@
         "apac": "Asia-Pasifiki",
         "mena": "Mashariki ya Kati",
         "africa": "Afrika"
-      }
+      },
+      "normalOperations": "UENDESHAJI WA KAWAIDA",
+      "open": "WAZI"
     },
     "aircraft": {
       "altitude": "Mwinuko",
@@ -3516,7 +3545,12 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "Mgogoro wa Venezuela",
       "yemen_houthis": "Yemen/Houthi"
-    }
+    },
+    "upcomingForecast": "Utabiri ujao",
+    "currentForecast": "Utabiri wa sasa",
+    "expiredForecast": "Utabiri uliopitwa na wakati",
+    "validFrom": "Halali kuanzia",
+    "validUntil": "Halali hadi"
   },
   "signals": {
     "context": {

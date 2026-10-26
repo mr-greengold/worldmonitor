@@ -760,15 +760,17 @@
       "logCleared": "日志已清除。",
       "worldMonitor": {
         "apiKey": {
-          "title": "许可证 / API 密钥",
+          "title": "桌面密钥",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "API Starter 和 API Business 订阅者可在网页控制台的 Settings → API Keys 中创建此密钥。如果完整密钥丢失，请撤销并创建替代密钥。"
+          "description": "适用于无登录功能的构建版本。Pro 用户：在网页版Settings → API Keys中创建；API 计划密钥也可使用。仅供个人使用；共享或公开部署需要 API 计划。帮助：worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "或",
         "register": {
-          "title": "需要 API 密钥？",
-          "description": "请访问 worldmonitor.app/docs/api-keys 查看分步说明。手动 API 密钥需要 API Starter 或 API Business 方案。",
-          "submitBtn": "查看 API 方案"
+          "submitBtn": "查看套餐"
+        },
+        "signIn": {
+          "title": "使用 Pro 登录",
+          "description": "登录主窗口后，Pro 功能即可在此处使用。无需密钥。"
         }
       },
       "table": {
@@ -1084,7 +1086,8 @@
       "skipToEnd": "跳到结尾"
     },
     "pizzint": {
-      "indexSource": "指数：World Monitor · 场所数据：",
+      "indexSource": "指数：World Monitor",
+      "venueSource": "场所数据：",
       "statusNormal": "正常",
       "statusNoData": "无数据",
       "statusNoBaseline": "无基准",
@@ -1095,6 +1098,16 @@
       "tensionsTitle": "地缘政治紧张局势",
       "tensionsSource": "紧张局势：World Monitor 根据 GDELT 事件计算",
       "insufficientData": "数据不足",
+      "evidenceStrikes": "3天内报告的打击（{{countries}}）：{{value}}",
+      "evidenceAirports": "受影响机场：{{value}}",
+      "evidenceAirportClosed": "{{name}}机场关闭",
+      "evidenceAirportHalted": "{{name}}：大部分航班取消",
+      "evidenceAirportRestricted": "{{name}}：航班受限",
+      "evidenceMilitaryAircraft": "该地区军用飞机（{{country}}）：{{value}}",
+      "evidencePlaAircraft": "台湾附近的中国军机：{{value}}",
+      "evidencePlaShips": "台湾附近的中国海军舰艇：{{value}}",
+      "evidenceSanctions": "本周美国新制裁（{{country}}）：{{value}}",
+      "evidenceUsual": "（通常 {{value}}）",
       "pizzaUnavailable": "披萨店活动数据不可用",
       "source": "来源：",
       "statusClosed": "已关闭",
@@ -1298,7 +1311,8 @@
         "radiationSpike": "辐射峰值",
         "radiationElevated": "辐射升高",
         "canadaRoads": "Canada 道路",
-        "canadaAlerts": "加拿大警报（AB + BC + SK）"
+        "canadaAlerts": "加拿大警报（AB + BC + SK）",
+        "notamAirspace": "NOTAM 空域限制"
       },
       "tooltip": {
         "earthquake": "地震",
@@ -1330,7 +1344,9 @@
         "sourceIomDtm": "来源：IOM DTM",
         "sinceDate": "自{{date}}起",
         "lastMonth": "上月",
-        "sourceUnhcrOdp": "来源：联合国难民署业务数据门户"
+        "sourceUnhcrOdp": "来源：联合国难民署业务数据门户",
+        "displaced": "人流离失所",
+        "sourceIdmc": "来源：IDMC"
       },
       "layerHelp": {
         "title": "地图图层指南",
@@ -1411,7 +1427,8 @@
           "geoBoundaries": "非军事区、停火线和争议边界",
           "ciiChoropleth": "国家不稳定指数热力图 — 按评分为各国着色（绿色=稳定，红色=严重）",
           "canadaRoads": "加拿大（Canada）受支持辖区的官方道路事件、警报、路况、封闭、施工和危险信息",
-          "canadaAlerts": "来自 Alberta Emergency Alert、B.C. 疏散令与警报及 SaskAlert 的省级公共安全警报"
+          "canadaAlerts": "来自 Alberta Emergency Alert、B.C. 疏散令与警报及 SaskAlert 的省级公共安全警报",
+          "notamAirspace": "FAA NOTAM 中的临时飞行限制和受限、危险及禁飞空域，当前生效或将在 24 小时内生效"
         },
         "notes": {
           "timeAffects": "影响范围：地震、天气、抗议、中断"
@@ -1769,7 +1786,16 @@
       "staleReport": "报告已过期",
       "reported": "数量",
       "period": "期间",
-      "movementNote": "每行保留其来源、报告日期和衡量指标。存量人口、抵达人数和边境执法事件是不同指标。来源可能重叠，请勿将其计数相加。WorldMonitor 根据链接的来源生成此视图，并不意味着获得任何数据提供方的认可。"
+      "movementNote": "每行保留其来源、报告日期和衡量指标。存量人口、抵达人数和边境执法事件是不同指标。来源可能重叠，请勿将其计数相加。WorldMonitor 根据链接的来源生成此视图，并不意味着获得任何数据提供方的认可。",
+      "recent": "最近",
+      "last30Days": "过去30天",
+      "newThisWeek": "本周新增",
+      "conflict": "冲突",
+      "disaster": "灾害",
+      "surge": "激增",
+      "recentNote": "IDMC：过去30天内在本国流离失所的人口。IDMC通常在流离失所后三周发布数据，因此最近几周的数据会延迟填入。本周新增计算过去7天内发布的数据。激增：至少5000人，且是过去五个月月均值的三倍及以上。",
+      "recentAsOf": "数据截至 {{date}}。",
+      "recentMissing": "{{countries}} 本期无数据；其文件加载失败，这并不表示零流离失所。"
     },
     "climate": {
       "noAnomalies": "未检测到显著异常",
@@ -2020,6 +2046,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "音频不可用",
       "notLive": "{{name}} 当前未直播",
       "signInToYouTube": "登录YouTube",
       "openOnYouTube": "在 YouTube 打开",
@@ -3022,7 +3049,9 @@
         "africa": "非洲"
       },
       "scheduled": "计划",
-      "estimated": "预计"
+      "estimated": "预计",
+      "normalOperations": "正常运营",
+      "open": "开放"
     },
     "aircraft": {
       "altitude": "高度",
@@ -3427,7 +3456,12 @@
       "uae_ecsr": "阿联酋/ECSR",
       "venezuela_crisis": "委内瑞拉危机",
       "yemen_houthis": "也门/胡塞武装"
-    }
+    },
+    "upcomingForecast": "即将生效的预报",
+    "currentForecast": "当前有效预报",
+    "expiredForecast": "已过期预报",
+    "validFrom": "生效时间",
+    "validUntil": "失效时间"
   },
   "signals": {
     "context": {

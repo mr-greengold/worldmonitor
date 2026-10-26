@@ -838,15 +838,17 @@
       "logCleared": "Napló törlve.",
       "worldMonitor": {
         "apiKey": {
-          "title": "Licenc- / API-kulcs",
+          "title": "Asztalialkalmazás-kulcs",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "Az API Starter és API Business előfizetők a webes irányítópult Settings → API Keys részében hozzák létre ezt a kulcsot. Ha a teljes kulcs elveszett, vonja vissza, és hozzon létre újat."
+          "description": "Bejelentkezés nélküli buildekhez. Pro: hozz létre egyet a Settings → API Keys menüben az interneten; az API-terv kulcsai is működnek. Személyes használatra; megosztott vagy nyilvános telepítésekhez API-terv szükséges. Segítség: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "VAGY",
         "register": {
-          "title": "API-kulcsra van szüksége?",
-          "description": "A részletes útmutatóért keresse fel a worldmonitor.app/docs/api-keys oldalt. A kézi API-kulcsokhoz API Starter vagy API Business csomag szükséges.",
-          "submitBtn": "API-csomagok megtekintése"
+          "submitBtn": "Csomagok megtekintése"
+        },
+        "signIn": {
+          "title": "Bejelentkezés Pro-val",
+          "description": "A Pro működik itt, miután bejelentkezel a főablakból. Nincs szükség kulcsra."
         }
       },
       "table": {
@@ -1229,7 +1231,8 @@
       "skipToEnd": "Ugrás a végére"
     },
     "pizzint": {
-      "indexSource": "Index: World Monitor · helyadatok:",
+      "indexSource": "Index: World Monitor",
+      "venueSource": "helyadatok:",
       "statusNormal": "NORMÁL",
       "statusNoData": "NINCS ADAT",
       "statusNoBaseline": "NINCS VISZONYÍTÁSI ALAP",
@@ -1240,6 +1243,16 @@
       "tensionsTitle": "Geopolitikai feszültségek",
       "tensionsSource": "Feszültségek: World Monitor a GDELT eseményei alapján",
       "insufficientData": "Nincs elegendő adat",
+      "evidenceStrikes": "Jelentett csapások 3 nap alatt ({{countries}}): {{value}}",
+      "evidenceAirports": "Zavart repülőterek: {{value}}",
+      "evidenceAirportClosed": "{{name}} repülőtér lezárva",
+      "evidenceAirportHalted": "{{name}}: a legtöbb járatot törölték",
+      "evidenceAirportRestricted": "{{name}}: korlátozott járatok",
+      "evidenceMilitaryAircraft": "Katonai repülőgépek ({{country}}) a térségben: {{value}}",
+      "evidencePlaAircraft": "Kínai katonai repülőgépek Tajvan közelében: {{value}}",
+      "evidencePlaShips": "Kínai haditengerészeti hajók Tajvan közelében: {{value}}",
+      "evidenceSanctions": "Új amerikai szankciók ezen a héten ({{country}}): {{value}}",
+      "evidenceUsual": "(szokásos {{value}})",
       "pizzaUnavailable": "A pizzériák forgalmi adatai nem érhetők el",
       "source": "Forrás:",
       "statusClosed": "LEZÁRVA",
@@ -1443,7 +1456,8 @@
         "speciesRecovery": "Fajmegmentés",
         "renewableInstallations": "Tiszta energia",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "NOTAM légtéri korlátozások"
       },
       "tooltip": {
         "earthquake": "Földrengés",
@@ -1475,7 +1489,9 @@
         "sourceIomDtm": "Forrás: IOM DTM",
         "sinceDate": "{{date}} óta",
         "lastMonth": "a múlt hónapban",
-        "sourceUnhcrOdp": "Forrás: az UNHCR operatív adatportálja"
+        "sourceUnhcrOdp": "Forrás: az UNHCR operatív adatportálja",
+        "displaced": "lakóhelyét elhagyni kényszerült",
+        "sourceIdmc": "Forrás: IDMC"
       },
       "layerHelp": {
         "title": "Térképrétegek útmutatója",
@@ -1556,7 +1572,8 @@
           "geoBoundaries": "Demilitarizált zónák, tűzszünet vonalak és vitatott határok",
           "ciiChoropleth": "Ország Instabilitási Index hőtérkép — országokat pontszám szerint színez (zöld=stabil, piros=kritikus)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "Ideiglenes repüléskorlátozások, valamint korlátozott, veszélyes és tiltott légtér az FAA NOTAM-jaiból, amely jelenleg érvényes vagy 24 órán belül kezdődik"
         },
         "notes": {
           "timeAffects": "Érintett: Földrengések, Időjárás, Tüntetések, Leállások"
@@ -1915,7 +1932,16 @@
       "staleReport": "Elavult jelentés",
       "reported": "Létszám",
       "period": "Időszak",
-      "movementNote": "Minden sor megőrzi a forrását, a jelentés dátumát és a mérőszámát. Az állomány, az érkezések és a határellenőrzési események különböző mérőszámok. A források átfedhetik egymást; ne adja össze az értékeiket. A WorldMonitor ezt a nézetet a hivatkozott forrásokból állítja elő; ez nem jelent szolgáltatói jóváhagyást."
+      "movementNote": "Minden sor megőrzi a forrását, a jelentés dátumát és a mérőszámát. Az állomány, az érkezések és a határellenőrzési események különböző mérőszámok. A források átfedhetik egymást; ne adja össze az értékeiket. A WorldMonitor ezt a nézetet a hivatkozott forrásokból állítja elő; ez nem jelent szolgáltatói jóváhagyást.",
+      "recent": "Közelmúlt",
+      "last30Days": "Utolsó 30 nap",
+      "newThisWeek": "Ezen a héten új",
+      "conflict": "Konfliktus",
+      "disaster": "Katasztrófa",
+      "surge": "Megugrás",
+      "recentNote": "IDMC: az elmúlt 30 napban országukon belül lakóhelyük elhagyására kényszerült emberek. Az IDMC egy adatot medián értékben három héttel a kitelepülés után tesz közzé, így a legutóbbi hetek adatai később töltődnek fel. Az „Ezen a héten új” az elmúlt 7 napban közzétett adatokat számolja. Megugrás: legalább 5000 ember és az előző öt hónap havi átlagának háromszorosa.",
+      "recentAsOf": "Adatok {{date}} szerint.",
+      "recentMissing": "Most nincs adat innen: {{countries}}; a fájljaik betöltése nem sikerült, ez nem jelent nulla kitelepítést."
     },
     "climate": {
       "noAnomalies": "Nem észleltek jelentős anomáliákat",
@@ -2359,6 +2385,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "A hang nem érhető el",
       "notLive": "{{name}} jelenleg nem él",
       "signInToYouTube": "Bejelentkezés a YouTube-ba",
       "openOnYouTube": "Megnyitás a YouTube-on",
@@ -3111,7 +3138,9 @@
         "apac": "Ázsia-Csendes-óceán",
         "mena": "Közel-Kelet",
         "africa": "Afrika"
-      }
+      },
+      "normalOperations": "NORMÁL ÜZEMELTETÉS",
+      "open": "NYITVA"
     },
     "aircraft": {
       "altitude": "Magasság",
@@ -3516,7 +3545,12 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "venezuelai válság",
       "yemen_houthis": "Jemen/Houthik"
-    }
+    },
+    "upcomingForecast": "Közelgő előrejelzés",
+    "currentForecast": "Jelenlegi előrejelzés",
+    "expiredForecast": "Lejárt előrejelzés",
+    "validFrom": "Érvényes ettől",
+    "validUntil": "Érvényes eddig"
   },
   "signals": {
     "context": {

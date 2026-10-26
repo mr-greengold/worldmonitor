@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import http, { createServer } from 'node:http';
 import https from 'node:https';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual } from 'node:crypto';
 import dns from 'node:dns/promises';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
@@ -18,9 +18,6 @@ const { getConfiguredLlmHealthProviders } = await import(
 );
 
 const brotliCompressAsync = promisify(brotliCompress);
-const DESKTOP_AUTH_SECRET_ENV = 'WM_DESKTOP_SHARED_SECRET';
-const DESKTOP_AUTH_TIMESTAMP_HEADER = 'X-WorldMonitor-Desktop-Timestamp';
-const DESKTOP_AUTH_SIGNATURE_HEADER = 'X-WorldMonitor-Desktop-Signature';
 const LOCAL_API_TRANSPORT_HEADER = 'x-worldmonitor-local-token';
 const MAX_REGISTRATION_BODY_BYTES = 16 * 1024;
 const MAX_REGISTRATION_EMAIL_LENGTH = 254;
@@ -80,22 +77,6 @@ function tokenMatches(candidate, expected) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-function canonicalizeDesktopAuthPayload(payload) {
-  return JSON.stringify({
-    email: typeof payload?.email === 'string' ? payload.email : '',
-    source: typeof payload?.source === 'string' ? payload.source : '',
-    appVersion: typeof payload?.appVersion === 'string' ? payload.appVersion : '',
-    referredBy: typeof payload?.referredBy === 'string' ? payload.referredBy : '',
-    website: typeof payload?.website === 'string' ? payload.website : '',
-    turnstileToken: typeof payload?.turnstileToken === 'string' ? payload.turnstileToken : '',
-  });
-}
-
-function signDesktopAuthPayload(secret, timestamp, payload) {
-  const message = `${timestamp}\n${canonicalizeDesktopAuthPayload(payload)}`;
-  return `sha256=${createHmac('sha256', secret).update(message).digest('hex')}`;
-}
-
 function isTransientVerificationError(error) {
   if (!(error instanceof Error)) return false;
   const code = typeof error.code === 'string' ? error.code : '';
@@ -119,6 +100,11 @@ const MAX_CONCURRENT_UPSTREAM = 6;
 // Mutable (not const) only so tests can shrink it -- production always runs
 // at the default.
 let _upstreamIdleTimeoutMs = 12000;
+// The configured Ollama server sends nothing until a non-streaming completion
+// ends, so its silence is inference. This bound outlasts the longest server
+// LLM deadline (60s), so the caller's own deadline ends a slow completion and
+// this only reclaims a slot from a server that truly hangs.
+let _ollamaIdleTimeoutMs = 90000;
 function acquireUpstreamSlot() {
   if (_activeUpstream < MAX_CONCURRENT_UPSTREAM) {
     _activeUpstream++;
@@ -226,16 +212,21 @@ function registerSidecarAllowedPrivateFetchOrigins(port, extraOrigins = []) {
   };
 }
 
+function isConfiguredOllamaOrigin(url) {
+  if (!process.env.OLLAMA_API_URL) return false;
+  try {
+    return url.origin === new URL(process.env.OLLAMA_API_URL).origin;
+  } catch {
+    return false;
+  }
+}
+
 function isAllowedPrivateSidecarFetch(url) {
   if (sidecarAllowedPrivateFetchOrigins.has(url.origin)) return true;
   // Desktop users can change Ollama settings without restarting the sidecar.
   // Trust only the current configured origin, never an address from a request.
-  if (process.env.LOCAL_API_MODE === 'tauri-sidecar' && process.env.OLLAMA_API_URL) {
-    try {
-      return url.origin === new URL(process.env.OLLAMA_API_URL).origin;
-    } catch { /* invalid configuration grants no private-network access */ }
-  }
-  return false;
+  // An invalid configuration grants no private-network access.
+  return process.env.LOCAL_API_MODE === 'tauri-sidecar' && isConfiguredOllamaOrigin(url);
 }
 
 async function assertSafeSidecarFetchUrl(url) {
@@ -327,7 +318,8 @@ globalThis.fetch = async function ipv4Fetch(input, init) {
       // Catches a peer that accepts the connection and then goes silent
       // forever (no error, no close, no data) -- the only stall shape none
       // of the listeners above ever observe.
-      req.setTimeout(_upstreamIdleTimeoutMs, () => {
+      const idleTimeoutMs = isConfiguredOllamaOrigin(url) ? _ollamaIdleTimeoutMs : _upstreamIdleTimeoutMs;
+      req.setTimeout(idleTimeoutMs, () => {
         req.destroy();
         settle(reject, new Error('upstream request idle-timed out'));
       });
@@ -349,7 +341,7 @@ const ALLOWED_ENV_KEYS = new Set([
   'VITE_OPENSKY_RELAY_URL', 'OPENSKY_CLIENT_ID', 'OPENSKY_CLIENT_SECRET',
   'AISSTREAM_API_KEY', 'VITE_WS_RELAY_URL', 'FINNHUB_API_KEY', 'ALPHA_VANTAGE_API_KEY', 'NASA_FIRMS_API_KEY',
   'OLLAMA_API_URL', 'OLLAMA_MODEL', 'WORLDMONITOR_API_KEY', 'WTO_API_KEY',
-  'AVIATIONSTACK_API', 'ICAO_API_KEY', 'UCDP_ACCESS_TOKEN', DESKTOP_AUTH_SECRET_ENV,
+  'AVIATIONSTACK_API', 'ICAO_API_KEY', 'UCDP_ACCESS_TOKEN',
 ]);
 
 const CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -873,19 +865,10 @@ async function proxyRegisterInterestToCloud(requestUrl, req, context) {
   headers.delete('Content-Encoding');
   headers.delete('Connection');
   headers.delete('Expect');
-  headers.delete(DESKTOP_AUTH_TIMESTAMP_HEADER);
-  headers.delete(DESKTOP_AUTH_SIGNATURE_HEADER);
   headers.set('Origin', 'https://worldmonitor.app');
   headers.set('User-Agent', CHROME_UA);
   headers.set('Content-Type', 'application/json');
   headers.set('Content-Length', String(Buffer.byteLength(body)));
-
-  const secret = process.env[DESKTOP_AUTH_SECRET_ENV];
-  if (secret) {
-    const timestamp = String(Date.now());
-    headers.set(DESKTOP_AUTH_TIMESTAMP_HEADER, timestamp);
-    headers.set(DESKTOP_AUTH_SIGNATURE_HEADER, signDesktopAuthPayload(secret, timestamp, normalizedPayload));
-  }
 
   return fetchWithTimeout(target, {
     method: 'POST',
@@ -1101,6 +1084,18 @@ function isCloudPreferred(pathname) {
     || cloudPreferredPrefixes.some(p => pathname.startsWith(p));
 }
 
+async function isLocalOnlyRequest(req, pathname) {
+  if (req.method !== 'POST' || pathname !== '/api/news/v1/summarize-article') return false;
+  const body = await readBody(req);
+  if (!body?.length) return false;
+  try {
+    const parsed = JSON.parse(body.toString('utf8'));
+    return parsed?.provider === 'ollama' && parsed?.mode === 'translate';
+  } catch {
+    return false;
+  }
+}
+
 const TRAFFIC_LOG_MAX = 200;
 const trafficLog = [];
 let verboseMode = false;
@@ -1291,7 +1286,7 @@ function makeCorsHeaders(req) {
   return {
     'Access-Control-Allow-Origin': getSidecarCorsOrigin(req),
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-WorldMonitor-Desktop-Timestamp, X-WorldMonitor-Desktop-Signature',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
   };
@@ -1703,9 +1698,6 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
     case 'ICAO_API_KEY':
       return ok('ICAO API key stored (verification requires NOTAM endpoint access)');
 
-    case DESKTOP_AUTH_SECRET_ENV:
-      return ok('Desktop shared secret stored');
-
     default:
       return ok('Key stored');
     }
@@ -2093,12 +2085,13 @@ async function dispatch(requestUrl, req, routes, context) {
     }
   }
 
-  const cloudPreferredAttempted = context.cloudFallback && isCloudPreferred(requestUrl.pathname);
+  const localOnly = await isLocalOnlyRequest(req, requestUrl.pathname);
+  const cloudPreferredAttempted = !localOnly && context.cloudFallback && isCloudPreferred(requestUrl.pathname);
   if (cloudPreferredAttempted) {
     const cloudResponse = await tryCloudFallback(requestUrl, req, context, 'cloud-preferred');
     if (cloudResponse) return cloudResponse;
   }
-  const allowCloudFallback = context.cloudFallback && !cloudPreferredAttempted;
+  const allowCloudFallback = !localOnly && context.cloudFallback && !cloudPreferredAttempted;
 
   const modulePath = pickModule(requestUrl.pathname, routes);
   if (!modulePath || !existsSync(modulePath)) {
@@ -2173,8 +2166,8 @@ async function dispatch(requestUrl, req, routes, context) {
   }
 }
 
-// Test seam: lets tests shrink ipv4Fetch's upstream idle timeout so a
-// silent-stall test doesn't have to wait out the real 12s production value.
+// Test seam: lets tests shrink ipv4Fetch's idle timeouts so a silent-stall
+// test doesn't have to wait out the real production values.
 // Production code never calls this.
 export const __testing__ = {
   isCloudPreferred,
@@ -2183,6 +2176,9 @@ export const __testing__ = {
   isYahooFinanceHost,
   setUpstreamIdleTimeoutMs(ms) {
     _upstreamIdleTimeoutMs = ms;
+  },
+  setOllamaIdleTimeoutMs(ms) {
+    _ollamaIdleTimeoutMs = ms;
   },
 };
 

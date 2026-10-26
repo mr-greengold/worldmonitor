@@ -249,7 +249,7 @@
     "f5_15min": "5-15 phút",
     "fLt60s": "<60 giây",
     "fPerRequest": "Theo yêu cầu",
-    "fLiveEdge": "Live-edge",
+    "fLiveEdge": "Trực tiếp",
     "f50panels": "Bảng điều khiển",
     "fWhiteLabel": "White-label",
     "fBYOK": "BYOK",
@@ -267,8 +267,8 @@
     "fPassAlerts": "Cảnh báo đi qua + phân tích",
     "fImagerySar": "Hình ảnh + SAR",
     "f100plus": "Có sẵn",
-    "fCloud": "Cloud",
-    "fCloudOnPrem": "Cloud/on-prem/air-gap",
+    "fCloud": "Đám mây",
+    "fCloudOnPrem": "Đám mây/on-prem/air-gap",
     "fStandard": "Tiêu chuẩn",
     "fKeyAuth": "Xác thực khóa",
     "fSsoMfa": "SSO/MFA/RBAC/kiểm toán",
@@ -331,9 +331,9 @@
   },
   "soonBadge": "Sắp ra mắt",
   "meta": {
-    "title": "World Monitor Pro | AI Intelligence & MCP",
+    "title": "World Monitor Pro | Tình báo AI và MCP",
     "description": "World Monitor Pro thêm nhà phân tích AI, bản tóm tắt tình báo theo lịch trình, widget tùy chỉnh, nghiên cứu thị trường và quyền truy cập MCP vào dữ liệu địa chính trị và tài chính trực tiếp.",
-    "ogTitle": "World Monitor Pro | Geopolitical AI",
+    "ogTitle": "World Monitor Pro | AI địa chính trị",
     "ogDescription": "Hỏi nó, đăng ký nó, phát triển trên nó. WM Analyst chat, một bản tóm tắt AI theo lịch của bạn (hàng ngày, hai lần mỗi ngày hoặc hàng tuần), trình tạo widget tùy chỉnh, và MCP cho Claude/GPT — trên các dịch vụ trực tiếp dưới một khóa."
   },
   "pricing": {
@@ -372,7 +372,8 @@
           "Dữ liệu sự phân kỳ kim loại vật lý, tập trung khoáng sản & nợ chủ quyền",
           "Bản tóm tắt AI theo lịch trình + công cụ quy tắc cảnh báo",
           "Truy cập MCP + SDK cho Claude Desktop & các ứng dụng AI khác (50 lệnh gọi/ngày)",
-          "Tiện ích tùy chỉnh & 10 bảng điều khiển (so với 3)"
+          "Tiện ích tùy chỉnh & 10 bảng điều khiển (so với 3)",
+          "Khóa Desktop cho ứng dụng desktop (2 khóa)"
         ],
         "highlightFeatures": [
           "Giấy phép cá nhân",
@@ -432,6 +433,7 @@
           "Xuất dữ liệu — báo cáo CSV, JSON & PDF",
           "25 bảng điều khiển tùy chỉnh (so với 10)",
           "MCP + SDK: 250 lệnh gọi/ngày (so với 50)",
+          "Khóa Desktop cho ứng dụng desktop (3 khóa)",
           "Hỗ trợ ưu tiên"
         ],
         "highlightFeatures": [
@@ -650,13 +652,13 @@
       "title1": "Miễn phí là đài quan sát.",
       "title2": "Pro là phòng hoạt động.",
       "sub": "Dashboard miễn phí $0 — mọi lớp bản đồ trừ Resilience, không cần đăng ký. Pro thêm lớp quyết định.",
-      "freeTitle": "Miễn phí",
+      "freeTitle": "Gói Miễn phí",
       "freeDesc": "Bản miễn phí là một sản phẩm đầy đủ, không phải bản dùng thử. Mọi lớp bản đồ trừ Resilience, cả sáu bộ theo dõi — không cần đăng ký, không có đồng hồ dùng thử.",
       "freeF1": "Tất cả các lớp bản đồ ngoại trừ Resilience & các nguồn cấp được chọn lọc",
       "freeF2": "Tóm tắt quốc gia, điểm nóng, chỉ số bất ổn định",
       "freeF3": "Điểm nghẽn, cáp, phân tích tầng vòng",
       "freeF4": "Đường dẫn cảnh báo break & danh sách theo dõi",
-      "proTitle": "Pro",
+      "proTitle": "Gói Pro",
       "proDesc": "Hành động ngay. Lớp quyết định được sử dụng trong những khoảnh khắc trên:",
       "proF1": "WM Analyst — chat trên các dịch vụ trực tiếp, với trích dẫn",
       "proF2": "Scenario engine & Route Explorer — mô phỏng các sự cố trước khi chúng xảy ra",
@@ -686,7 +688,7 @@
       "q8": "Tôi có cần một tài khoản không?",
       "a8": "Không. Bảng điều khiển hoạt động ngay lập tức mà không cần đăng ký. Một tài khoản chỉ quan trọng khi bạn nâng cấp lên Pro hoặc muốn cài đặt được đồng bộ hóa trên các thiết bị.",
       "q9": "Nó có mã nguồn mở không?",
-      "a9": "Có — mã nguồn mở theo AGPL-3.0 trên GitHub: đọc mã, tự lưu trữ hoặc xây dựng dựa trên nó. Các ứng dụng máy tính để bàn gốc cho Windows, macOS và Linux cũng có sẵn, cùng với ứng dụng Android TV cho hiển thị tường.",
+      "a9": "Có — mã nguồn mở theo AGPL-3.0 trên GitHub: đọc mã, tự lưu trữ hoặc xây dựng dựa trên nó. Pro và Pro Business bao gồm khóa desktop, vì vậy bản dựng desktop riêng của bạn có thể tải dữ liệu Pro cloud; các bản sao Docker chạy trên dữ liệu riêng của chúng. Các ứng dụng desktop gốc cho Windows, macOS và Linux cũng có sẵn, cùng với ứng dụng Android TV cho màn hình tường.",
       "q10": "Tại sao World Monitor không phải là Palantir?",
       "a10": "Palantir làm cho dữ liệu riêng của một tổ chức hoạt động bên trong tổ chức đó. World Monitor bắt đầu từ phía khác: nó sắp xếp, chuẩn hóa, tương quan và giám sát dữ liệu công cộng trên thế giới, sau đó công bố lớp tình báo đó thông qua một bảng điều khiển miễn phí và mã nguồn mở. Công việc khác nhau, sản phẩm khác nhau.",
       "q11": "Tôi cần giấy phép World Monitor nào?",

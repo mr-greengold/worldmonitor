@@ -161,7 +161,7 @@
     "oneKey": "Živé služby, 1 klíč",
     "oneKeyDesc": "Finnhub, FRED, ACLED, UCDP, NASA FIRMS, AISStream, OpenSky a další — všechny aktivní, bez samostatných registrací.",
     "deliveryLabel": "Zvolte, jak vás zpravodajství najde",
-    "supplyChainLab": "Supply-Chain Stress Lab",
+    "supplyChainLab": "Laboratoř zátěže dodavatelského řetězce",
     "supplyChainLabDesc": "Modelujte nákladový šok napříč zeměmi a sektory. Řaďte zranitelnost komodit podle závislosti na kritických místech. Sledujte koncentraci od těžby až po rafinerii a divergenci fyzické prémie SGE–COMEX — řadu, která se pohybuje dříve než titulky.",
     "roadmapNote": "Na plánech: orbitální sledování, delší historie, prémiové vrstvy map."
   },
@@ -249,7 +249,7 @@
     "f5_15min": "5-15 minut",
     "fLt60s": "<60 sekund",
     "fPerRequest": "Za požadavek",
-    "fLiveEdge": "Live-edge",
+    "fLiveEdge": "Živě",
     "f50panels": "Panely",
     "fWhiteLabel": "White-label",
     "fBYOK": "BYOK",
@@ -331,9 +331,9 @@
   },
   "soonBadge": "Brzy",
   "meta": {
-    "title": "World Monitor Pro | AI Intelligence & MCP",
+    "title": "World Monitor Pro | AI zpravodajství a MCP",
     "description": "World Monitor Pro přidává AI analytika, plánované zpravodajské přehledy, vlastní widgety, průzkum trhu a přístup MCP k živým geopolitickým a finančním datům.",
-    "ogTitle": "World Monitor Pro | Geopolitical AI",
+    "ogTitle": "World Monitor Pro | Geopolitická AI",
     "ogDescription": "Ptejte se, přihlašte se k odběru, stavte na tom. WM Analyst chat, AI souhrn podle vašeho rozvrhu (denně, dvakrát denně nebo týdně), vlastní stavitel widgetů a MCP pro Claude/GPT — všechno v jedné službě pod jedním klíčem."
   },
   "pricing": {
@@ -372,7 +372,8 @@
           "Divergence fyzických kovů, koncentrace minerálů a data o státního dluhu",
           "Plánovaný AI přehled + stroj s pravidly upozornění",
           "Přístup k MCP + SDK pro Claude Desktop a další AI klienty (50 volání/den)",
-          "Vlastní widgety a 10 dashboardů (vs 3)"
+          "Vlastní widgety a 10 dashboardů (vs 3)",
+          "Klíč pro desktopovou aplikaci (2 klíče)"
         ],
         "highlightFeatures": [
           "Osobní licence",
@@ -432,6 +433,7 @@
           "Export dat — CSV, JSON a PDF reporty",
           "25 vlastních dashboardů (vs 10)",
           "MCP + SDK: 250 volání/den (vs 50)",
+          "Klíč pro desktopovou aplikaci (3 klíče)",
           "Prioritní podpora"
         ],
         "highlightFeatures": [
@@ -478,7 +480,7 @@
       "ctaFree": "Zdarma · Bez registrace · Načte se během sekund",
       "ctaSecondary": "Podívejte se, jak to lidé používají ↓",
       "trustUsers": "2M+ uživatelů",
-      "trustOpenSource": "Open source · AGPL-3.0",
+      "trustOpenSource": "Otevřený kód · AGPL-3.0",
       "screenshotAlt": "World Monitor live zpravodajský dashboard — globální mapa s vrstvami konfliktů, lodní dopravy a trhů",
       "plateNote": "Zachyceno z živé mapy — kliknutím ji otevřete",
       "trustBuild": "Postavte na tom:",
@@ -650,13 +652,13 @@
       "title1": "Zdarma je observatoř.",
       "title2": "Pro je operační místnost.",
       "sub": "Dashboard je zdarma za $0 — každá vrstva mapy kromě Resilience, bez registrace. Pro přidává vrstvu rozhodování.",
-      "freeTitle": "Zdarma",
+      "freeTitle": "Plán Zdarma",
       "freeDesc": "Bezplatná úroveň je plný produkt, nikoli zkušební verze. Každá vrstva mapy kromě Resilience, všech šest monitorů — bez registrace, bez časového limitu zkušební verze.",
       "freeF1": "Všechny mapové vrstvy kromě Resilience & kurovaných kanálů",
       "freeF2": "Zemské briefy, hotspoty, skóry instability",
       "freeF3": "Kritické průchody, kabely, analýza kaskád",
       "freeF4": "Pipeline prolomujících výstrah a sledovací seznamy",
-      "proTitle": "Pro",
+      "proTitle": "Plán Pro",
       "proDesc": "Jednej se na to. Rozhodovací vrstva použitá v momentech výše:",
       "proF1": "WM Analyst — chat přes živé služby s citacemi",
       "proF2": "Scenario engine & Route Explorer — simuluj narušení dříve, než se stanou",
@@ -685,7 +687,7 @@
       "q8": "Potřebuji účet?",
       "a8": "Ne. Dashboard funguje okamžitě bez registrace. Účet je důležitý pouze pokud upgradujete na Pro nebo chcete synchronizovat nastavení mezi zařízeními.",
       "q9": "Je to open source?",
-      "a9": "Ano — open source pod AGPL-3.0 na GitHubu: čtěte kód, hostujte jej sami nebo na něm stavějte. Nativní desktopové aplikace pro Windows, macOS a Linux jsou také dostupné, plus Android TV aplikace pro nástěnné displeje.",
+      "a9": "Ano — open source pod licencí AGPL-3.0 na GitHubu: prohlédněte si kód, hostujte jej sami nebo na něm stavějte. Pro a Pro Business obsahují desktopové klíče, takže vaše vlastní desktopová verze může načítat data z cloudu Pro; Docker kontejnery běží s vlastními daty. Dostupné jsou také nativní desktopové aplikace pro Windows, macOS a Linux a aplikace Android TV pro nástěnné displeje.",
       "q6": "Proč bych měl důvěřovat upozornění?",
       "q10": "Proč není World Monitor Palantir?",
       "a10": "Palantir zprovozňuje vlastní data instituce uvnitř té instituce. World Monitor začíná z druhé strany: shromažďuje, normalizuje, koreluje a monitoruje data veřejného světa, poté publikuje tuto inteligenční vrstvu přes bezplatný dashboard a open-source kód. Jiná úloha, jiný produkt.",

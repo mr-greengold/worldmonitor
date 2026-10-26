@@ -773,15 +773,17 @@
       },
       "worldMonitor": {
         "apiKey": {
-          "title": "Clé de licence / API",
+          "title": "Clé de bureau",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "Les abonnés API Starter et API Business créent cette clé dans le tableau de bord web via Settings → API Keys. Si la clé complète est perdue, révoquez-la et créez-en une nouvelle."
+          "description": "Pour les builds sans connexion. Pro : créez-en une dans Settings → API Keys sur le web ; les clés de forfait API fonctionnent aussi. Pour votre usage personnel ; les déploiements partagés ou publics nécessitent un forfait API. Aide : worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "OU",
         "register": {
-          "title": "Besoin d'une clé API ?",
-          "description": "Consultez worldmonitor.app/docs/api-keys pour obtenir des instructions détaillées. Les clés API manuelles nécessitent un forfait API Starter ou API Business.",
-          "submitBtn": "Voir les forfaits API"
+          "submitBtn": "Voir les forfaits"
+        },
+        "signIn": {
+          "title": "Connexion avec Pro",
+          "description": "Pro fonctionne ici une fois connecté depuis la fenêtre principale. Aucune clé requise."
         }
       },
       "shellTitle": "Paramètres de World Monitor",
@@ -1041,7 +1043,8 @@
       "skipToEnd": "Skip to end"
     },
     "pizzint": {
-      "indexSource": "Indice : World Monitor · données des lieux :",
+      "indexSource": "Indice : World Monitor",
+      "venueSource": "données des lieux :",
       "statusNormal": "NORMAL",
       "statusNoData": "AUCUNE DONNÉE",
       "statusNoBaseline": "SANS RÉFÉRENCE",
@@ -1052,6 +1055,16 @@
       "tensionsTitle": "Tensions géopolitiques",
       "tensionsSource": "Tensions : World Monitor à partir des événements GDELT",
       "insufficientData": "Données insuffisantes",
+      "evidenceStrikes": "Frappes signalées en 3 jours ({{countries}}) : {{value}}",
+      "evidenceAirports": "Aéroports perturbés : {{value}}",
+      "evidenceAirportClosed": "Aéroport de {{name}} fermé",
+      "evidenceAirportHalted": "{{name}} : la plupart des vols annulés",
+      "evidenceAirportRestricted": "{{name}} : vols restreints",
+      "evidenceMilitaryAircraft": "Avions militaires ({{country}}) dans la région : {{value}}",
+      "evidencePlaAircraft": "Avions militaires chinois près de Taïwan : {{value}}",
+      "evidencePlaShips": "Navires de la marine chinoise près de Taïwan : {{value}}",
+      "evidenceSanctions": "Nouvelles sanctions américaines cette semaine ({{country}}) : {{value}}",
+      "evidenceUsual": "(habituel {{value}})",
       "pizzaUnavailable": "Activité des pizzerias indisponible",
       "source": "Source:",
       "statusClosed": "FERMÉ",
@@ -1255,7 +1268,8 @@
         "radiationSpike": "Pic de radiation",
         "radiationElevated": "Radiation élevée",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "Restrictions d'espace aérien NOTAM"
       },
       "tooltip": {
         "earthquake": "Tremblement de terre",
@@ -1287,7 +1301,9 @@
         "sourceIomDtm": "Source : IOM DTM",
         "sinceDate": "depuis le {{date}}",
         "lastMonth": "le mois dernier",
-        "sourceUnhcrOdp": "Source : Portail de données opérationnelles du HCR"
+        "sourceUnhcrOdp": "Source : Portail de données opérationnelles du HCR",
+        "displaced": "déplacés",
+        "sourceIdmc": "Source : IDMC"
       },
       "layerHelp": {
         "title": "Guide des couches de carte",
@@ -1368,7 +1384,8 @@
           "geoBoundaries": "Zones démilitarisées, lignes de cessez-le-feu et frontières contestées",
           "ciiChoropleth": "Carte thermique de l'Indice d'instabilité des pays — colore les pays selon leur score (vert=stable, rouge=critique)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "Restrictions de vol temporaires et espaces aériens restreints, dangereux et interdits selon les NOTAMs de la FAA, en vigueur maintenant ou à partir des 24 prochaines heures"
         },
         "notes": {
           "timeAffects": "Affecte : tremblements de terre, conditions météorologiques, manifestations, pannes"
@@ -1649,7 +1666,16 @@
       "staleReport": "Rapport périmé",
       "reported": "Nombre",
       "period": "Période",
-      "movementNote": "Chaque ligne conserve sa source, la date du rapport et sa mesure. Les effectifs, les arrivées et les événements de contrôle frontalier sont des mesures distinctes. Les sources peuvent se recouper ; ne cumulez pas leurs chiffres. WorldMonitor établit cette vue à partir des sources liées ; cela ne suppose aucun soutien des fournisseurs."
+      "movementNote": "Chaque ligne conserve sa source, la date du rapport et sa mesure. Les effectifs, les arrivées et les événements de contrôle frontalier sont des mesures distinctes. Les sources peuvent se recouper ; ne cumulez pas leurs chiffres. WorldMonitor établit cette vue à partir des sources liées ; cela ne suppose aucun soutien des fournisseurs.",
+      "recent": "Récent",
+      "last30Days": "Les 30 derniers jours",
+      "newThisWeek": "Nouveau cette semaine",
+      "conflict": "Conflit",
+      "disaster": "Catastrophe",
+      "surge": "Pic",
+      "recentNote": "IDMC : personnes déplacées dans leur pays au cours des 30 derniers jours. L'IDMC publie un chiffre en médiane trois semaines après le déplacement, de sorte que les semaines récentes se remplissent tardivement. « Nouveau cette semaine » compte les chiffres publiés au cours des 7 derniers jours. Pic : au moins 5 000 personnes et trois fois la moyenne mensuelle des cinq mois précédents.",
+      "recentAsOf": "Données au {{date}}.",
+      "recentMissing": "Aucune donnée cette fois de {{countries}} ; leurs fichiers n'ont pas pu être chargés, ce qui ne signifie pas un déplacement nul."
     },
     "climate": {
       "noAnomalies": "Aucune anomalie significative détectée",
@@ -1893,6 +1919,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Audio indisponible",
       "notLive": "{{name}} is not currently live",
       "openOnYouTube": "Open on YouTube",
       "manage": "Gérer les chaînes",
@@ -3061,7 +3088,9 @@
         "africa": "Afrique"
       },
       "scheduled": "Prév.",
-      "estimated": "Est."
+      "estimated": "Est.",
+      "normalOperations": "OPÉRATIONS NORMALES",
+      "open": "OUVERT"
     },
     "cyberThreat": {
       "title": "CYBER MENACE"
@@ -3467,7 +3496,12 @@
       "position": "Position",
       "ground": "Au sol",
       "airborne": "En vol"
-    }
+    },
+    "upcomingForecast": "Prévision à venir",
+    "currentForecast": "Prévision en cours",
+    "expiredForecast": "Prévision expirée",
+    "validFrom": "Valable à partir du",
+    "validUntil": "Valable jusqu’au"
   },
   "signals": {
     "context": {

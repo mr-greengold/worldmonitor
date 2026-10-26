@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import http, { createServer, request as httpRequest } from 'node:http';
 import https from 'node:https';
-import { createHmac } from 'node:crypto';
 import dns from 'node:dns/promises';
 import { EventEmitter } from 'node:events';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -14,7 +13,9 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';
-import { createLocalApiServer, __testing__ } from './local-api-server.mjs';
+
+delete process.env.WS_RELAY_URL;
+const { createLocalApiServer, __testing__ } = await import('./local-api-server.mjs');
 
 test('bundles the shared LLM health provider registry with the sidecar (#7126)', () => {
   const config = JSON.parse(readFileSync(new URL('../tauri.conf.json', import.meta.url), 'utf8'));
@@ -325,6 +326,159 @@ test('routes seed-only displacement requests to cloud before a local empty 200',
     await app.close();
     await localApi.cleanup();
     await new Promise((resolve, reject) => remote.close(error => error ? reject(error) : resolve()));
+  }
+});
+
+test('keeps desktop Ollama headline translation on the local handler (#9476)', async () => {
+  assert.equal(__testing__.isCloudPreferred('/api/news/v1/summarize-article'), true);
+  const savedEnv = {
+    WS_RELAY_URL: process.env.WS_RELAY_URL,
+    LOCAL_API_MODE: process.env.LOCAL_API_MODE,
+    LOCAL_API_CLOUD_FALLBACK: process.env.LOCAL_API_CLOUD_FALLBACK,
+    OLLAMA_API_URL: process.env.OLLAMA_API_URL,
+    OLLAMA_MODEL: process.env.OLLAMA_MODEL,
+  };
+  delete process.env.WS_RELAY_URL;
+  process.env.LOCAL_API_MODE = 'tauri-sidecar';
+  process.env.LOCAL_API_CLOUD_FALLBACK = 'true';
+  process.env.OLLAMA_MODEL = 'qwen3:8b';
+
+  const ollamaHits = [];
+  const ollama = createServer((req, res) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => {
+      ollamaHits.push(req.url);
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ summary: 'Traduction locale' }));
+    });
+  });
+  const ollamaPort = await listen(ollama);
+  process.env.OLLAMA_API_URL = `http://127.0.0.1:${ollamaPort}`;
+
+  const remote = await setupRemoteServer();
+  const localApi = await setupApiDir({
+    'news/v1/summarize-article.js': `
+      export default async function handler(request) {
+        const body = await request.json();
+        if (body.provider === 'ollama' && body.mode === 'translate') {
+          if (body.fail === 'status') {
+            return Response.json({ error: 'Ollama translation failed', provider: 'ollama' }, { status: 502 });
+          }
+          if (body.fail === 'throw') throw new Error('ollama down');
+          const endpoint = new URL('/v1/chat/completions', process.env.OLLAMA_API_URL);
+          const upstream = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ model: process.env.OLLAMA_MODEL }),
+          });
+          const data = await upstream.json();
+          return Response.json({ source: 'local-ollama', provider: 'ollama', summary: data.summary });
+        }
+        return Response.json({ source: 'local-summarize', provider: body.provider, mode: body.mode });
+      }
+    `,
+    'news/v1/list-feed-digest.js': `
+      export default function handler() {
+        return Response.json({ source: 'local-news' });
+      }
+    `,
+  });
+  const app = await createLocalApiServer({
+    port: 0,
+    apiDir: localApi.apiDir,
+    remoteBase: remote.remoteBase,
+    allowPrivateRemoteBase: true,
+    logger: { log() {}, warn() {}, error() {} },
+  });
+  const { port } = await app.start();
+  const base = `http://127.0.0.1:${port}`;
+  const postSummarize = (payload, headers) => authFetch(`${base}/api/news/v1/summarize-article`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...headers },
+    body: JSON.stringify(payload),
+  });
+  const summarizeHits = () => remote.hits.filter((hit) => hit === '/api/news/v1/summarize-article');
+
+  try {
+    const translated = await postSummarize({
+      provider: 'ollama',
+      mode: 'translate',
+      headlines: ['Hello world'],
+      variant: 'fr',
+    });
+    assert.equal(translated.status, 200);
+    assert.deepEqual(await translated.json(), {
+      source: 'local-ollama',
+      provider: 'ollama',
+      summary: 'Traduction locale',
+    });
+    assert.deepEqual(ollamaHits, ['/v1/chat/completions']);
+    assert.deepEqual(summarizeHits(), []);
+
+    const paid = await postSummarize({ provider: 'groq', mode: 'brief', headlines: ['Markets'] });
+    assert.equal(paid.status, 200);
+    assert.equal((await paid.json()).source, 'remote');
+    assert.deepEqual(ollamaHits, ['/v1/chat/completions']);
+    assert.deepEqual(summarizeHits(), ['/api/news/v1/summarize-article']);
+
+    const otherTranslate = await postSummarize({ provider: 'groq', mode: 'translate', headlines: ['Hello'] });
+    assert.equal((await otherTranslate.json()).source, 'remote');
+    assert.deepEqual(ollamaHits, ['/v1/chat/completions']);
+
+    const ollamaBrief = await postSummarize({ provider: 'ollama', mode: 'brief', headlines: ['Local summary'] });
+    assert.equal((await ollamaBrief.json()).source, 'remote');
+    assert.deepEqual(ollamaHits, ['/v1/chat/completions']);
+
+    const digest = await authFetch(`${base}/api/news/v1/list-feed-digest`);
+    assert.equal(digest.status, 200);
+    assert.equal((await digest.json()).source, 'remote');
+
+    const malformed = await authFetch(`${base}/api/news/v1/summarize-article`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{',
+    });
+    assert.equal((await malformed.json()).source, 'remote');
+
+    const failed = await postSummarize({
+      provider: 'ollama',
+      mode: 'translate',
+      headlines: ['Hello'],
+      fail: 'status',
+    });
+    assert.equal(failed.status, 502);
+    assert.deepEqual(await failed.json(), { error: 'Ollama translation failed', provider: 'ollama' });
+
+    const thrown = await postSummarize({
+      provider: 'ollama',
+      mode: 'translate',
+      headlines: ['Hello'],
+      fail: 'throw',
+    });
+    assert.equal(thrown.status, 502);
+    const thrownBody = await thrown.json();
+    assert.equal(thrownBody.error, 'Local handler error');
+    assert.equal(thrownBody.endpoint, '/api/news/v1/summarize-article');
+    assert.equal(ollamaHits.length, 1);
+
+    const anonymous = await fetch(`${base}/api/news/v1/summarize-article`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ provider: 'ollama', mode: 'translate', headlines: ['Hello'] }),
+    });
+    assert.equal(anonymous.status, 401);
+    assert.equal(ollamaHits.length, 1);
+  } finally {
+    await app.close();
+    await localApi.cleanup();
+    await remote.close();
+    ollama.closeAllConnections();
+    await new Promise((resolve) => ollama.close(resolve));
+    for (const [key, value] of Object.entries(savedEnv)) {
+      if (value == null) delete process.env[key];
+      else process.env[key] = value;
+    }
   }
 });
 
@@ -1051,10 +1205,8 @@ test('preserves POST body when cloud fallback is triggered after local non-OK re
   }
 });
 
-test('signs desktop register-interest cloud fallback when shared secret is configured', async () => {
-  const originalSecret = process.env.WM_DESKTOP_SHARED_SECRET;
+test('forwards desktop register-interest to the cloud RPC without legacy signature headers', async () => {
   const originalConvex = process.env.CONVEX_URL;
-  process.env.WM_DESKTOP_SHARED_SECRET = 'desktop-test-secret';
   delete process.env.CONVEX_URL;
 
   const remote = await setupRegisterInterestRemote();
@@ -1073,10 +1225,9 @@ test('signs desktop register-interest cloud fallback when shared secret is confi
       email: 'desktop@example.com',
       source: 'web-form',
       appVersion: '2.8.0',
+      turnstileToken: 'desktop-turnstile-token',
     }, {
       'Content-Encoding': 'gzip',
-      'X-WorldMonitor-Desktop-Timestamp': '1',
-      'X-WorldMonitor-Desktop-Signature': 'sha256=bad',
     });
     assert.equal(response.status, 200);
     assert.equal(remote.requests.length, 1);
@@ -1084,33 +1235,15 @@ test('signs desktop register-interest cloud fallback when shared secret is confi
     const request = remote.requests[0];
     assert.equal(request.path, '/api/leads/v1/register-interest');
     assert.equal(request.json.source, 'desktop-settings');
-    const timestamp = request.headers['x-worldmonitor-desktop-timestamp'];
-    const signature = request.headers['x-worldmonitor-desktop-signature'];
+    assert.equal(request.json.turnstileToken, 'desktop-turnstile-token');
     assert.equal(request.headers['content-encoding'], undefined);
     assert.match(request.headers['user-agent'], /Chrome\/131\.0\.0\.0/);
-    assert.match(timestamp, /^\d+$/);
-    assert.match(signature, /^sha256=[a-f0-9]{64}$/);
-    assert.notEqual(timestamp, '1');
-    assert.notEqual(signature, 'sha256=bad');
-
-    const canonical = JSON.stringify({
-      email: 'desktop@example.com',
-      source: 'desktop-settings',
-      appVersion: '2.8.0',
-      referredBy: '',
-      website: '',
-      turnstileToken: '',
-    });
-    const expected = `sha256=${createHmac('sha256', process.env.WM_DESKTOP_SHARED_SECRET)
-      .update(`${timestamp}\n${canonical}`)
-      .digest('hex')}`;
-    assert.equal(signature, expected);
+    const legacyHeaders = Object.keys(request.headers).filter((name) => name.startsWith('x-worldmonitor-desktop-'));
+    assert.deepEqual(legacyHeaders, []);
   } finally {
     await app.close();
     await localApi.cleanup();
     await remote.close();
-    if (originalSecret === undefined) delete process.env.WM_DESKTOP_SHARED_SECRET;
-    else process.env.WM_DESKTOP_SHARED_SECRET = originalSecret;
     if (originalConvex === undefined) delete process.env.CONVEX_URL;
     else process.env.CONVEX_URL = originalConvex;
   }
@@ -1896,6 +2029,72 @@ test('allows Docker LLM origins and only the configured Ollama origin on desktop
   }
 });
 
+test('a silent Ollama completion outlasts the upstream idle timeout but not the Ollama one', async () => {
+  const envSnapshot = {
+    LOCAL_API_MODE: process.env.LOCAL_API_MODE,
+    OLLAMA_API_URL: process.env.OLLAMA_API_URL,
+  };
+  const ollama = createServer(async (_req, res) => {
+    await sleep(300);
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+  });
+  const ollamaPort = await listen(ollama);
+  const localApi = await setupApiDir({
+    'ollama-probe.js': `
+      export default async function handler() {
+        const upstream = await fetch(new URL('/v1/chat/completions', process.env.OLLAMA_API_URL), {
+          method: 'POST',
+          body: '{}',
+        });
+        return new Response(await upstream.text(), { status: upstream.status });
+      }
+    `,
+  });
+  process.env.LOCAL_API_MODE = 'tauri-sidecar';
+  process.env.OLLAMA_API_URL = `http://127.0.0.1:${ollamaPort}`;
+  __testing__.setUpstreamIdleTimeoutMs(50);
+  __testing__.setOllamaIdleTimeoutMs(2000);
+  const app = await createLocalApiServer({
+    port: 0,
+    apiDir: localApi.apiDir,
+    mode: 'tauri-sidecar',
+    logger: { log() { }, warn() { }, error() { } },
+  });
+  const { port } = await app.start();
+  // The test's own fetch runs through the patched one, so it would idle out
+  // waiting on the sidecar.
+  const probe = () => new Promise((resolve, reject) => {
+    httpRequest(`http://127.0.0.1:${port}/api/ollama-probe`, {
+      headers: { Authorization: `Bearer ${TEST_LOCAL_API_TOKEN}` },
+    }, (res) => {
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(body) }));
+    }).on('error', reject).end();
+  });
+  try {
+    const completed = await probe();
+    assert.equal(completed.status, 200);
+    assert.deepEqual(completed.body, { ok: true });
+
+    __testing__.setOllamaIdleTimeoutMs(100);
+    const hung = await probe();
+    assert.equal(hung.status, 502);
+    assert.match(hung.body.reason, /idle-timed out/);
+  } finally {
+    __testing__.setUpstreamIdleTimeoutMs(12000);
+    __testing__.setOllamaIdleTimeoutMs(90000);
+    await app.close();
+    for (const [key, value] of Object.entries(envSnapshot)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    await localApi.cleanup();
+    await new Promise((resolve, reject) => ollama.close((error) => (error ? reject(error) : resolve())));
+  }
+});
+
 test('blocks handler global fetches to non-global IPv4 special ranges', async () => {
   const originalHttpRequest = http.request;
   const blockedUrls = [
@@ -2513,36 +2712,6 @@ test('accepts OLLAMA_MODEL via /api/local-env-update', async () => {
   }
 });
 
-test('accepts WM_DESKTOP_SHARED_SECRET via /api/local-env-update', async () => {
-  const originalSecret = process.env.WM_DESKTOP_SHARED_SECRET;
-  const localApi = await setupApiDir({});
-
-  const app = await createLocalApiServer({
-    port: 0,
-    apiDir: localApi.apiDir,
-    logger: { log() { }, warn() { }, error() { } },
-  });
-  const { port } = await app.start();
-
-  try {
-    const response = await authFetch(`http://127.0.0.1:${port}/api/local-env-update`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'WM_DESKTOP_SHARED_SECRET', value: 'desktop-secret-from-runtime' }),
-    });
-    assert.equal(response.status, 200);
-    const body = await response.json();
-    assert.equal(body.ok, true);
-    assert.equal(body.key, 'WM_DESKTOP_SHARED_SECRET');
-    assert.equal(process.env.WM_DESKTOP_SHARED_SECRET, 'desktop-secret-from-runtime');
-  } finally {
-    if (originalSecret === undefined) delete process.env.WM_DESKTOP_SHARED_SECRET;
-    else process.env.WM_DESKTOP_SHARED_SECRET = originalSecret;
-    await app.close();
-    await localApi.cleanup();
-  }
-});
-
 test('accepts ALPHA_VANTAGE_API_KEY via /api/local-env-update', async () => {
   const originalKey = process.env.ALPHA_VANTAGE_API_KEY;
   const localApi = await setupApiDir({});
@@ -2586,32 +2755,6 @@ test('stores ALPHA_VANTAGE_API_KEY without claiming the provider demo response v
     assert.equal(response.status, 200);
     assert.equal(response.json?.valid, true);
     assert.equal(response.json?.message, 'Key stored');
-  } finally {
-    await app.close();
-    await localApi.cleanup();
-  }
-});
-
-test('validates WM_DESKTOP_SHARED_SECRET without provider probe', async () => {
-  const localApi = await setupApiDir({});
-
-  const app = await createLocalApiServer({
-    port: 0,
-    apiDir: localApi.apiDir,
-    logger: { log() { }, warn() { }, error() { } },
-  });
-  const { port } = await app.start();
-
-  try {
-    const response = await authFetch(`http://127.0.0.1:${port}/api/local-validate-secret`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'WM_DESKTOP_SHARED_SECRET', value: 'desktop-secret-from-runtime' }),
-    });
-    assert.equal(response.status, 200);
-    const body = await response.json();
-    assert.equal(body.valid, true);
-    assert.equal(body.message, 'Desktop shared secret stored');
   } finally {
     await app.close();
     await localApi.cleanup();

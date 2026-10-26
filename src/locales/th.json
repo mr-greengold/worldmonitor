@@ -760,15 +760,17 @@
       "logCleared": "ล้างบันทึกแล้ว",
       "worldMonitor": {
         "apiKey": {
-          "title": "คีย์ใบอนุญาต / API",
+          "title": "Desktop key",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "สมาชิก API Starter และ API Business สร้างคีย์นี้ในแดชบอร์ดเว็บที่ Settings → API Keys หากคีย์แบบเต็มสูญหาย ให้เพิกถอนและสร้างคีย์ใหม่"
+          "description": "สำหรับบิลด์ที่ไม่มีการลงชื่อเข้าใช้ Pro: สร้างคีย์ได้ใน Settings → API Keys บนเว็บ; คีย์แบบ API-plan ก็ใช้ได้เช่นกัน สำหรับการใช้ของคุณเอง; การปรับใช้ที่ใช้ร่วมกันหรือสาธารณะต้องมี API plan ช่วยเหลือ: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "หรือ",
         "register": {
-          "title": "ต้องการคีย์ API หรือไม่?",
-          "description": "ดูคำแนะนำทีละขั้นตอนได้ที่ worldmonitor.app/docs/api-keys คีย์ API แบบกำหนดเองต้องใช้แผน API Starter หรือ API Business",
-          "submitBtn": "ดูแผน API"
+          "submitBtn": "ดูแผน"
+        },
+        "signIn": {
+          "title": "ลงชื่อเข้าใช้ด้วย Pro",
+          "description": "Pro ทำงานที่นี่เมื่อคุณลงชื่อเข้าใช้จากหน้าต่างหลัก ไม่ต้องใช้คีย์"
         }
       },
       "table": {
@@ -1084,7 +1086,8 @@
       "skipToEnd": "Skip to end"
     },
     "pizzint": {
-      "indexSource": "ดัชนี: World Monitor · ข้อมูลสถานที่:",
+      "indexSource": "ดัชนี: World Monitor",
+      "venueSource": "ข้อมูลสถานที่:",
       "statusNormal": "ปกติ",
       "statusNoData": "ไม่มีข้อมูล",
       "statusNoBaseline": "ไม่มีค่าฐาน",
@@ -1095,6 +1098,16 @@
       "tensionsTitle": "ความตึงเครียดภูมิรัฐศาสตร์",
       "tensionsSource": "ความตึงเครียด: World Monitor คำนวณจากเหตุการณ์ของ GDELT",
       "insufficientData": "ข้อมูลไม่เพียงพอ",
+      "evidenceStrikes": "การโจมตีที่มีรายงานใน 3 วัน ({{countries}}): {{value}}",
+      "evidenceAirports": "สนามบินที่ได้รับผลกระทบ: {{value}}",
+      "evidenceAirportClosed": "สนามบิน{{name}}ปิด",
+      "evidenceAirportHalted": "{{name}}: เที่ยวบินส่วนใหญ่ถูกยกเลิก",
+      "evidenceAirportRestricted": "{{name}}: เที่ยวบินถูกจำกัด",
+      "evidenceMilitaryAircraft": "อากาศยานทหาร ({{country}}) ในภูมิภาค: {{value}}",
+      "evidencePlaAircraft": "อากาศยานทหารจีนใกล้ไต้หวัน: {{value}}",
+      "evidencePlaShips": "เรือรบจีนใกล้ไต้หวัน: {{value}}",
+      "evidenceSanctions": "มาตรการคว่ำบาตรใหม่ของสหรัฐฯ สัปดาห์นี้ ({{country}}): {{value}}",
+      "evidenceUsual": "(ปกติ {{value}})",
       "pizzaUnavailable": "ไม่มีข้อมูลกิจกรรมของร้านพิซซ่า",
       "source": "แหล่งที่มา:",
       "statusClosed": "ปิด",
@@ -1298,7 +1311,8 @@
         "radiationSpike": "การเพิ่มขึ้นของรังสี",
         "radiationElevated": "รังสีสูงขึ้น",
         "canadaRoads": "Canada Roads",
-        "canadaAlerts": "Canada Alerts (AB + BC + SK)"
+        "canadaAlerts": "Canada Alerts (AB + BC + SK)",
+        "notamAirspace": "ข้อจำกัดเขตอากาศ NOTAM"
       },
       "tooltip": {
         "earthquake": "แผ่นดินไหว",
@@ -1330,7 +1344,9 @@
         "sourceIomDtm": "แหล่งที่มา: IOM DTM",
         "sinceDate": "ตั้งแต่ {{date}}",
         "lastMonth": "เดือนที่แล้ว",
-        "sourceUnhcrOdp": "แหล่งที่มา: พอร์ทัลข้อมูลปฏิบัติการของ UNHCR"
+        "sourceUnhcrOdp": "แหล่งที่มา: พอร์ทัลข้อมูลปฏิบัติการของ UNHCR",
+        "displaced": "ผู้อพยพ",
+        "sourceIdmc": "แหล่งที่มา: IDMC"
       },
       "layerHelp": {
         "title": "คู่มือเลเยอร์แผนที่",
@@ -1411,7 +1427,8 @@
           "geoBoundaries": "เขตปลอดทหาร แนวหยุดยิง และพรมแดนที่เป็นข้อพิพาท",
           "ciiChoropleth": "แผนความร้อน Country Instability Index — แสดงสีประเทศตามคะแนน (เขียว=เสถียร แดง=วิกฤต)",
           "canadaRoads": "Official road incidents, alerts, conditions, closures, construction, and hazards across supported Canadian jurisdictions",
-          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert"
+          "canadaAlerts": "Provincial public-safety alerts from Alberta Emergency Alert, B.C. Evacuation Orders and Alerts, and SaskAlert",
+          "notamAirspace": "การจำกัดการบินชั่วคราวและเขตอากาศที่จำกัด อันตราย และห้ามบินจาก FAA NOTAMs ที่มีผลบังคับใช้ในขณะนี้หรือเริ่มต้นภายใน 24 ชั่วโมง"
         },
         "notes": {
           "timeAffects": "ส่งผลต่อ: แผ่นดินไหว, สภาพอากาศ, การประท้วง, การหยุดชะงัก"
@@ -1769,7 +1786,16 @@
       "staleReport": "รายงานล้าสมัย",
       "reported": "จำนวน",
       "period": "ช่วงเวลา",
-      "movementNote": "แต่ละแถวคงแหล่งข้อมูล วันที่รายงาน และตัวชี้วัดไว้ จำนวนประชากร ณ เวลาหนึ่ง จำนวนผู้เดินทางมาถึง และเหตุการณ์ตรวจคนเข้าเมืองเป็นคนละตัวชี้วัด ข้อมูลจากหลายแหล่งอาจซ้ำกัน จึงไม่ควรรวมจำนวนเข้าด้วยกัน WorldMonitor สร้างมุมมองนี้จากแหล่งข้อมูลที่เชื่อมโยงไว้ ซึ่งไม่ได้หมายถึงการรับรองจากผู้ให้ข้อมูล"
+      "movementNote": "แต่ละแถวคงแหล่งข้อมูล วันที่รายงาน และตัวชี้วัดไว้ จำนวนประชากร ณ เวลาหนึ่ง จำนวนผู้เดินทางมาถึง และเหตุการณ์ตรวจคนเข้าเมืองเป็นคนละตัวชี้วัด ข้อมูลจากหลายแหล่งอาจซ้ำกัน จึงไม่ควรรวมจำนวนเข้าด้วยกัน WorldMonitor สร้างมุมมองนี้จากแหล่งข้อมูลที่เชื่อมโยงไว้ ซึ่งไม่ได้หมายถึงการรับรองจากผู้ให้ข้อมูล",
+      "recent": "ล่าสุด",
+      "last30Days": "30 วันที่ผ่านมา",
+      "newThisWeek": "ใหม่สัปดาห์นี้",
+      "conflict": "ความขัดแย้ง",
+      "disaster": "ภัยพิบัติ",
+      "surge": "พุ่งสูง",
+      "recentNote": "IDMC: ผู้พลัดถิ่นภายในประเทศในช่วง 30 วันที่ผ่านมา IDMC เผยแพร่ตัวเลขโดยมัธยฐานประมาณสามสัปดาห์หลังการพลัดถิ่น ข้อมูลของสัปดาห์ล่าสุดจึงครบช้ากว่า ใหม่สัปดาห์นี้นับตัวเลขที่เผยแพร่ในช่วง 7 วันที่ผ่านมา พุ่งสูง: อย่างน้อย 5,000 คน และสามเท่าของค่าเฉลี่ยรายเดือนในห้าเดือนก่อนหน้า",
+      "recentAsOf": "ข้อมูล ณ วันที่ {{date}}",
+      "recentMissing": "ไม่มีข้อมูลในครั้งนี้จาก {{countries}} ไฟล์ของพวกเขาล้มเหลวในการโหลด ซึ่งไม่ได้หมายถึงการแস่งตัวเป็นศูนย์"
     },
     "climate": {
       "noAnomalies": "ไม่พบความผิดปกติที่สำคัญ",
@@ -2020,6 +2046,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "ไม่มีเสียง",
       "notLive": "{{name}} ไม่ได้ถ่ายทอดสดอยู่ในขณะนี้",
       "signInToYouTube": "ลงชื่อเข้าใช้ YouTube",
       "openOnYouTube": "เปิดบน YouTube",
@@ -3022,7 +3049,9 @@
         "africa": "แอฟริกา"
       },
       "scheduled": "ตามกำหนด",
-      "estimated": "คาดการณ์"
+      "estimated": "คาดการณ์",
+      "normalOperations": "การบินปกติ",
+      "open": "เปิด"
     },
     "aircraft": {
       "altitude": "ระดับความสูง",
@@ -3427,7 +3456,12 @@
       "uae_ecsr": "สหรัฐอาหรับเอมิเรตส์/ECSR",
       "venezuela_crisis": "วิกฤตเวเนซุเอลา",
       "yemen_houthis": "เยเมน/ฮูตี"
-    }
+    },
+    "upcomingForecast": "พยากรณ์ล่วงหน้า",
+    "currentForecast": "พยากรณ์ที่มีผลในขณะนี้",
+    "expiredForecast": "พยากรณ์ที่หมดอายุ",
+    "validFrom": "มีผลตั้งแต่",
+    "validUntil": "มีผลถึง"
   },
   "signals": {
     "context": {
