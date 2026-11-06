@@ -248,12 +248,15 @@ emit('scripts/shared/product-facts.generated.json', json(facts));
 emit('pro-test/src/generated/hero-stats.json', json(facts.heroProofStats));
 // Same rationale for the "Under the hood" band numerals that Depth.tsx renders.
 emit('pro-test/src/generated/depth-stats.json', json(facts.depthProofStats));
-// Welcome copy figures that are not band slots (the first-five tenth card).
+// Welcome copy figures that are not band slots (the first-five tenth card,
+// the Pro price, the country-risk card's ranked share).
 const proMonthlyPrice = plans.find((plan) => plan.planKey === 'pro_monthly')?.price;
 if (typeof proMonthlyPrice !== 'number' || proMonthlyPrice <= 0) throw new Error(`pro_monthly price must be a positive number, got ${proMonthlyPrice}`);
 emit('pro-test/src/generated/copy-stats.json', json({
   ...defaultOnLayerStats(read('src/config/variants/full.ts'), getCompleteLayerCatalogKeys('full')),
   proMonthlyPrice,
+  resilienceUniverse: resilience.universe,
+  resilienceRankedPct: Math.round((resilience.ranked / resilience.universe) * 100),
 }));
 emit('shared/product-catalog.generated.json', json(catalogBundle));
 emit('scripts/shared/product-catalog.generated.json', json(catalogBundle));
@@ -331,7 +334,7 @@ function rewriteApplicationJsonLd(source, includedGroups) {
  * in order; later digits (the "1" in "Tier-1") are left alone.
  */
 const PROVIDERS_ACROSS_HOSTS = { pattern: /\b\d+ attributed providers across \d+ observed source hosts\b/g, occurrences: 1, keys: ['providers', 'sourceHosts'] };
-const CONSENT_PROVIDERS = { pattern: /\bevents from \d+ attributed providers\b/g, occurrences: 1, keys: ['providers'] };
+const CONSENT_PROVIDERS = { pattern: /\bIntelligence data from \d+ attributed providers\b/g, occurrences: 1, keys: ['providers'] };
 const RESTATED_FACT_PHRASES = new Map([
   ['docs/about.mdx', [
     { pattern: /\b\d+ news and OSINT feeds from \d+ attributed providers\b/g, occurrences: 1, keys: ['feeds', 'providers'] },
@@ -592,7 +595,7 @@ function pricingSummary() {
         name: 'API',
         price_usd_monthly: byKey.api_starter.price,
         price_usd_yearly: byKey.api_starter_annual.price,
-        features: ['REST API', 'license / API key included', '1,000 requests/day starter limit (REST + MCP combined; a live MCP call counts as 2-3)', dashboardAi('api_starter'), 'webhooks', 'structured JSON', 'OpenAPI docs', 'commercial license — for your organization'],
+        features: ['full Pro dashboard (1 named user)', 'REST API', 'license / API key included', '1,000 requests/day starter limit (REST + MCP combined; a live MCP call counts as 2-3)', dashboardAi('api_starter'), 'webhooks', 'structured JSON', 'OpenAPI docs', 'commercial license — internal use in your organization, not customer-facing products'],
       },
       {
         name: 'API Business',

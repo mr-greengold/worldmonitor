@@ -1,4 +1,6 @@
+import { createTimeoutSignal } from '@/services/timeout-signal';
 import * as d3 from 'd3';
+import { UKMTO_SOURCE_URL, ukmtoIncidentLabel, type UkmtoMapIncident } from '../../shared/ukmto-incidents';
 import * as topojson from 'topojson-client';
 import { escapeHtml } from '@/utils/sanitize';
 import { getCSSColor } from '@/utils';
@@ -58,7 +60,7 @@ import { getCachedCountryScoreValue } from '@/services/cached-risk-scores';
 import { getAlertsNearLocation } from '@/services/geo-convergence';
 import { getCountryAtCoordinates, getCountryBbox } from '@/services/country-geometry';
 import type { CountryClickPayload } from './DeckGLMap';
-import { t } from '@/services/i18n';
+import { initI18n, t } from '@/services/i18n';
 import type { ScenarioVisualState } from '@/config/scenario-templates';
 import { setTrustedHtml, trustedHtml } from '@/utils/dom-utils';
 import { renderLayerTruncationBadges } from '@/utils/layer-truncation-badge';
@@ -85,7 +87,7 @@ import {
   LAYER_REGISTRY,
   resolveLayerLabel,
 } from '@/config/map-layer-definitions';
-import { renderLayerExplanationCard } from '@/utils/layer-explanation-card';
+import { layerExplanationLookup, renderLayerExplanationCard } from '@/utils/layer-explanation-card';
 import {
   createCountryClickGestureTracker,
   finishCountryClickGesture,
@@ -202,6 +204,7 @@ export class MapComponent {
   private radiationObservations: RadiationObservation[] = [];
   private outages: InternetOutage[] = [];
   private aisDisruptions: AisDisruptionEvent[] = [];
+  private ukmtoIncidents: UkmtoMapIncident[] = [];
   private aisDensity: AisDensityZone[] = [];
   private cableAdvisories: CableAdvisory[] = [];
   private repairShips: RepairShip[] = [];
@@ -313,6 +316,11 @@ export class MapComponent {
   // interaction. The effective value is set in the constructor (= !this.isMobile);
   // false here documents the mobile-off default.
   private mobileLabelVisibilityArmed = false;
+  // Last container size the ResizeObserver reported (0 until the first
+  // observation, and again while hidden). onContainerResized() tells a later
+  // layout change apart from the initial paint with it (#4547).
+  private observedContainerWidth = 0;
+  private observedContainerHeight = 0;
   // All container/document interaction listeners are registered with this signal so
   // destroy() can remove them in one shot. The container node is reused across
   // renderer switches (MapContainer keeps one element and rebuilds MapComponent on it),
@@ -405,24 +413,11 @@ export class MapComponent {
   }
 
   private setupResizeObserver(): void {
-    let lastWidth = 0;
-    let lastHeight = 0;
     this.resizeObserver = new ResizeObserver((entries) => {
       if (this.isResizing) return;
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        if (width === lastWidth && height === lastHeight) continue;
-        lastWidth = width;
-        lastHeight = height;
-        // Record zero-size (hidden) transitions too, not just visible sizes.
-        // getKnownContainerSize() falls back to a live read whenever the cache
-        // is zero, so recording the hide keeps render()'s zero-size skip intact
-        // and lets a reveal center off current dimensions instead of the last
-        // visible ones (#5022 review). Only a visible size is worth rendering.
-        this.rememberContainerSize({ width, height });
-        if (width > 0 && height > 0) {
-          this.resize();
-        }
+        this.onContainerResized(width, height);
       }
     });
     this.resizeObserver.observe(this.container);
@@ -434,6 +429,51 @@ export class MapComponent {
       }
     };
     document.addEventListener('visibilitychange', this.boundVisibilityHandler);
+  }
+
+  /**
+   * One ResizeObserver observation of the map container.
+   *
+   * Records zero-size (hidden) transitions too, not just visible sizes:
+   * getKnownContainerSize() falls back to a live read whenever the cache is
+   * zero, so recording the hide keeps render()'s zero-size skip intact and lets
+   * a reveal center off current dimensions instead of the last visible ones
+   * (#5022 review). Only a visible size is worth rendering.
+   *
+   * #4547: a layout change after first paint (device rotation, split view, a
+   * desktop-width window resize on a touch device) re-lays the overlays out
+   * through the scheduled render → applyTransform(), but on mobile that pass
+   * skips label-overlap thinning until the first direct interaction, so the
+   * labels stayed stacked on the new geometry until the user touched the map.
+   * A WIDTH change from a previously visible size arms thinning; the render
+   * this schedules then does the one label pass. The first observation
+   * (no previous width) is the initial paint the deferral exists for, and a
+   * height-only change is what the mobile URL bar produces on every scroll,
+   * so neither may arm it. A reveal after a hide starts from width 0 again and
+   * is likewise not a layout change.
+   */
+  private onContainerResized(width: number, height: number): void {
+    if (width === this.observedContainerWidth && height === this.observedContainerHeight) return;
+    const previousWidth = this.observedContainerWidth;
+    const previousHeight = this.observedContainerHeight;
+    this.observedContainerWidth = width;
+    this.observedContainerHeight = height;
+    this.rememberContainerSize({ width, height });
+    if (width > 0 && height > 0) {
+      if (previousWidth > 0 && previousHeight > 0 && width !== previousWidth) this.armMobileLabelVisibilityForLayoutChange();
+      this.resize();
+    }
+  }
+
+  /**
+   * Arms mobile label thinning without running a pass itself: the caller has a
+   * render scheduled, and that render's applyTransform() owns the pass.
+   * resumeMobileLabelVisibility() is the interaction-driven twin that measures
+   * immediately because no render follows a pan or pinch.
+   */
+  private armMobileLabelVisibilityForLayoutChange(): void {
+    if (!this.isMobile || this.mobileLabelVisibilityArmed) return;
+    this.mobileLabelVisibilityArmed = true;
   }
 
   public setIsResizing(value: boolean): void {
@@ -708,7 +748,7 @@ export class MapComponent {
       explainBtn.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        this.showLayerExplanation(layer);
+        void this.showLayerExplanation(layer);
       });
       row.appendChild(explainBtn);
 
@@ -734,7 +774,15 @@ export class MapComponent {
     this.layerExplanationOutsideClickHandler = null;
   }
 
-  private showLayerExplanation(layer: keyof MapLayers): void {
+  private async showLayerExplanation(layer: keyof MapLayers): Promise<void> {
+    try {
+      await initI18n();
+    } catch (error) {
+      console.warn('[Map] Unable to load layer explanation text', error);
+      return;
+    }
+    if (this.destroyed) return;
+
     const existing = this.container.querySelector('.layer-explanation-popup') as HTMLElement | null;
     this.clearLayerExplanationOutsideClickHandler();
     if (existing?.dataset.layer === layer) {
@@ -750,7 +798,7 @@ export class MapComponent {
     popup.className = 'layer-explanation-popup';
     popup.dataset.layer = layer;
     setTrustedHtml(popup, trustedHtml(
-      renderLayerExplanationCard(this.getLayerControlLabel(layer), getLayerExplanation(layer)),
+      renderLayerExplanationCard(this.getLayerControlLabel(layer), getLayerExplanation(layer), layerExplanationLookup(t)),
       "static layer explanation metadata",
     ));
 
@@ -980,9 +1028,17 @@ export class MapComponent {
     return legend;
   }
 
+  // A collapsed map (phones start with the map section hidden) has no size, so
+  // render() draws nothing and there is no base layer to verify yet. Reads the
+  // cached size like render() so a visible map takes no forced reflow (#5017).
+  private isCollapsed(): boolean {
+    const { width, height } = this.getKnownContainerSize();
+    return width === 0 || height === 0;
+  }
+
   private runHealthCheck(): void {
     const svgNode = this.svg.node();
-    if (!svgNode) return;
+    if (!svgNode || this.isCollapsed()) return;
 
     // Verify base layer exists and has content
     const baseGroup = svgNode.querySelector('.map-base');
@@ -1226,9 +1282,10 @@ export class MapComponent {
     this.container.style.cursor = 'grab';
   }
 
-  private async loadMapData(): Promise<void> {
+  private async loadMapData(attempt = 0): Promise<void> {
+    if (this.destroyed) return;
     try {
-      const worldResponse = await fetch(worldTopologyUrl(this.isMobile));
+      const worldResponse = await fetch(worldTopologyUrl(this.isMobile), { signal: createTimeoutSignal(15_000) });
       this.worldData = await worldResponse.json();
       if (this.worldData) {
         const countries = topojson.feature(
@@ -1242,6 +1299,10 @@ export class MapComponent {
       // Re-render after layout stabilizes to catch full container width.
       this.scheduleRender();
     } catch (e) {
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, Math.round(500 * 2 ** attempt * (0.5 + Math.random() * 0.5))));
+        return this.loadMapData(attempt + 1);
+      }
       console.error('Failed to load map data:', e);
     }
   }
@@ -1938,6 +1999,7 @@ export class MapComponent {
     if (layers.waterways) add('waterways', STRATEGIC_WATERWAYS);
     if (layers.ais) {
       add('ais', this.aisDisruptions);
+      add('ais', this.filterByTime(this.ukmtoIncidents, item => item.occurredAt));
       add('ais', PORTS);
     }
     if (layers.cyberThreats && SITE_VARIANT !== 'tech') add('cyberThreats', this.aptGroups);
@@ -2260,6 +2322,22 @@ export class MapComponent {
     if (this.state.layers.ais) {
       this.renderAisDisruptions(projection);
       this.renderPorts(projection);
+      this.filterByTime(this.ukmtoIncidents, item => item.occurredAt).forEach(item => {
+        if (!item.location || this.isOverlayMarkerCut(item)) return;
+        const pos = projection([item.location.longitude, item.location.latitude]);
+        if (!pos) return;
+        const marker = document.createElement('a');
+        marker.className = 'ais-disruption-marker ukmto-marker';
+        marker.style.left = `${pos[0]}px`;
+        marker.style.top = `${pos[1]}px`;
+        marker.textContent = '⚓';
+        marker.title = `${ukmtoIncidentLabel(item)}\n${item.description}`;
+        marker.setAttribute('aria-label', ukmtoIncidentLabel(item));
+        marker.href = UKMTO_SOURCE_URL;
+        marker.target = '_blank';
+        marker.rel = 'noopener noreferrer';
+        this.appendOverlay(marker);
+      });
     }
 
     // APT groups — rendered only when cyberThreats layer is active, loaded lazily
@@ -4981,6 +5059,7 @@ export class MapComponent {
   }
 
   private ensureBaseLayerIntact(): void {
+    if (this.isCollapsed()) return;
     // Query DOM directly instead of relying on cached d3 selection
     const svgNode = this.svg.node();
     const domBaseGroup = svgNode?.querySelector('.map-base');
@@ -5065,6 +5144,11 @@ export class MapComponent {
   public setAisData(disruptions: AisDisruptionEvent[], density: AisDensityZone[]): void {
     this.aisDisruptions = disruptions;
     this.aisDensity = density;
+    this.render();
+  }
+
+  public setUkmtoIncidents(incidents: UkmtoMapIncident[]): void {
+    this.ukmtoIncidents = incidents;
     this.render();
   }
 

@@ -95,7 +95,9 @@ import {
 import { isApiOnlyPath } from './_shared/api-only-paths';
 import {
   DESKTOP_KEY_API_ONLY_ERROR,
+  DESKTOP_KEY_CLIENT_ERROR,
   DESKTOP_KEY_LIMIT_ERROR,
+  admitsDesktopKeyClientRequest,
   resolveUserKeyEntitlement,
   resolveUserKeyScope,
 } from './_shared/desktop-key-principal';
@@ -323,6 +325,7 @@ const RPC_CACHE_TIER: Record<string, CacheTier> = {
   '/api/natural/v1/list-natural-events': 'slow',
   '/api/wildfire/v1/list-fire-detections': 'static',
   '/api/maritime/v1/list-navigational-warnings': 'static',
+  '/api/maritime/v1/list-ukmto-incidents': 'no-store',
   '/api/supply-chain/v1/get-china-corridor-control-towers': 'medium',
   '/api/supply-chain/v1/get-shipping-rates': 'daily',
   '/api/supply-chain/v1/list-pipelines': 'static',
@@ -381,6 +384,7 @@ const RPC_CACHE_TIER: Record<string, CacheTier> = {
   '/api/economic/v1/list-bigmac-prices': 'daily',
   '/api/economic/v1/list-fuel-prices': 'daily',
   '/api/economic/v1/get-fao-food-price-index': 'daily',
+  '/api/economic/v1/get-food-prices': 'slow',
   '/api/economic/v1/get-crude-inventories': 'daily',
   '/api/economic/v1/get-nat-gas-storage': 'daily',
   '/api/economic/v1/get-eu-yield-curve': 'daily',
@@ -436,6 +440,10 @@ const RPC_CACHE_TIER: Record<string, CacheTier> = {
   // holding one body for an hour made the CDN the freshness floor.
   '/api/news/v1/list-feed-digest': 'fast',
   '/api/news/v1/list-country-headlines': 'fast',
+  '/api/news/v1/list-media-perspective': 'fast',
+  '/api/news/v1/list-news-pool': 'fast',
+  // #9796: cached feed rows for a panel's enabled sources below the category cap.
+  '/api/news/v1/list-source-items': 'fast',
   '/api/news/v1/list-label-changes': 'fast',
   // #9093 operator queue: never cached, it is gated by a secret header.
   '/api/news/v1/list-error-reports': 'no-store',
@@ -483,6 +491,8 @@ const RPC_CACHE_TIER: Record<string, CacheTier> = {
   '/api/economic/v1/get-economic-calendar': 'slow',
   '/api/economic/v1/get-china-macro-snapshot': 'slow',
   '/api/economic/v1/get-china-activity-nowcast': 'medium',
+  // Daily seed (#9722); the CDN key carries the country_code, region_id and kind filters.
+  '/api/economic/v1/get-no2-activity': 'slow',
   '/api/intelligence/v1/list-market-implications': 'slow',
   '/api/intelligence/v1/list-wsb-tickers': 'no-store',
   '/api/economic/v1/get-ecb-fx-rates': 'slow',
@@ -567,6 +577,9 @@ const RPC_CACHE_TIER: Record<string, CacheTier> = {
 import { PREMIUM_RPC_PATHS } from '../src/shared/premium-paths';
 
 export const PUBLIC_NO_AUTH_RPC_PATHS = new Set<string>([
+  '/api/scorecard/v1/get-five-factor-scorecard',
+  '/api/scorecard/v1/get-bloc-scorecard',
+  '/api/scorecard/v1/list-five-factor-scorecards',
   '/api/intelligence/v1/get-china-decision-signals',
   '/api/resilience/v1/get-runtime-manifest',
   // Lead-capture RPCs serve ANONYMOUS prospects by definition: the /pro
@@ -585,6 +598,12 @@ export const PUBLIC_NO_AUTH_RPC_PATHS = new Set<string>([
   // endpoint limit (server/_shared/rate-limit.ts), and a bounded review queue
   // that refuses rather than evicts. Reports are never applied automatically.
   '/api/news/v1/submit-error-report',
+  // #8721 agent feedback: agents without a key are the reporters we most want
+  // (threat model Decision 1), so REST callers are always anonymous. Gates:
+  // the 24 KB body cap, the outer per-IP endpoint limit, and
+  // admitFeedbackReport's fail-closed buckets. Reports are never acted on
+  // automatically.
+  '/api/feedback/v1/submit-report',
   // #9093 /trust page: public label history and today's counts. Read-only,
   // public coverage metadata; a visitor who lands on /trust directly has no
   // session cookie. Bounded by a per-IP endpoint limit and the 'fast' CDN tier.
@@ -1016,6 +1035,18 @@ export const CREDENTIAL_BEARING_HEADERS = [
   'Cookie',
 ] as const;
 
+// The only caller headers a `.md` twin's in-process sibling request carries:
+// the network identity the rate limiters and usage telemetry key on, and the
+// Origin the CORS allowlist checks. Credentials (CREDENTIAL_BEARING_HEADERS)
+// and gateway-internal markers are deliberately absent.
+const MARKDOWN_TWIN_CALLER_HEADERS = [
+  'x-real-ip',
+  'x-vercel-forwarded-for',
+  'cf-connecting-ip',
+  'x-wm-edge-proof',
+  'origin',
+] as const;
+
 export function hasCredentialBearingHeader(request: Request): boolean {
   return CREDENTIAL_BEARING_HEADERS.some((header) => Boolean(request.headers.get(header)));
 }
@@ -1072,20 +1103,21 @@ export function createDomainGateway(
 
     // Vercel resolves versioned API paths such as
     // `/api/forecast/v1/get-forecast-scorecard.md` to the more-specific
-    // `api/<domain>/v1/[rpc].ts` function before the root API catch-all. Handle
-    // markdown probes here, before auth and RPC dispatch, so every dynamic
-    // domain gateway follows the same site-wide `.md` twin contract without a
-    // broad rewrite that would shadow the real endpoints (#4724).
+    // `api/<domain>/v1/[rpc].ts` function before the root API catch-all, so
+    // every dynamic domain gateway serves the site-wide `.md` twin contract
+    // here without a broad rewrite that would shadow the real endpoints
+    // (#4724). The sibling is dispatched back through this gateway in-process,
+    // so origin, auth and both rate limiters run exactly as on a direct call.
     if (
       originalPathname.startsWith('/api/') &&
       isMarkdownTwinPath(originalPathname) &&
       (originalRequest.method === 'GET' || originalRequest.method === 'HEAD')
     ) {
-      return buildMarkdownTwinResponse(originalRequest, originalPathname);
+      return serveMarkdownTwin(originalRequest, originalPathname, ctx);
     }
 
     let request = stripClientTrustedHeaders(originalRequest);
-    const rawPathname = new URL(request.url).pathname;
+    const rawPathname = originalPathname;
     const pathname = stripTrailingSlashes(rawPathname);
     const t0 = Date.now();
 
@@ -1543,8 +1575,13 @@ export function createDomainGateway(
         isSidecarOllamaTranslation = body.provider === 'ollama' && body.mode === 'translate';
       } catch { /* malformed requests retain the normal authentication path */ }
     }
-    const seedRefreshVerified = await isResilienceRankingSeedRefreshRequest(request, pathname);
-    const relayWarmPingVerified = await isRelayWarmPingRequest(request, pathname);
+    // Both are route-scoped credential checks that read only the request, and
+    // either can short-circuit to `false` without touching the other. This is
+    // the per-request dispatch path, so resolve them together.
+    const [seedRefreshVerified, relayWarmPingVerified] = await Promise.all([
+      isResilienceRankingSeedRefreshRequest(request, pathname),
+      isRelayWarmPingRequest(request, pathname),
+    ]);
     // Resolve the quota policy against the route POST compatibility will use.
     // Keep body validation after auth and abuse limiting; invalid bodies still
     // return before reservation or dispatch.
@@ -1911,6 +1948,10 @@ export function createDomainGateway(
           emitRequest(403, 'tier_403', null);
           return createGatewayAuthErrorResponse(403, DESKTOP_KEY_API_ONLY_ERROR, corsHeaders);
         }
+        if (!admitsDesktopKeyClientRequest(request)) {
+          emitRequest(403, 'tier_403', null);
+          return createGatewayAuthErrorResponse(403, DESKTOP_KEY_CLIENT_ERROR, corsHeaders);
+        }
         // Pro-session treatment from here on, attributed to the owner.
         isDesktopPrincipal = true;
         rateLimitPrincipalUserId = sessionUserId;
@@ -2027,6 +2068,16 @@ export function createDomainGateway(
       && Boolean(enterpriseCredential)
       && !isUserApiKey
       && keyCheck.kind === 'enterprise';
+    if (requiresDirectLlmQuota && isEnterpriseAuth && enterpriseCredential !== wmKey) {
+      const origin = request.headers.get('Origin');
+      const hasRequestIntent = origin
+        ? isAllowedOrigin(origin)
+        : request.headers.get('Sec-Fetch-Site') === 'same-origin';
+      if (!hasRequestIntent) {
+        emitRequest(403, 'auth_403', null);
+        return createGatewayAuthErrorResponse(403, 'Request intent required for cookie-authorized AI work', corsHeaders);
+      }
+    }
     if (
       !dockerSelfHostSessionAuthorized &&
       !isEnterpriseAuth &&
@@ -2150,7 +2201,7 @@ export function createDomainGateway(
       }
     }
     if (!matchedHandler) {
-      const allowed = router.allowedMethods(new URL(request.url).pathname);
+      const allowed = router.allowedMethods(rawPathname);
       if (allowed.length > 0) {
         emitRequest(405, 'method_not_allowed', null);
         return new Response(JSON.stringify({ error: 'Method not allowed' }), {
@@ -2182,7 +2233,9 @@ export function createDomainGateway(
     const hasIdempotencyKey = request.method === 'POST'
       && request.headers.has(IDEMPOTENCY_HEADER)
       && !IDEMPOTENCY_EXEMPT_RPC_PATHS.has(pathname);
-    const idScope = identityForScope.principal_id ?? identityForScope.customer_id;
+    const idScope = isUserApiKey && pathname === '/api/v2/shipping/webhooks'
+      ? userKeyPrincipal?.keyHash ?? null
+      : identityForScope.principal_id ?? identityForScope.customer_id;
     const idempotencyScope = idScope ? `${identityForScope.auth_kind}:${idScope}` : null;
 
     // Look up an existing idempotency record before rate-limit/quota counters.
@@ -2764,7 +2817,8 @@ export function createDomainGateway(
         // re-invoking the function, so a disallowed origin could read a cached ACAO: * response.
       }
       mergedHeaders.delete('X-No-Cache');
-      if (!new URL(request.url).searchParams.has('_debug')) {
+      const responseSearchParams = new URL(request.url).searchParams;
+      if (!responseSearchParams.has('_debug')) {
         mergedHeaders.delete('X-Cache-Tier');
       }
 
@@ -2776,7 +2830,7 @@ export function createDomainGateway(
       // via their requestBody and their responses are not cached/ETagged here.
       // See server/_shared/response-projection.ts + /docs/mcp-jmespath.
       let responseView = new Uint8Array(bodyBytes);
-      const jmespathExpr = new URL(request.url).searchParams.get('jmespath');
+      const jmespathExpr = responseSearchParams.get('jmespath');
       if (jmespathExpr && (mergedHeaders.get('Content-Type') ?? '').includes('application/json')) {
         let projection = projectJsonResponse(bodyStr, jmespathExpr);
         if (projection.ok) {
@@ -2904,7 +2958,47 @@ export function createDomainGateway(
     });
   }
 
-  return async function handler(originalRequest: Request, ctx?: GatewayCtx): Promise<Response> {
+  // A `.md` twin of an API route. The sibling request never leaves this
+  // isolate: an HTTP self-fetch reaches the gateway from the platform egress
+  // address with no caller headers, so every per-IP limiter charged one bucket
+  // shared by all twin readers and the caller was never charged at all.
+  //
+  // The sibling carries only the caller's network identity and Origin. Never a
+  // credential: a twin is an anonymous rendering, and its body is cached by
+  // the sibling's rules. The identity headers arrive from the platform exactly
+  // as on the twin request itself, and the gateway re-derives trust from them
+  // (edge proof, Origin allowlist) the same way it does for a direct call.
+  async function serveMarkdownTwin(caller: Request, markdownPath: string, ctx?: GatewayCtx): Promise<Response> {
+    let corsHeaders: Record<string, string>;
+    try {
+      corsHeaders = isDisallowedOrigin(caller) ? getOriginDeniedCorsHeaders(caller) : getCorsHeaders(caller);
+    } catch {
+      // Fail closed: no CORS headers means a browser blocks any cross-origin
+      // read. The sibling dispatch reports the same failure as its own 500.
+      corsHeaders = {};
+    }
+    const callerOrigin = new URL(caller.url).origin;
+    const dispatchSibling = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      // Only a route this gateway serves; never a network fetch. A redirect
+      // onto any other path ends as a plain 404.
+      if (url.origin !== callerOrigin || router.allowedMethods(stripTrailingSlashes(url.pathname)).length === 0) {
+        return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
+      }
+      const headers = new Headers(init?.headers);
+      for (const name of MARKDOWN_TWIN_CALLER_HEADERS) {
+        const value = caller.headers.get(name);
+        if (value) headers.set(name, value);
+      }
+      return gatewayHandler(new Request(url, { method: init?.method ?? 'GET', headers, signal: init?.signal }), ctx);
+    }) as typeof fetch;
+    return buildMarkdownTwinResponse(caller, markdownPath, dispatchSibling, {
+      corsHeaders,
+      inheritSiblingCacheControl: true,
+    });
+  }
+
+  const gatewayHandler = async function handler(originalRequest: Request, ctx?: GatewayCtx): Promise<Response> {
     let response: Response;
     try {
       response = await dispatch(originalRequest, ctx);
@@ -2921,4 +3015,5 @@ export function createDomainGateway(
     pendingDirectLlmReservations.delete(originalRequest);
     return originalRequest.method === 'HEAD' ? toHeadResponse(response) : response;
   };
+  return gatewayHandler;
 }

@@ -1,9 +1,8 @@
 import { DASHBOARD_PATH } from '../routes';
 import { ABOUT_DOCS_PATH } from '../../../shared/press';
 import { LegalFooterNav } from './LegalFooterNav';
-import { PressFooterNav } from './PressFooterNav';
 
-export const Footer = () => (
+export const Footer = ({ disclaimer = true }: { disclaimer?: boolean }) => (
   <footer className="border-t border-wm-border bg-[#020202] pt-8 pb-12 px-6 text-center">
     <div className="flex flex-col md:flex-row items-center justify-between max-w-7xl mx-auto text-xs text-wm-muted font-mono">
       <div className="flex items-center gap-3 mb-4 md:mb-0">
@@ -17,6 +16,7 @@ export const Footer = () => (
         <a href="/countries/" className="hover:text-wm-text transition-colors">Countries</a>
         <a href="/chokepoints/" className="hover:text-wm-text transition-colors">Chokepoints</a>
         <a href="/crises/" className="hover:text-wm-text transition-colors">Crises</a>
+        <a href="/monitor-the-situation/" className="hover:text-wm-text transition-colors">Situation</a>
         <a href="/tools/" className="hover:text-wm-text transition-colors">Tools</a>
         <a href="/blog/" className="hover:text-wm-text transition-colors">Blog</a>
         <a href="/docs/documentation" className="hover:text-wm-text transition-colors">Docs</a>
@@ -30,7 +30,15 @@ export const Footer = () => (
         <a href="/blog/authors/elie-habib/" className="hover:text-wm-text transition-colors">Elie Habib</a>
       </span>
     </div>
-    <PressFooterNav />
     <LegalFooterNav />
+    {/* Mirrors the "not professional advice" clause in docs/terms.mdx. The
+        welcome page shows it under its pricing teaser instead, inside <main>,
+        where geo.new's YMYL disclaimer check (EAT-18) reads. */}
+    {disclaimer && (
+      <p className="max-w-3xl mx-auto mt-4 text-xs text-wm-muted">
+        World Monitor is for informational purposes only and is not financial, investment, legal, security or safety advice.
+        Verify what you see, and consult a qualified professional before decisions where an error could cause loss or harm.
+      </p>
+    )}
   </footer>
 );

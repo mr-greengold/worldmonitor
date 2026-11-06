@@ -672,7 +672,7 @@ if changed '^(src/|api/|server/|scripts/check-sentry-coverage\.mjs$)'; then
   node scripts/check-sentry-coverage.mjs || exit 1
 fi
 
-if changed '^(api/health\.js|scripts/check-health-probe-cutovers\.mts|scripts/check-seed-freshness\.mjs|scripts/seed-freshness-baseline\.json)$'; then
+if changed '^(api/health\.js|scripts/check-health-probe-cutovers\.mts)$'; then
   echo "Running health-probe cutover check..."
   node --import tsx scripts/check-health-probe-cutovers.mts origin/main || exit 1
 else
@@ -687,6 +687,11 @@ fi
 if changed '^(src/|api/|scripts/enforce-premium-fetch\.mjs$)'; then
   echo "Running premium-fetch parity check..."
   npm run lint:premium-fetch || exit 1
+fi
+
+if changed '^(src/|api/|server/|scripts/|convex/|middleware\.ts$)'; then
+  echo "Running outbound-deadline check (fetch without a signal)..."
+  npm run lint:outbound-deadlines || exit 1
 fi
 
 if changed '^(api/|server/|src/generated/|scripts/check-edge-function-bundles\.mjs$)'; then

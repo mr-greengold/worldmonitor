@@ -49,6 +49,7 @@ const MANIFEST_KIND_RE = /^(?:structured|feed|operational-status)(?:\+(?:structu
 const LOGICAL_KIND_RE = /^(?:candidate|structured|feed|operational-status)(?:\+(?:structured|feed|operational-status))*$/;
 
 const SOURCE_ROOTS = ['scripts', 'server', 'api', 'src'];
+const STRUCTURED_CATALOG_FILES = new Set(['scripts/shared/regional-energy-feeds.json']);
 const SOURCE_EXTENSIONS = new Set(['.cjs', '.js', '.mjs', '.ts', '.tsx']);
 const FEED_FILES = new Set([
   ...FEED_DECLARATION_FILES,
@@ -92,6 +93,36 @@ const publisherMetadataFeed = (provider) => ({
  * become a provider rename or regroup.
  */
 export const PROVIDER_IDENTITY_GROUPS = Object.freeze({
+  nvd: Object.freeze({
+    provider: 'NVD (NIST)',
+    memberHosts: Object.freeze(['nvd.nist.gov', 'services.nvd.nist.gov']),
+    reason: 'The NVD API host serves the CVE data documented by the NVD website.',
+    reviewReference: 'Issue #6229, PR #9385 provider identity review',
+  }),
+  uzstat: Object.freeze({
+    provider: 'stat.uz',
+    memberHosts: Object.freeze(['api.siat.stat.uz', 'stat.uz']),
+    reason: 'The stat.uz prices page publishes the SDMX dataset that its SIAT API host serves; both are the Uzbekistan Statistics Agency.',
+    reviewReference: 'Issue #9892 food-price batch 2 (PR #9993 review)',
+  }),
+  'doe-ph': Object.freeze({
+    provider: 'doe.gov.ph',
+    memberHosts: Object.freeze(['doe.gov.ph', 'd24qbtp4vooyzi.cloudfront.net']),
+    reason: 'The Philippine Department of Energy price pages link each weekly monitoring PDF on the site\'s CloudFront media host.',
+    reviewReference: 'Issue #10051 fuel-price batch 3',
+  }),
+  gdelt: Object.freeze({
+    provider: 'api.gdeltproject.org',
+    memberHosts: Object.freeze(['api.gdeltproject.org', 'storage.googleapis.com']),
+    reason: 'GDELT serves its bulk event exports from the data.gdeltproject.org bucket on storage.googleapis.com; every reference to that host reads the GDELT bucket.',
+    reviewReference: 'PR #10100, the 2026-11-03 Ember host move that left storage.googleapis.com serving only GDELT bulk files',
+  }),
+  sonabhy: Object.freeze({
+    provider: 'www.sonabhy.bf',
+    memberHosts: Object.freeze(['www.sonabhy.bf', 'king-prawn-app-6bsvl.ondigitalocean.app']),
+    reason: 'The SONABHY tariff page reads its prices from the Strapi CMS its Nuxt state names; the feed reads the same CMS after confirming the page still points to it.',
+    reviewReference: 'Issue #10051 fuel-price batch 3',
+  }),
   jodi: Object.freeze({
     provider: 'www.jodidata.org',
     memberHosts: Object.freeze(['www.jodidata.org', 'api.publisher.jodidata.org']),
@@ -102,7 +133,7 @@ export const PROVIDER_IDENTITY_GROUPS = Object.freeze({
     provider: 'British Geological Survey World Mineral Statistics',
     memberHosts: Object.freeze(['ogcapi.bgs.ac.uk', 'www.bgs.ac.uk']),
     reason: 'The BGS OGC API supplies the observations and the BGS statistics page supplies the required public attribution link.',
-    reviewReference: 'Issue #6449 commodity-vulnerability provenance review',
+    reviewReference: 'PR #9385 NVD identity review; Issue #6449 commodity-vulnerability provenance review',
   }),
   'al-jazeera': Object.freeze({
     provider: 'Al Jazeera',
@@ -188,8 +219,80 @@ export const PROVIDER_IDENTITY_GROUPS = Object.freeze({
 });
 
 const PROVIDER_OVERRIDES = {
+  'nvd.nist.gov': {
+    provider: 'NVD (NIST)', identityGroup: 'nvd',
+    license: 'Public domain (US Federal Government work)',
+    attribution: 'This product uses the NVD API but is not endorsed or certified by the NVD.',
+    status: 'reviewed',
+  },
+  'services.nvd.nist.gov': {
+    provider: 'NVD (NIST)', identityGroup: 'nvd',
+    license: 'Public domain (US Federal Government work)',
+    attribution: 'This product uses the NVD API but is not endorsed or certified by the NVD.',
+    status: 'reviewed',
+  },
+  // Fuel-price additions (#10147, #10113). Source-level details for Gasvaktin
+  // are documented separately: raw.githubusercontent.com also hosts other data.
+  'data.ssb.no': {
+    provider: 'data.ssb.no',
+    license: 'CC BY 4.0 (SSB Public APIs and Licence pages)',
+    attribution: 'Credit Statistics Norway (SSB), table 09654, monthly average pump prices in NOK per litre; identify FX conversion as a derived value and link the CC BY 4.0 licence.',
+    status: 'reviewed',
+  },
+  'www2.moeaea.gov.tw': {
+    provider: 'www2.moeaea.gov.tw',
+    license: 'Public Taiwan MOEA Energy Administration oil111 survey; reuse licence unconfirmed',
+    attribution: 'Credit Taiwan MOEA Energy Administration oil111; weekly survey averages in TWD per litre.',
+    status: 'terms-review',
+  },
+  // Food-price publishers (#9892) whose own terms we recorded at onboarding.
+  'stat.uz': {
+    provider: 'stat.uz',
+    identityGroup: 'uzstat',
+    license: 'CC BY 4.0 (stat.uz site footer and ODI open-data certificate); a link to www.stat.uz is required',
+    attribution: 'Source: National Statistics Committee of the Republic of Uzbekistan, www.stat.uz (CC BY 4.0). Link https://stat.uz.',
+    status: 'reviewed',
+  },
+  'api.siat.stat.uz': {
+    provider: 'stat.uz',
+    identityGroup: 'uzstat',
+    license: 'CC BY 4.0 (stat.uz site footer and ODI open-data certificate); a link to www.stat.uz is required',
+    attribution: 'Source: National Statistics Committee of the Republic of Uzbekistan, www.stat.uz (CC BY 4.0). Link https://stat.uz.',
+    status: 'reviewed',
+  },
+  'simaniger.net': {
+    provider: 'simaniger.net',
+    license: 'SIMA Niger asks for the citation "SIMA Niger" and to be contacted before commercial use or mass extraction; polled one weekly bulletin per run',
+    attribution: 'Cite "SIMA Niger" and link the weekly cereal bulletin.',
+    status: 'terms-review',
+  },
+  'ammancity.gov.jo': {
+    provider: 'ammancity.gov.jo',
+    license: 'Site footer: "All rights reserved © 2001 - 2026 - Greater Amman Municipality"; displayed with attribution under the free-dashboard posture',
+    attribution: 'Credit Greater Amman Municipality and link the Central Market price page.',
+    status: 'terms-review',
+  },
+  // Food-price publishers (#10050); neither states a reuse licence.
+  'madr.gov.dz': {
+    provider: 'madr.gov.dz',
+    license: 'Site footer: "حقوق الطبع والنشر, وزارة الفلاحة و التنمية الريفية 2021" (copyright, Ministry of Agriculture and Rural Development); no reuse licence stated; displayed with attribution under the free-dashboard posture',
+    attribution: 'Credit the Algerian Ministry of Agriculture, Rural Development and Fisheries (MADR) and link the daily retail price list.',
+    status: 'terms-review',
+  },
+  'data.1212.mn': {
+    provider: 'data.1212.mn',
+    license: 'Table metadata names the National Statistics Office of Mongolia as source; no reuse licence stated; displayed with attribution under the free-dashboard posture',
+    attribution: 'Credit the National Statistics Office of Mongolia (www.1212.mn) and link the weekly price table.',
+    status: 'terms-review',
+  },
   'www.jodidata.org': { provider: 'www.jodidata.org', identityGroup: 'jodi' },
   'api.publisher.jodidata.org': { provider: 'www.jodidata.org', identityGroup: 'jodi' },
+  'doe.gov.ph': { provider: 'doe.gov.ph', identityGroup: 'doe-ph' },
+  'd24qbtp4vooyzi.cloudfront.net': { provider: 'doe.gov.ph', identityGroup: 'doe-ph' },
+  'api.gdeltproject.org': { provider: 'api.gdeltproject.org', identityGroup: 'gdelt' },
+  'storage.googleapis.com': { provider: 'api.gdeltproject.org', identityGroup: 'gdelt' },
+  'www.sonabhy.bf': { provider: 'www.sonabhy.bf', identityGroup: 'sonabhy' },
+  'king-prawn-app-6bsvl.ondigitalocean.app': { provider: 'www.sonabhy.bf', identityGroup: 'sonabhy' },
   'api.adsb.lol': { provider: 'adsb.lol' },
   'api.airplanes.live': { provider: 'airplanes.live' },
   'firms.modaps.eosdis.nasa.gov': {
@@ -578,7 +681,7 @@ const PROVIDER_OVERRIDES = {
     attribution: 'ENTSO-E Transparency Platform; link to the returned dataset.',
     status: 'terms-review',
   },
-  'storage.googleapis.com': {
+  'files.ember-energy.org': {
     provider: 'Ember electricity data',
     license: 'CC BY 4.0 (Ember dataset)',
     attribution: 'Ember; link to the Ember dataset and preserve its license notice.',
@@ -982,15 +1085,25 @@ const PROVIDER_OVERRIDES = {
 // a provider-bearing override a separate, explicit lifecycle event instead of
 // something `--write` can silently normalize into the manifest.
 export const PROVIDER_IDENTITY_REVIEW = Object.freeze({
-  sha256: '68bc5750134cdb616d47fd6899af0e6a7f8f2af8399b140d7ec5e3e86ec52510',
-  // 2026-10-24: add Shanghai Financial Portal as a distinct official
-  // republisher. Preserve PBOC source credit under /BQSM/index.html section 2.
-  reason: 'Preserve all reviewed provider identities and add Shanghai Financial Portal as a distinct official M2 republisher with PBOC source attribution. The 2026-10-24 review of its copyright statement section 2 permits the facts-only source contract with original source credit.',
+  sha256: 'e9e1c1e84ccaad353d2e316eb3fd845a84bab4def9aa02387d171cc0a86a6fd3',
+  // 2026-11-05 (#10147, #10113): add Statistics Norway and Taiwan oil111
+  // as distinct public fuel-price publishers; SSB is CC BY 4.0 and oil111
+  // remains in terms review.
+  // 2026-11-02 (#10051): group the Philippine DOE with the CloudFront media
+  // host that serves its weekly PDFs, and SONABHY with the Strapi CMS its
+  // tariff page reads from.
+  // 2026-11-02 (#10050): add Algeria MADR and the Mongolia NSO data host as food-price
+  // publishers; neither states a reuse licence, so both stay in terms review.
+  // 2026-11-01 (#9892): group stat.uz with its SIAT API host and record the
+  // stated terms of stat.uz (CC BY 4.0), SIMA Niger and Amman Central Market.
+  // 2026-10-24: added Shanghai Financial Portal as a distinct official M2
+  // republisher; PBOC source credit is preserved under /BQSM/index.html section 2.
+  reason: 'Group the NVD documentation and API hosts as one NVD (NIST) provider with its attribution sentence (#9385). Preserve all reviewed provider identities, including Shanghai Financial Portal with PBOC source attribution (2026-10-24 review). Add the Uzbekistan Statistics Agency as one identity across stat.uz and api.siat.stat.uz, with its CC BY 4.0 terms, and record the citation and reserved-rights terms that SIMA Niger and Greater Amman Municipality state on their sites (#9892). Add the Algerian Ministry of Agriculture (madr.gov.dz) and the National Statistics Office of Mongolia data host (data.1212.mn) as food-price publishers in terms review (#10050). Add the Philippine Department of Energy as one identity across doe.gov.ph and its CloudFront media host, and SONABHY as one identity across www.sonabhy.bf and the Strapi CMS its tariff page reads (#10051). Move Ember electricity data to files.ember-energy.org, where Ember now publishes its monthly release; storage.googleapis.com now serves only GDELT bulk files and joins api.gdeltproject.org as one GDELT identity (2026-11-03).',
   // A URL cited here is scanned like any other: this file sits inside
   // SOURCE_ROOTS, so citing a host that is not already a registered source
   // invents a provider row for it. The B.C. catalogue URLs above are safe
   // because that host is itself an observed source; parallel.ai is not.
-  reviewReference: 'Issue #6449 BGS provenance review; plus Issue #7371 country corpus identity review; plus Issue #7005 IMD cyclone/marine source-rights probe; plus Issues #7012, #7036, and #6682 Toronto safety sources; plus PR #7576 source migration review; plus Issue #7000 publisher-centric source catalog; plus Issue #7001, Issue #6437, Issue #6622, Issue #6659, PR #6447, the 2026-09-01 FAOSTAT transport identity review, the 2026-09-04 FIRMS partial-coverage incident, and the 2026-09-05 Barchart WAF outage that moved S&P 500 breadth to the TradingView screener scan; plus Issue #7838, which added the read-only Sentry resolve-pin audit; plus PR #8394 JODI publication catalog lineage; plus the 2026-10-17 /verify audit that added the Al Jazeera claim-pool depth search; plus Issue #9352 part C, the US Consolidated Screening List export-control lists.',
+  reviewReference: 'PR #9385 NVD identity review; Issue #6449 BGS provenance review; plus Issue #7371 country corpus identity review; plus Issue #7005 IMD cyclone/marine source-rights probe; plus Issues #7012, #7036, and #6682 Toronto safety sources; plus PR #7576 source migration review; plus Issue #7000 publisher-centric source catalog; plus Issue #7001, Issue #6437, Issue #6622, Issue #6659, PR #6447, the 2026-09-01 FAOSTAT transport identity review, the 2026-09-04 FIRMS partial-coverage incident, and the 2026-09-05 Barchart WAF outage that moved S&P 500 breadth to the TradingView screener scan; plus Issue #7838, which added the read-only Sentry resolve-pin audit; plus PR #8394 JODI publication catalog lineage; plus the 2026-10-17 /verify audit that added the Al Jazeera claim-pool depth search; plus Issue #9352 part C, the US Consolidated Screening List export-control lists; plus Issue #10051 fuel-price batch 3, the DOE media host and SONABHY CMS groups.',
 });
 
 export function providerIdentityDigest(providerOverrides = PROVIDER_OVERRIDES) {
@@ -1057,6 +1170,7 @@ const EXCLUDED_HOSTS = new Set([
   'search.seznam.cz',
   'searchadvisor.naver.com',
   'www.bing.com',
+  'ssl.bing.com',
   // Search Console reports our own property back to us. The OAuth token
   // endpoint and the scope namespace are control surfaces on the way to it.
   // None of them is an ingested upstream dataset, so they belong with the
@@ -1113,6 +1227,61 @@ function read(rootDir, path) {
   return readFileSync(join(rootDir, path), 'utf8');
 }
 
+// Catalog prose (feed notes, category notes, $comment) can quote retired URLs
+// that no view fetches. Blank those string values where they sit, by key, so
+// only active URL fields are scanned. Masking by position (not by text) keeps
+// an active URL that happens to equal a note. Line numbers stay put.
+const CATALOG_PROSE_KEYS = new Set(['$comment', 'note', 'notes']);
+
+function maskCatalogProse(source) {
+  try {
+    JSON.parse(source);
+  } catch {
+    return source;
+  }
+  const out = source.split('');
+  // Each open container records whether its values are prose: an object
+  // tracks the key it is reading; an array inherits from its own key.
+  const stack = [];
+  let pendingKey = null;
+  let i = 0;
+  while (i < source.length) {
+    const ch = source[i];
+    if (ch === '"') {
+      let j = i + 1;
+      while (source[j] !== '"') j += source[j] === '\\' ? 2 : 1;
+      const top = stack[stack.length - 1];
+      let k = j + 1;
+      while (/\s/.test(source[k] ?? '')) k += 1;
+      const isKey = top?.type === 'object' && source[k] === ':';
+      if (isKey) {
+        pendingKey = JSON.parse(source.slice(i, j + 1));
+      } else {
+        const prose = top?.type === 'array' ? top.prose : CATALOG_PROSE_KEYS.has(pendingKey);
+        if (prose) for (let m = i + 1; m < j; m += 1) out[m] = ' ';
+        pendingKey = null;
+      }
+      i = j + 1;
+      continue;
+    }
+    if (ch === '{') {
+      stack.push({ type: 'object' });
+      pendingKey = null;
+    } else if (ch === '[') {
+      const parent = stack[stack.length - 1];
+      const prose = parent?.type === 'array' ? parent.prose : CATALOG_PROSE_KEYS.has(pendingKey);
+      stack.push({ type: 'array', prose });
+      pendingKey = null;
+    } else if (ch === '}' || ch === ']') {
+      stack.pop();
+    } else if (ch === ',') {
+      if (stack[stack.length - 1]?.type === 'object') pendingKey = null;
+    }
+    i += 1;
+  }
+  return out.join('');
+}
+
 function readdirPresentSync(absoluteDir) {
   try {
     return readdirSync(absoluteDir, { withFileTypes: true });
@@ -1161,6 +1330,13 @@ function walkSourceFiles(rootDir) {
     }
   };
   for (const root of SOURCE_ROOTS) visit(root);
+  // The feed catalog is data under shared/, outside the code roots.
+  for (const path of FEED_DECLARATION_FILES) {
+    if (!files.includes(path) && existsSync(join(rootDir, path))) files.push(path);
+  }
+  for (const path of STRUCTURED_CATALOG_FILES) {
+    if (existsSync(join(rootDir, path))) files.push(path);
+  }
   return files.sort();
 }
 
@@ -1200,7 +1376,8 @@ export function scanUpstreamHosts(rootDir = ROOT) {
     hosts.set(host, current);
   };
   for (const relativePath of walkSourceFiles(rootDir)) {
-    const source = read(rootDir, relativePath);
+    const raw = read(rootDir, relativePath);
+    const source = relativePath.endsWith('.json') && FEED_FILES.has(relativePath) ? maskCatalogProse(raw) : raw;
     const lineStarts = [0];
     for (let offset = source.indexOf('\n'); offset !== -1; offset = source.indexOf('\n', offset + 1)) {
       lineStarts.push(offset + 1);
@@ -1225,6 +1402,7 @@ export function scanUpstreamHosts(rootDir = ROOT) {
       const declarationBefore = source.slice(Math.max(0, index - 280), index).match(/(?:const|let|var)\s+[A-Z][A-Z0-9_]*\s*=\s*['"`]?\s*$/);
       const preceding = source.slice(Math.max(0, index - 260), index);
       const candidate = FEED_FILES.has(relativePath)
+        || STRUCTURED_CATALOG_FILES.has(relativePath)
         || SOURCE_HINT_RE.test(line)
         || SOURCE_HINT_RE.test(preceding)
         || pendingDeclaration
@@ -1252,7 +1430,9 @@ export function scanUpstreamHosts(rootDir = ROOT) {
         }
       }
     }
-    if (FEED_FILES.has(relativePath)) {
+    // The JSON catalog stores expanded Google News URLs (handled above); its
+    // `notes` may quote retired gn() queries that are no longer fetched.
+    if (FEED_FILES.has(relativePath) && !relativePath.endsWith('.json')) {
       // Server feed mirrors build Google News URLs through gn()/gnLocale().
       // Count a site-scoped publisher under its own host as well as counting
       // the Google News URL literal above under news.google.com.

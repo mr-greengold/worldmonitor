@@ -33,7 +33,10 @@ vi.mock("../worldmonitor/intelligence/v1/chat-analyst-context", () => ({
 }));
 
 vi.mock("../worldmonitor/intelligence/v1/chat-analyst-prompt", () => ({
-  buildAnalystSystemPrompt: () => "system prompt",
+  buildAnalystMessages: ({ query }: { query: string }) => [
+    { role: "system", content: "system prompt" },
+    { role: "user", content: query },
+  ],
 }));
 
 vi.mock("../worldmonitor/intelligence/v1/chat-analyst-actions", () => ({
@@ -145,6 +148,17 @@ describe("api/chat-analyst direct LLM quota lifecycle", () => {
     await expect(response.text()).resolves.toContain('data: {"done":true}');
     expect(reserveDirectLlmQuota).toHaveBeenCalledTimes(1);
     expect(quotaCounter).toBe(1);
+  });
+
+  test("the answer streams with hidden reasoning off inside the 600-token budget", async () => {
+    await handler(analystRequest(JSON.stringify({ query: "What changed?" })));
+
+    // DeepSeek V4 Flash spends a 600-token budget on hidden reasoning and
+    // returns empty content (#9195 measured it for deduct-situation; the
+    // analyst eval reproduced it on 2026-10-26).
+    expect(callLlmReasoningStream).toHaveBeenCalledWith(
+      expect.objectContaining({ enableReasoning: false, maxTokens: 600 }),
+    );
   });
 
   test("an operator key reserves on its per-key bucket, never under a null userId", async () => {

@@ -15,9 +15,8 @@
 // Patterns cloned: api/mcp/quota.ts (INCR-first meter + DECR rollback),
 // api/_rate-limit.js (lazy Upstash singleton, NODE_TEST_CONTEXT retry skip,
 // X-RateLimit-* header shape), server/_shared/pro-mcp-token.ts UTC helpers.
-import { Ratelimit } from '@upstash/ratelimit';
-import { Redis } from '@upstash/redis';
 import { getKeyPrefix } from './_upstash-json.js';
+import { loadUpstashRatelimit } from './_upstash-ratelimit.js';
 
 /** Hardcoded per-minute burst for enterprise env keys — they carry no Convex
  *  entitlement (gateway.ts:1006-1007 skips checkEntitlement), so this cannot
@@ -27,25 +26,26 @@ export const ENTERPRISE_API_RATE_LIMIT = 1000;
 // Ratelimit per distinct numeric limit (60, 300, 1000) cached in the Map so two
 // Starter accounts share a limiter *config* but get separate buckets via the
 // per-account identifier passed to `.limit()`.
-/** @type {Redis | null} */
+/** @type {import('@upstash/redis').Redis | null} */
 let redisSingleton = null;
-/** @type {Map<number, Ratelimit>} */
+/** @type {Map<number, import('@upstash/ratelimit').Ratelimit>} */
 const burstLimiters = new Map();
-function getRedis() {
+async function getRedis() {
   if (redisSingleton)
     return redisSingleton;
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token)
     return null;
+  const { Redis } = await loadUpstashRatelimit();
   // Skip the @upstash/redis retry backoff under the node test runner so
   // fail-open tests pointed at a fake host degrade immediately; production
-  // (env unset) keeps the resilient default. Mirrors api/_rate-limit.js.
+  // uses two capped, jittered retries and a three-second deadline. Mirrors api/_rate-limit.js.
   // `retry: false` must stay a literal (not a spread) or it widens to
   // `boolean` and fails tsconfig.api.json's RetryConfig type.
   redisSingleton = process.env.NODE_TEST_CONTEXT
-    ? new Redis({ url, token, retry: false })
-    : new Redis({ url, token });
+    ? new Redis({ signal: () => AbortSignal.timeout(3_000), url, token, retry: false })
+    : new Redis({ retry: { retries: 2, backoff: (attempt) => Math.round(Math.min(1_000, 100 * 2 ** attempt) * (0.5 + Math.random() * 0.5)) }, signal: () => AbortSignal.timeout(3_000), url, token });
   return redisSingleton;
 }
 /**
@@ -53,13 +53,14 @@ function getRedis() {
  * Returns null when Upstash is not configured.
  */
 /** @param {number} perMinute */
-export function getBurstLimiter(perMinute) {
+export async function getBurstLimiter(perMinute) {
   const existing = burstLimiters.get(perMinute);
   if (existing)
     return existing;
-  const redis = getRedis();
+  const redis = await getRedis();
   if (!redis)
     return null;
+  const { Ratelimit } = await loadUpstashRatelimit();
   const limiter = new Ratelimit({
     redis,
     limiter: Ratelimit.slidingWindow(perMinute, '60 s'),
@@ -92,7 +93,7 @@ function unavailableBurst(reason) {
  */
 export async function checkBurst(perMinute, identity) {
   try {
-    const limiter = getBurstLimiter(perMinute);
+    const limiter = await getBurstLimiter(perMinute);
     if (!limiter)
       return unavailableBurst('not_configured');
     const { success, limit, reset, reason } = await limiter.limit(identity);

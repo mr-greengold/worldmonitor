@@ -2,7 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync as originalReadFileSync, existsSync, readdirSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync as originalReadFileSync, existsSync, readdirSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 import { tmpdir } from 'node:os';
 import { MACHINE_READABLE_URLS } from '../scripts/build-sitemap.mjs';
 import { nonDefaultLandingLocales } from '../shared/indexable-landing-locales.ts';
@@ -95,15 +96,15 @@ const WEBMCP_PRODUCTION_HOSTS = [
   'happy.worldmonitor.app',
   'energy.worldmonitor.app',
 ];
-const WEBMCP_TRIAL_EXPIRY = 1_794_873_600;
+const WEBMCP_TRIAL_EXPIRY = 1_806_364_800;
 const WEBMCP_TOKEN_RENEWAL_BUFFER_SECONDS = 14 * 24 * 60 * 60;
 const WEBMCP_TOKEN_SHA256_BY_HOST = {
-  'www.worldmonitor.app': '97b1029dd642731a33c2c6696f21358afe3f1e3bebf87079be26ba5891d950ce',
-  'tech.worldmonitor.app': 'd230e2454012d19baebd987709beeefbd985b0e0f62aa080b220da80a6e6b31d',
-  'finance.worldmonitor.app': 'e1f3483bd6cfae1ace66dc041c9f8584233c45e9e0c335394f6cf9bdfe9af489',
-  'commodity.worldmonitor.app': '0e0bde1d1b87976889126b2f3ddcfd06df78cc3c13598e80e0a3a45701d2c0b6',
-  'happy.worldmonitor.app': '72c2026ac2266553d9007ef0615ab46c0ca080002b86b11fc1e71cadb37f23f8',
-  'energy.worldmonitor.app': '0f2fec8b51e7f29db5f12bcaaeb859d1f1d1c71156648d57d28e1bc86954d0d4',
+  'www.worldmonitor.app': '552d58ed3da1968f39f1576e7d94402079869f7f344d81b78c6bb883129acbc4',
+  'tech.worldmonitor.app': '675f2fadcf1999b06566207fd29b71c40300dcb95de2393f369e9671592cda2a',
+  'finance.worldmonitor.app': '0c87a1ec606efb59910f4744204c6ee8fff2eb42a418a68cc29f3c1ea801c449',
+  'commodity.worldmonitor.app': 'c6ae7f7c91dc7cda5c7143e10ac1fe95ab61c528be8c73c389df0288feaad924',
+  'happy.worldmonitor.app': '9c3337b1b80f2050f473ed64943f0d6d135d9c9ca0126b2631cef01fdf97b0da',
+  'energy.worldmonitor.app': '49eb184a6eb92c01c868c97620168f8a2881b0106416955b4309512decd7b71f',
 };
 const GLOBAL_CSP_INLINE_SCRIPT_HTML_FILES = [
   'index.html',
@@ -495,6 +496,40 @@ describe('vercel.json source matching', () => {
   });
 });
 
+describe('open data under /data/v1', () => {
+  it('revalidates versioned open data hourly instead of caching it as immutable', () => {
+    assert.equal(effectiveCacheControl('/data/v1/chokepoints/latest.json'), 'public, max-age=3600');
+  });
+
+  it('keeps open data readable cross-origin', () => {
+    assert.equal(effectiveHeader('/data/v1/chokepoints/latest.csv', 'Access-Control-Allow-Origin'), '*');
+  });
+
+  it('lets the CDN serve stale open data briefly while it revalidates', () => {
+    assert.equal(
+      effectiveHeader('/data/v1/chokepoints/latest.json', 'CDN-Cache-Control'),
+      'public, s-maxage=3600, stale-while-revalidate=600',
+    );
+  });
+
+  it('leaves unversioned /data assets immutable', () => {
+    assert.equal(effectiveCacheControl('/data/countries-50m.json'), 'public, max-age=31536000, immutable');
+  });
+
+  const nginxLocation = (prefix) => {
+    const match = dockerNginxSource.match(new RegExp(`^ {4}location ${prefix.replace(/\//g, '\\/')} \\{\\n([\\s\\S]*?)^ {4}\\}`, 'm'));
+    assert.ok(match, `docker/nginx.conf must declare location ${prefix}`);
+    return match[1];
+  };
+
+  it('gives the self-hosted image the same hourly, cross-origin rule for /data/v1/', () => {
+    const block = nginxLocation('/data/v1/');
+    assert.match(block, /add_header Cache-Control "public, max-age=3600";/);
+    assert.match(block, /add_header Access-Control-Allow-Origin "\*" always;/);
+    assert.match(nginxLocation('/data/'), /add_header Cache-Control "public, max-age=31536000, immutable";/);
+  });
+});
+
 describe('crawlable content corpus deployment contracts', () => {
   const staticCorpusPaths = [
     '/countries/ukraine/',
@@ -681,6 +716,7 @@ describe('crawlable content corpus deployment contracts', () => {
       'scripts/comparison-shortlist.mjs',
       'scripts/unranked-country-inventory.mjs',
       'scripts/build-use-cases.mjs',
+      'scripts/data/use-case-workflows.mjs',
       'scripts/build-accuracy-page.mjs',
       'scripts/build-situation-page.mjs',
       'scripts/situation-page/',
@@ -722,6 +758,7 @@ describe('crawlable content corpus deployment contracts', () => {
       'scripts/comparison-shortlist.mjs',
         'scripts/unranked-country-inventory.mjs',
         'scripts/build-use-cases.mjs',
+        'scripts/data/use-case-workflows.mjs',
         'scripts/build-accuracy-page.mjs',
         'scripts/build-situation-page.mjs',
         'scripts/situation-page/sections.mjs',
@@ -1389,52 +1426,113 @@ describe('deploy/cache configuration guardrails', () => {
   });
 
   it('keeps PWA precache glob free of HTML files', () => {
-    assert.match(
-      viteConfigSource,
-      /globPatterns:\s*\['\*\*\/\*\.\{js,css,ico,png,svg,woff2\}'\]/
-    );
-    assert.doesNotMatch(viteConfigSource, /globPatterns:\s*\['\*\*\/\*\.\{js,css,html/);
-  });
-
-  it('emits public sourcemaps for preview attribution while production stays opt-in (#7382)', () => {
-    assert.match(
-      viteConfigSource,
-      /const emitPublicSourceMaps = process\.env\.WM_EMIT_SOURCEMAPS === '1'[\s\S]*\|\| process\.env\.VERCEL_ENV === 'preview'/,
-    );
-    assert.match(viteConfigSource, /sourcemap:\s*emitPublicSourceMaps/);
-  });
-
-
-  it('keeps off-page public assets out of the PWA precache', () => {
-    const assertGlobIgnore = (pattern) => {
-      assert.match(
-        viteConfigSource,
-        new RegExp(`globIgnores:\\s*\\[[\\s\\S]*'${escapeRegExp(pattern)}'[\\s\\S]*\\]`)
-      );
-    };
-
     assert.match(viteConfigSource, /includeManifestIcons:\s*false/);
-    assert.doesNotMatch(
+    assert.match(
       viteConfigSource,
-      /globIgnores:[\s\S]*'assets\/\*\*'/
+      /globPatterns:\s*\['assets\/\*\*\/\*\.\{js,css\}'\]/
     );
-    assertGlobIgnore('pro/**');
-    assertGlobIgnore('favico/**');
-    assertGlobIgnore('textures/**');
-    assertGlobIgnore('**/*.woff2');
-    // #4891: blog OG covers exist only in prod builds (blog generated at
-    // deploy), so a local dist/sw.js never exposes the regression — guard the
-    // config directly. Without this ignore, every first dashboard visit
-    // precached ~40 blog PNGs (~700KB) through the service worker.
-    assertGlobIgnore('blog/**');
+    assert.match(viteConfigSource, /manifestTransforms:\s*\[dashboardPrecache\.manifestTransform\]/);
   });
 
-  it('keeps the lazy Clerk SDK out of the PWA precache', () => {
-    assert.match(viteConfigSource, /globIgnores:\s*\[[^\]]*'\*\*\/clerk-\*\.js'[^\]]*\]/s);
+  it('routes sourcemap output through the policy that keeps production maps Sentry-only (#7382)', () => {
+    assert.match(viteConfigSource, /const emitPublicSourceMaps = shouldEmitPublicSourceMaps\(process\.env\)/);
+    assert.match(viteConfigSource, /sourcemap:\s*viteSourcemapSetting\(process\.env\)/);
+    assert.match(viteConfigSource, /emitPublicSourceMaps \? \[\] : \[stripPrivateSourceMapsPlugin\(\)\]/);
+  });
+
+
+  it('assigns a stable chunk name to the Clerk SDK', () => {
     assert.match(
       viteConfigSource,
       /if\s*\(\s*id\.includes\('\/@clerk\/clerk-js\/'\)\s*\)\s*\{[^{}]*\breturn 'clerk';\s*\}/
     );
+  });
+
+  const swPath = resolve(__dirname, '../dist/sw.js');
+  guardBuiltOutput(swPath);
+  function readPwaWorker() {
+    let manifest;
+    let appChunkCache;
+    function workboxStub() {} // Used as both a constructor and an ordinary helper.
+    const workbox = new Proxy({
+      precacheAndRoute(entries) { manifest = entries; },
+      ExpirationPlugin: class {
+        constructor(options) { Object.assign(this, options); }
+      },
+      StaleWhileRevalidate: class {
+        constructor(options) {
+          if (options.cacheName === 'app-chunks') appChunkCache = options;
+        }
+      },
+    }, { get: (target, name) => target[name] ?? workboxStub });
+    const define = (_dependencies, factory) => factory(workbox);
+    runInNewContext(readFileSync(swPath, 'utf8'), {
+      define,
+      self: { define, skipWaiting() {}, addEventListener() {} },
+      importScripts() {},
+    }, { timeout: 5_000 });
+    assert.ok(Array.isArray(manifest) && manifest.length > 0, 'generated SW must register a precache');
+    return { manifest, appChunkCache };
+  }
+
+  function assertPwaPrecache(manifest) {
+    const urls = Array.from(manifest, ({ url }) => url);
+    assert.ok(urls.length <= 32, `PWA precache has ${urls.length} entries; budget is 32`);
+    let totalBytes = 0;
+    const dist = dirname(swPath);
+    for (const url of urls) {
+      const path = resolve(dist, url);
+      assert.ok(path.startsWith(`${dist}${sep}`), `precache URL escapes dist: ${url}`);
+      totalBytes += statSync(path).size;
+      assert.doesNotMatch(url, /^(?:pro|blog|textures|trust|research-assets)\//);
+      if (!url.startsWith('favico/')) assert.doesNotMatch(url, /\.(?:woff2?|png|svg)$/i);
+      assert.doesNotMatch(url, /(?:^|\/)(?:App-|MapContainer-|GlobeMap-|maplibre-|protomaps-|deck-stack-|h3-js-|UnifiedSettings-|settings-window-|checkout-|rpc-client-|panel-support-|panels-(?:economy|markets|risk|energy|defense|news|intel)-)/, `Optional chunk must stay out of precache: ${url}`);
+      if (/\.html$/.test(url)) assert.equal(url, 'offline.html');
+    }
+    assert.ok(totalBytes <= 2 * 1024 * 1024, `PWA precache is ${totalBytes} bytes; budget is 2 MiB`);
+    for (const url of ['offline.html', 'manifest.webmanifest', 'favico/favicon.ico', 'favico/apple-touch-icon.png', 'favico/favicon-32x32.png']) {
+      assert.ok(urls.includes(url), `missing required precache file: ${url}`);
+    }
+    assert.ok(urls.some((url) => /^assets\/main-.*\.js$/.test(url)), 'dashboard entry is missing');
+  }
+
+  it('bounds the generated PWA precache and excludes optional/off-page assets (#5373)', {
+    skip: shouldSkipBuiltOutput(swPath),
+  }, () => {
+    assertPwaPrecache(readPwaWorker().manifest);
+  });
+
+  it('keeps enough runtime-cache capacity for the emitted JS/CSS build (#5373)', {
+    skip: shouldSkipBuiltOutput(swPath),
+  }, () => {
+    const { appChunkCache } = readPwaWorker();
+    assert.ok(appChunkCache, 'generated SW must register the app chunk runtime cache');
+    const expiration = appChunkCache.plugins.find((plugin) => Number.isFinite(plugin.maxEntries));
+    assert.ok(expiration, 'app chunk runtime cache must have bounded capacity');
+    // Counting every chunk is conservative: shell and locale routes own some of them.
+    const assets = readdirSync(resolve(dirname(swPath), 'assets')).filter((name) => /\.(?:js|css)$/i.test(name));
+    assert.ok(expiration.maxEntries >= assets.length,
+      `Runtime cache holds ${expiration.maxEntries} entries but the build emits ${assets.length} JS/CSS files; normal use can evict the app entry`);
+  });
+
+  it('rejects forbidden map and panel chunks even when they fit the precache budgets (#5373)', {
+    skip: shouldSkipBuiltOutput(swPath),
+  }, () => {
+    const { manifest } = readPwaWorker();
+    const dist = dirname(swPath);
+    const assets = readdirSync(resolve(dist, 'assets'));
+    for (const prefix of [
+      'protomaps-', 'h3-js-', 'UnifiedSettings-', 'settings-window-', 'checkout-',
+      'panel-support-', 'panels-news-', 'panels-intel-',
+    ]) {
+      const asset = assets.find((name) => name.startsWith(prefix) && name.endsWith('.js'));
+      assert.ok(asset, `missing built chunk for negative test: ${prefix}`);
+      const polluted = [...manifest, { url: `assets/${asset}`, revision: null }];
+      assert.ok(polluted.length <= 32, 'negative test must stay within the entry budget');
+      const bytes = polluted.reduce((sum, { url }) => sum + statSync(resolve(dist, url)).size, 0);
+      assert.ok(bytes <= 2 * 1024 * 1024, 'negative test must stay within the byte budget');
+      assert.throws(() => assertPwaPrecache(polluted), /Optional chunk must stay out of precache/);
+    }
   });
 
   it('explicitly disables navigateFallback when HTML is not precached', () => {
@@ -2014,18 +2112,31 @@ describe('welcome landing page routing', () => {
       // Comments in this file discuss selectors (including ones that no longer
       // exist); scanning them would fail the guard over prose.
       .replace(/^[ \t]*\/\/.*$/gm, '');
-    const generatedWelcomeHtml = readFileSync(resolve(__dirname, '../public/pro/welcome.html'), 'utf-8');
+    // Every landing the prerender writes ships this same critical CSS, and
+    // the localized ones translate attribute text such as aria-label, so a
+    // rule must bind on each of them, not only on the English page.
+    const generatedWelcomePages = [
+      ['public/pro/welcome.html', readFileSync(resolve(__dirname, '../public/pro/welcome.html'), 'utf-8')],
+      ...nonDefaultLandingLocales().map((locale) => {
+        const rel = `public/${locale.pathSegment}/index.html`;
+        return [rel, readFileSync(resolve(__dirname, '..', rel), 'utf-8')];
+      }),
+    ];
 
     // Region-scoped: a `main a[...]` rule is dead if only a <nav> anchor
     // matches it, so each selector is checked against anchors from its own
     // region rather than the whole document.
-    const anchorsByRegion = new Map(['main', 'nav'].map((region) => {
-      const markup = generatedWelcomeHtml.match(new RegExp(`<${region}\\b[\\s\\S]*?</${region}>`))?.[0] ?? '';
-      return [region, markup.match(/<a\b[^>]*>/g) ?? []];
-    }));
-    for (const [region, anchors] of anchorsByRegion) {
-      assert.ok(anchors.length > 0, `prerendered welcome HTML must contain <${region}> anchors`);
-    }
+    const anchorsByRegionFor = (html, page) => {
+      const byRegion = new Map(['main', 'nav'].map((region) => {
+        const markup = html.match(new RegExp(`<${region}\\b[\\s\\S]*?</${region}>`))?.[0] ?? '';
+        return [region, markup.match(/<a\b[^>]*>/g) ?? []];
+      }));
+      for (const [region, anchors] of byRegion) {
+        assert.ok(anchors.length > 0, `${page} must contain <${region}> anchors`);
+      }
+      return byRegion;
+    };
+    const pageAnchors = generatedWelcomePages.map(([page, html]) => [page, anchorsByRegionFor(html, page)]);
 
     // `[~|^$*]?` covers every CSS attribute operator, so a rule rewritten with
     // one we do not model fails loudly below instead of dropping out of the
@@ -2043,7 +2154,10 @@ describe('welcome landing page routing', () => {
       // would paint any story slug containing "moments" as a hero CTA until the
       // deferred stylesheet lands.
       'main a[href="#moments"]',
-      'nav[data-wm-nav] a[aria-label*="Launch"]',
+      // The analytics marker, not the aria-label: localized landings
+      // translate the label ("Dashboard starten"), so an `aria-label*="Launch"`
+      // rule left their Launch button unstyled until the stylesheet landed.
+      'nav[data-wm-nav] a[data-umami-event-target="welcome-nav"]',
     ]) {
       assert.ok(scanned.has(required), `critical CSS must still style the welcome CTA via ${required}`);
     }
@@ -2058,19 +2172,21 @@ describe('welcome landing page routing', () => {
       // rather than defaulted: an unknown region silently reports every rule in
       // it as dead, which reads as a broken CTA instead of a broken guard.
       const anchorRegion = region.startsWith('nav') ? 'nav' : region;
-      assert.ok(
-        anchorsByRegion.has(anchorRegion),
-        `critical CSS region "${region}" has no anchor pool — teach this guard the region or it stops checking every rule inside it`
-      );
-      const matched = anchorsByRegion.get(anchorRegion).some((tag) => {
-        const actual = tag.match(new RegExp(`\\b${attribute}="([^"]*)"`))?.[1];
-        if (actual === undefined) return false;
-        return operator === '*' ? actual.includes(value) : actual === value;
-      });
-      assert.ok(
-        matched,
-        `critical CSS selector ${region} a[${attribute}${operator}="${value}"] matches no prerendered <${region}> anchor — the rule is dead and its CTA paints unstyled`
-      );
+      for (const [page, anchorsByRegion] of pageAnchors) {
+        assert.ok(
+          anchorsByRegion.has(anchorRegion),
+          `critical CSS region "${region}" has no anchor pool — teach this guard the region or it stops checking every rule inside it`
+        );
+        const matched = anchorsByRegion.get(anchorRegion).some((tag) => {
+          const actual = tag.match(new RegExp(`\\b${attribute}="([^"]*)"`))?.[1];
+          if (actual === undefined) return false;
+          return operator === '*' ? actual.includes(value) : actual === value;
+        });
+        assert.ok(
+          matched,
+          `critical CSS selector ${region} a[${attribute}${operator}="${value}"] matches no prerendered <${region}> anchor in ${page} — the rule is dead there and its CTA paints unstyled`
+        );
+      }
     }
   });
 
@@ -2664,6 +2780,37 @@ describe('security header guardrails', () => {
         /include \/etc\/nginx\/(?:embed_|oauth_authorize_|youtube_embed_)?security_headers\.conf;/,
         `docker/nginx.conf.template ${location} must include an origin-keying header set`,
       );
+    }
+  });
+
+  it('keeps every self-hosted image route out of search indexes', () => {
+    // Self-hosted pages keep www.worldmonitor.app canonicals, so an indexed copy can
+    // only compete with the official page (wm.tanukihitokiri.ru, 2026-11).
+    const noindex = /add_header X-Robots-Tag "noindex, follow" always;/;
+
+    const sidecarLocationBlocks = [...dockerNginxSource.matchAll(/^ {4}location [^{]+\{\n([\s\S]*?)^ {4}\}/gm)];
+    assert.ok(sidecarLocationBlocks.length > 0, 'docker/nginx.conf must define route locations');
+    for (const [locationBlock] of sidecarLocationBlocks) {
+      const location = locationBlock.match(/^ {4}location ([^{]+)\{/)?.[1].trim() ?? '<unknown>';
+      assert.match(locationBlock, noindex, `docker/nginx.conf ${location} must send X-Robots-Tag noindex`);
+    }
+
+    const includedHeaderFiles = {
+      'security_headers.conf': 'docker/nginx-security-headers.conf',
+      'embed_security_headers.conf': 'docker/nginx-embed-security-headers.conf',
+      'oauth_authorize_security_headers.conf': 'docker/nginx-oauth-authorize-security-headers.conf',
+      'youtube_embed_security_headers.conf': 'docker/nginx-youtube-embed-security-headers.conf',
+    };
+    const nginxTemplate = readFileSync(resolve(__dirname, '../docker/nginx.conf.template'), 'utf-8');
+    const frontendLocationBlocks = [...nginxTemplate.matchAll(/^ {4}location [^{]+\{\n([\s\S]*?)^ {4}\}/gm)];
+    assert.ok(frontendLocationBlocks.length > 0, 'docker/nginx.conf.template must define route locations');
+    for (const [locationBlock] of frontendLocationBlocks) {
+      const location = locationBlock.match(/^ {4}location ([^{]+)\{/)?.[1].trim() ?? '<unknown>';
+      const included = locationBlock.match(/include \/etc\/nginx\/(\S+\.conf);/)?.[1];
+      const source = included
+        ? readFileSync(resolve(__dirname, `../${includedHeaderFiles[included]}`), 'utf-8')
+        : locationBlock;
+      assert.match(source, noindex, `docker/nginx.conf.template ${location} must send X-Robots-Tag noindex`);
     }
   });
 
@@ -3536,6 +3683,14 @@ describe('brief magazine CSP override', () => {
     );
   });
 
+  it('loads fonts only from the site itself (self-hosted brief fonts, no Google Fonts)', () => {
+    const csp = getBriefCspValue();
+    const styleSrc = csp.match(/style-src\s+([^;]+)/)?.[1] ?? '';
+    const fontSrc = csp.match(/font-src\s+([^;]+)/)?.[1] ?? '';
+    assert.equal(fontSrc.trim(), "'self' data:");
+    assert.doesNotMatch(styleSrc, /googleapis|gstatic/);
+  });
+
   it('keeps tight defaults for non-script directives', () => {
     const csp = getBriefCspValue();
     for (const directive of [
@@ -4371,8 +4526,9 @@ describe('vercel.json functions config (none expected after carousel moved to ed
 // header advertising every well-known resource. Each rel is either
 // an IANA-registered token (api-catalog, service-desc, service-doc,
 // status) or the full IANA URI form (RFC 9728 OAuth rels). The MCP
-// card rel carries anchor="/mcp" because the server card describes
-// the /mcp endpoint, not the document URL being fetched.
+// card rel carries an absolute apex anchor because the server card
+// describes the apex /mcp endpoint, not the document URL being fetched; a
+// relative anchor resolves against the www page and names the 410 alias (#9722).
 describe('agent readiness: public document Link headers', () => {
   const vercel = JSON.parse(readFileSync(resolve(__dirname, '../vercel.json'), 'utf-8'));
 
@@ -4406,11 +4562,10 @@ describe('agent readiness: public document Link headers', () => {
         );
       }
 
-      // MCP card rel must carry anchor="/mcp" (server card describes /mcp, not homepage)
       assert.match(
         linkHeader.value,
-        /<\/\.well-known\/mcp\/server-card\.json>[^,]*anchor="\/mcp"/,
-        'mcp-server-card rel must carry anchor="/mcp"'
+        /<\/\.well-known\/mcp\/server-card\.json>[^,]*anchor="https:\/\/worldmonitor\.app\/mcp"/,
+        'mcp-server-card rel must carry the absolute canonical anchor; anchor="/mcp" resolves to www/mcp, which answers 410'
       );
 
       // The docs MCP server (#4958) is advertised in the Link header directly —
@@ -4506,7 +4661,10 @@ describe('agent readiness: Content-Signal declarations', () => {
   it('vercel.json serves an origin-wide Content-Signal header', () => {
     const value = headerValue();
     assert.ok(value, 'vercel.json must carry a Content-Signal response header');
-    assert.match(value, /ai-train=(yes|no)/);
+    // Owner decision: training by assistant vendors is welcome (brand recall in
+    // future models). The training crawlers are allowed in robots.txt, so the
+    // signal must say yes — a `no` here contradicts the crawl rules.
+    assert.match(value, /ai-train=yes/);
     assert.match(value, /search=(yes|no)/);
     assert.match(value, /ai-input=(yes|no)/);
   });
@@ -4578,7 +4736,9 @@ describe('agent readiness: Content-Signal declarations', () => {
 // #4952 — a named `User-agent` group replaces the `*` group for that crawler.
 // Autonomous search crawlers restate the full `*` rule set. User-triggered
 // fetchers keep the bounded path protections but can open shared map links.
-// The training-only group stays a hard `Disallow: /`.
+// Autonomous AI crawlers (search indexers AND training crawlers of vendors
+// whose assistants cite us) share one group. The bulk-scraper group stays a
+// hard `Disallow: /`.
 describe('agent readiness: robots.txt AI crawler policy', () => {
   const robotsSource = readFileSync(resolve(__dirname, '../public/robots.www.txt'), 'utf-8');
 
@@ -4589,9 +4749,15 @@ describe('agent readiness: robots.txt AI crawler policy', () => {
   const trainingBlockGroup = groups.find((g) => g.agents.includes('ccbot'));
 
   const REQUIRED_AI_SEARCH_AGENTS = [
+    'oai-searchbot',
+    'claude-searchbot',
+    'perplexitybot',
+    'duckassistbot',
+  ];
+  // Training crawlers / training-control tokens. Allowed because ai-train=yes.
+  const REQUIRED_AI_TRAINING_AGENTS = [
     'gptbot',
     'claudebot',
-    'perplexitybot',
     'google-extended',
     'applebot-extended',
   ];
@@ -4601,14 +4767,14 @@ describe('agent readiness: robots.txt AI crawler policy', () => {
     'perplexity-user',
     'mistralai-user',
   ];
-  const BLOCKED_TRAINING_AGENTS = ['ccbot', 'bytespider', 'anthropic-ai'];
+  const BLOCKED_TRAINING_AGENTS = ['ccbot', 'bytespider'];
 
-  it('explicitly allows the AI search crawlers in one named group', () => {
-    assert.ok(aiAllowGroup, 'robots.txt must have a named AI search group (GPTBot et al.)');
-    for (const agent of REQUIRED_AI_SEARCH_AGENTS) {
+  it('explicitly allows the AI search and training crawlers in one named group', () => {
+    assert.ok(aiAllowGroup, 'robots.txt must have a named AI crawler group (GPTBot et al.)');
+    for (const agent of [...REQUIRED_AI_SEARCH_AGENTS, ...REQUIRED_AI_TRAINING_AGENTS]) {
       assert.ok(
         aiAllowGroup.agents.includes(agent),
-        `AI search group must include User-agent: ${agent}`
+        `AI crawler group must include User-agent: ${agent}`
       );
     }
     assert.ok(
@@ -4651,7 +4817,11 @@ describe('agent readiness: robots.txt AI crawler policy', () => {
   });
 
   it('never lists an allowed AI agent in the blocked group (and vice versa)', () => {
-    for (const agent of [...REQUIRED_AI_SEARCH_AGENTS, ...REQUIRED_USER_FETCH_AGENTS]) {
+    for (const agent of [
+      ...REQUIRED_AI_SEARCH_AGENTS,
+      ...REQUIRED_AI_TRAINING_AGENTS,
+      ...REQUIRED_USER_FETCH_AGENTS,
+    ]) {
       assert.ok(
         !trainingBlockGroup.agents.includes(agent),
         `${agent} drives citations and must not be in the blocked group`
@@ -5968,5 +6138,26 @@ describe('cold-load metric evidence reaches the CI artifact (#7837)', () => {
       /assertDashboardMetricBudgets\(samples\.map\(\(sample\) => sample\.quiescence/,
       'the settled sample is recorded, never asserted (#7837)',
     );
+  });
+});
+
+// Google Connected Console fetches this file to verify domain ownership and
+// rejects any redirect (https://developers.google.com/connected-apps/gpc/perform-the-steps).
+// The file's own shape is pinned in tests/google-connected-apps-verification.test.mjs.
+describe('Google Connected Apps verification route', () => {
+  const path = '/.well-known/google-connected-apps';
+
+  it('is served directly as JSON on every host Google may fetch', () => {
+    for (const host of ['worldmonitor.app', 'www.worldmonitor.app']) {
+      assert.equal(firstRedirectFor({ host, path }), null, `${host}${path} must not redirect`);
+      assert.equal(firstRewriteFor({ host, path }), null, `${host}${path} must serve the static file`);
+    }
+    assert.equal(effectiveHeader(path, 'content-type'), 'application/json; charset=utf-8');
+  });
+
+  it('would catch a wildcard rule that does not name the file', () => {
+    for (const source of ['/.well-known/(.*)', '/.well-known/:path*', '/:path*']) {
+      assert.equal(sourceToRegExp(source).test(path), true, `${source} must be modelled as matching ${path}`);
+    }
   });
 });

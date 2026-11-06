@@ -1,7 +1,8 @@
+import { createTimeoutSignal } from '@/services/timeout-signal';
 /**
  * Frontend service for managing user API keys.
  *
- * Uses the shared ConvexClient (WebSocket) to call mutations/queries in
+ * Uses a live-session-gated edge route for creation and Convex for list/revoke in
  * convex/apiKeys.ts. Key generation + hashing happens client-side so the
  * plaintext key is shown to the user exactly once without a round-trip
  * that could log it.
@@ -12,7 +13,7 @@ import {
   getConvexApi,
   waitForConvexAuthForUser,
 } from './convex-client';
-import { getClerkToken, getCurrentClerkUser } from './clerk';
+import { getClerkToken, getClerkSessionToken, getCurrentClerkUser } from './clerk';
 import {
   assertAccountStillCurrent,
   settleAccountOperation,
@@ -70,24 +71,21 @@ export async function createApiKey(name: string, keyKind: ApiKeyKind = 'api'): P
   const keyPrefix = plaintext.slice(0, 8);
   const keyHash = await sha256Hex(plaintext);
 
-  const [client, api] = await Promise.all([getConvexClient(), getConvexApi()]);
-  if (!client || !api) throw new Error('Convex unavailable');
-  if (!await waitForConvexAuthForUser(userId)) {
-    throw new Error(`Account changed while creating the ${noun}. Try again.`);
-  }
-
-  const result = await settleAccountOperation(
-    userId,
-    `creating the ${noun}`,
-    () => client.mutation(
-      (api as any).apiKeys.createApiKey,
-      // Omit keyKind for API keys so the mutation args stay exactly as before.
-      keyKind === 'desktop'
-        ? { name: name.trim(), keyPrefix, keyHash, keyKind }
-        : { name: name.trim(), keyPrefix, keyHash },
-    ),
-  );
+  const token = await settleAccountOperation(userId, `creating the ${noun}`, getClerkSessionToken);
+  if (!token) throw new Error(`Account changed while creating the ${noun}. Try again.`);
   assertAccountStillCurrent(userId, `creating the ${noun}`);
+  const response = await settleAccountOperation(userId, `creating the ${noun}`, () => fetch('/api/user-api-keys', {
+    signal: createTimeoutSignal(60_000),
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(keyKind === 'desktop'
+      ? { name: name.trim(), keyPrefix, keyHash, keyKind }
+      : { name: name.trim(), keyPrefix, keyHash }),
+  }));
+  assertAccountStillCurrent(userId, `creating the ${noun}`);
+  const result = await settleAccountOperation(userId, `creating the ${noun}`, () => response.json().catch(() => null));
+  assertAccountStillCurrent(userId, `creating the ${noun}`);
+  if (!response.ok) throw new Error(typeof result?.error === 'string' ? result.error : 'service_unavailable');
 
   return { id: result.id, name: result.name, keyPrefix: result.keyPrefix, key: plaintext };
 }
@@ -143,10 +141,11 @@ export async function revokeApiKey(keyId: string): Promise<void> {
         userId,
         'invalidating the API key cache',
         () => fetch('/api/invalidate-user-api-key-cache', {
+          signal: createTimeoutSignal(15_000),
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ keyHash: result.keyHash }),
-        }),
+        }).catch(() => new Response(null, { status: 503 })),
       );
       assertAccountStillCurrent(userId, 'invalidating the API key cache');
       if (!resp.ok) {

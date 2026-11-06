@@ -739,6 +739,11 @@ describe('scoped rate-limit degraded call-site policy (#3531)', () => {
       reason: 'cloud prefs writes are low-stakes, so Redis degradation should not block legitimate settings sync',
     },
     {
+      path: 'api/desktop-key/status.ts',
+      expected: /A degraded per-IP ceiling fails closed with 503/,
+      reason: 'the per-IP ceiling in front of the Convex key lookup fails closed when degraded (rotating keys miss the negative cache); the owner and invalid-key buckets after the lookup stay availability-first, and a self-host sidecar keeps its last verdict through a 503',
+    },
+    {
       path: 'api/notify.ts',
       expected: /limiter outage here should NOT fail open/,
       reason: 'notify publishes create relay-side delivery obligations on the shared event queue, so Redis degradation fails closed instead of allowing unbounded fan-out',
@@ -836,6 +841,12 @@ describe('slow-Redis timeout is degraded, not a silent allow (#6412 review)', ()
       errorLogs.some((l) => l.includes('[rate-limit] redis-error') && l.includes('timed out')),
       `the bypass window must be visible in logs: ${errorLogs.join(' | ')}`,
     );
+  });
+
+  it('global checkRateLimit fails closed on an SDK timeout', { timeout: HANG_TEST_TIMEOUT_MS }, async () => {
+    const res = await checkRateLimit(makeRequest({ 'x-real-ip': '203.0.113.79' }), {}, { failClosed: true });
+    assert.equal(res?.status, 503);
+    assert.equal(res?.headers.get('X-RateLimit-Mode'), 'degraded');
   });
 
   it('checkRateLimit (api/_rate-limit.js) fails closed on a timed-out decision when asked to', { timeout: HANG_TEST_TIMEOUT_MS }, async () => {

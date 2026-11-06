@@ -1,3 +1,4 @@
+import { createTimeoutSignal } from '@/services/timeout-signal';
 import { SITE_VARIANT } from '@/config/variant';
 import { safeStorageGet } from '@/utils/safe-storage';
 import { getClerkToken } from '@/services/clerk';
@@ -301,7 +302,7 @@ export async function waitForSidecarReady(timeoutMs = 3000): Promise<boolean> {
       // generic /api/service-status page — /api/sidecar-health is served only
       // by the local Node sidecar, so a 200 confirms *this* process is up on
       // the resolved port rather than something else answering on it (#6779).
-      const res = await fetch(`${baseUrl}/api/sidecar-health`, { method: 'GET' });
+      const res = await fetch(`${baseUrl}/api/sidecar-health`, { signal: createTimeoutSignal(Math.max(1, deadline - Date.now())), method: 'GET' });
       if (res.ok) return true;
     } catch {
       // sidecar not ready yet
@@ -324,6 +325,20 @@ function isKeyFreeApiTarget(target: string): boolean {
     || target.startsWith('/api/version');
 }
 
+// Key issuance (API and embed) asks Clerk whether the caller's session is live.
+// It needs the caller's standard session token (it carries `sid`). The desktop
+// cloud credential is a template token without one.
+function isSessionBoundApiTarget(target: string): boolean {
+  const path = target.split('?')[0];
+  return path === '/api/user-api-keys' || path === '/api/user-embed-keys';
+}
+
+function callerBearer(input: RequestInfo | URL, init?: RequestInit): string | undefined {
+  const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+  const value = headers.get('Authorization');
+  return value?.startsWith('Bearer ') ? value : undefined;
+}
+
 function canRetryRequest(input: RequestInfo | URL, init?: RequestInit): boolean {
   const request = input instanceof Request ? input : undefined;
   const method = (init?.method ?? request?.method ?? 'GET').toUpperCase();
@@ -343,7 +358,9 @@ async function fetchLocalWithStartupRetry(
   // never need the user's cloud credential.
   const userAuthorization = isLocalOnlyApiTarget(target)
     ? undefined
-    : (await (await import('@/services/desktop-cloud-auth')).getDesktopCloudAuthorization()) ?? undefined;
+    : isSessionBoundApiTarget(target)
+      ? callerBearer(input, init)
+      : (await (await import('@/services/desktop-cloud-auth')).getDesktopCloudAuthorization()) ?? undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {

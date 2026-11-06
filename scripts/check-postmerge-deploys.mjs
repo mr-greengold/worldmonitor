@@ -78,6 +78,7 @@ export const MONITORED_WORKFLOWS = Object.freeze([
       'shared/checkout-errors.ts',
       'shared/chokepoint-alert-ids.ts',
       'shared/cloud-preferences-contract.ts',
+      'shared/alert-rule-shape.ts',
       'shared/pinned-webcams.ts',
       'shared/mcp-attribution.ts',
       'shared/company-monitoring-contract.ts',
@@ -87,6 +88,7 @@ export const MONITORED_WORKFLOWS = Object.freeze([
       'shared/legal.ts',
       'shared/agent-client-source.js',
       'shared/acquisition-source.ts',
+      'shared/audience-profile.ts',
       'scripts/lib/company-monitoring-classification.mjs',
       'src/utils/country-codes.ts',
     ]),
@@ -139,6 +141,7 @@ export const MONITORED_WORKFLOWS = Object.freeze([
       'api/_bootstrap-tier-keys.js',
       'tests/cors-preflight-live.test.mjs',
       'tests/helpers/public-bootstrap-contract.mjs',
+      'scripts/cf-rate-limit-retry.mjs',
       '.github/workflows/deploy-worker.yml',
     ]),
     // Same dormant reasoning as the reconcile Worker: a healthy run can be

@@ -1043,6 +1043,18 @@ describe('zero-frame async-rejection patterns (timeout / DOMException / OOM / DO
     // mapped .ts frame or an owned hashed-chunk URL (handled above).
     ["Unexpected token 'else'", 'SyntaxError'],
     ["Unexpected token 'for'", 'SyntaxError'],
+    // V8's identifier phrasing via window.onerror with stacktrace: null
+    // (Sentry WORLDMONITOR-19G: Chrome 155 / Windows, /dashboard). A parse
+    // failure in one of our hashed chunks keeps that chunk's URL as its frame,
+    // so a frameless one is an injected script. Any identifier, not a census.
+    ["Unexpected identifier 'd'", 'SyntaxError'],
+    ["SyntaxError: Unexpected identifier 'queueMicrotask'", 'SyntaxError'],
+    // The identifiers that used to sit in frame-blind ignoreErrors entries
+    // (WORLDMONITOR-NT `'m'`, plus `'https'` and `'does'`), including
+    // WebKit's trailing `. Expected ...` clause.
+    ["Unexpected identifier 'm'", 'SyntaxError'],
+    ["Unexpected identifier 'https'. Expected ';' after variable declaration.", 'SyntaxError'],
+    ["Unexpected identifier 'does'", 'SyntaxError'],
     ['SyntaxError: Unexpected token \'else\'', 'SyntaxError'],
     ['SyntaxError: Unexpected token \'for\'', 'SyntaxError'],
     // Firefox's wording for a failed `fetch()` (WORLDMONITOR-RK) — the
@@ -1113,6 +1125,20 @@ describe('zero-frame async-rejection patterns (timeout / DOMException / OOM / DO
       [{ filename: '<anonymous>', lineno: 1 }, { filename: '<anonymous>', lineno: 1 }],
     );
     assert.equal(beforeSend(event), null);
+  });
+
+  it("suppresses an injected script's Unexpected identifier with only <anonymous> frames", () => {
+    const event = makeEvent("Unexpected identifier 'm'", 'SyntaxError',
+      [{ filename: '<anonymous>', lineno: 1 }]);
+    assert.equal(beforeSend(event), null);
+  });
+
+  it('keeps Unexpected identifier when ignoreErrors runs first (no frame-blind entry)', () => {
+    // ignoreErrors cannot see frames, so any entry there would drop the
+    // first-party case before beforeSend could preserve it.
+    for (const msg of ["Unexpected identifier 'm'", "Unexpected identifier 'https'", "Unexpected identifier 'does'"]) {
+      assert.equal(isIgnored(msg, 'SyntaxError'), false, msg);
+    }
   });
 
   it('keeps a pending-request message that is not the whole browser sentence', () => {
@@ -1251,6 +1277,24 @@ describe('existing beforeSend filters', () => {
       { filename: '/assets/panels-wF5GXf0N.js', lineno: 24, function: 'window.fetch' },
     ]);
     assert.equal(beforeSend(event), null, 'MapLibre tile AJAX failure should be suppressed');
+  });
+
+  it('suppresses CARTO vector-tile failures from tiles.basemaps.cartocdn.com (WORLDMONITOR-1BF)', () => {
+    // The CARTO style.json lives on basemaps.cartocdn.com, but its vector tiles
+    // are served from the tiles. subdomain. The allowlist matches hosts exactly,
+    // so the tile host needs its own entry. Frames are the real 1BF stack.
+    const event = makeEvent('Failed to fetch (tiles.basemaps.cartocdn.com)', 'TypeError', [
+      { filename: '../../src/services/fetch-failure-attribution.ts', lineno: 182, function: 'wrapped' },
+      { filename: '../../src/services/runtime.ts', lineno: 610, function: 'dispatch' },
+      { filename: '../../src/services/billing-retry.ts', lineno: 208, function: '<anonymous>' },
+      { filename: 'chrome-extension://hoklmmgfnpapgjgcpechhaamimifchmp/frame_ant/frame_ant.js', lineno: 2, function: 'window.fetch' },
+      { filename: '../../src/services/wm-session.ts', lineno: 1022, function: 'window.fetch' },
+    ]);
+    assert.equal(beforeSend(event), null, 'CARTO tile host failure should be suppressed');
+    const lookalike = makeEvent('Failed to fetch (tiles.basemaps.cartocdn.com.evil.example)', 'TypeError', [
+      { filename: '../../src/services/wm-session.ts', lineno: 1022, function: 'window.fetch' },
+    ]);
+    assert.ok(beforeSend(lookalike) !== null, 'A lookalike host must not ride the CARTO entry');
   });
 
   it('suppresses MapLibre AJAXError for allowlisted host even with an all-maplibre stack', () => {
@@ -2920,5 +2964,55 @@ describe('confirmed deck.gl loop-stop reports', () => {
       assert.notEqual(beforeSend(claimed), null);
     });
   }
+});
+
+// ─── WORLDMONITOR-1A2: ReferenceError from an anonymous-only stack ─────────
+//
+// `Clerk is not defined` (Chrome 156 / macOS, onunhandledrejection) carried
+// two `<anonymous>:1` frames and nothing else: an injected script or a DevTools
+// console snippet naming a bare `Clerk` global. Our code reaches Clerk only as
+// `window.Clerk` (a property read, never a ReferenceError), and nothing in
+// src/ or shared/ evaluates code at runtime (no eval / new Function), so every
+// ReferenceError our bundle can raise carries a bundle or page-URL frame. The
+// gate is the stack invariant, not the identifier, so the next injected global
+// does not need its own ignoreErrors entry.
+describe('beforeSend — ReferenceError with only <anonymous> frames (WORLDMONITOR-1A2)', () => {
+  const anon = () => ({ filename: '<anonymous>', lineno: 1, function: '?' });
+
+  it('suppresses the production "Clerk is not defined" shape', () => {
+    assert.equal(
+      beforeSend(makeEvent('Clerk is not defined', 'ReferenceError', [anon(), anon()])),
+      null,
+    );
+  });
+
+  it('keeps a ReferenceError raised from a first-party bundle frame', () => {
+    assert.ok(beforeSend(makeEvent('Clerk is not defined', 'ReferenceError', [anon(), firstPartyFrame()])));
+  });
+
+  it('keeps a ReferenceError from an inline page script (document URL frame)', () => {
+    assert.ok(beforeSend(makeEvent('Clerk is not defined', 'ReferenceError',
+      [{ filename: 'https://www.worldmonitor.app/', lineno: 12, function: '?' }])));
+  });
+
+  // The TypeError gate above also accepts blob: and filename-less frames; this
+  // gate must not, so copying that wider condition here goes red.
+  it('keeps a ReferenceError with a blob: frame beside an <anonymous> one', () => {
+    assert.ok(beforeSend(makeEvent('Clerk is not defined', 'ReferenceError',
+      [anon(), { filename: 'blob:https://www.worldmonitor.app/3f2a', lineno: 1, function: '?' }])));
+  });
+
+  it('keeps a ReferenceError with a filename-less frame beside an <anonymous> one', () => {
+    assert.ok(beforeSend(makeEvent('Clerk is not defined', 'ReferenceError',
+      [anon(), { lineno: 1, function: '?' }])));
+  });
+
+  it('keeps a ReferenceError with no frames at all', () => {
+    assert.ok(beforeSend(makeEvent('Clerk is not defined', 'ReferenceError', [])));
+  });
+
+  it('keeps an anonymous-only Error that is not a ReferenceError', () => {
+    assert.ok(beforeSend(makeEvent('Clerk failed to load', 'Error', [anon()])));
+  });
 });
 

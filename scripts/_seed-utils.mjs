@@ -260,6 +260,8 @@ export const SHARED_FX_FALLBACKS = {
   HUF: 0.0028, RON: 0.2200, PHP: 0.0173, VND: 0.000040, MYR: 0.2250,
   PKR: 0.0036, ILS: 0.2750, ARS: 0.00084, COP: 0.000240, CLP: 0.00108,
   UAH: 0.0240, NGN: 0.00062, KES: 0.0077,
+  // Fuel-price countries (#10051); XOF is pegged at 655.957 per EUR.
+  ZMW: 0.0495, GHS: 0.0860, XOF: 0.00165, UYU: 0.0249,
   AED: 0.2723, SAR: 0.2666, QAR: 0.2747, KWD: 3.2520,
   BHD: 2.6525, OMR: 2.5974, JOD: 1.4104, EGP: 0.0192, LBP: 0.0000112,
 };
@@ -334,8 +336,12 @@ export async function parseRedisCommandResponse(resp, label = 'Redis command') {
     if (PERMANENT_4XX_STATUSES.has(resp.status)) {
       err.nonRetryable = true;
     } else if (resp.status === 429) {
-      const retryAfterMs = parseRetryAfterMs(getResponseHeader(resp.headers, 'Retry-After'));
-      if (retryAfterMs != null) err.retryAfterMs = retryAfterMs;
+      const retryAfterMs = parseRetryAfterUncappedMs(getResponseHeader(resp.headers, 'Retry-After'));
+      if (retryAfterMs != null) {
+        err.retryAfterMs = retryAfterMs;
+        // A bounded Redis operation cannot wait out a longer cooldown.
+        if (retryAfterMs > MAX_RETRY_AFTER_MS) err.nonRetryable = true;
+      }
     }
     err.httpStatus = resp.status;
     throw err;
@@ -395,8 +401,12 @@ async function redisGet(url, token, key, options = {}) {
         if (PERMANENT_4XX_STATUSES.has(resp.status)) {
           err.nonRetryable = true;
         } else if (resp.status === 429) {
-          const retryAfterMs = parseRetryAfterMs(getResponseHeader(resp.headers, 'Retry-After'));
-          if (retryAfterMs != null) err.retryAfterMs = retryAfterMs;
+          const retryAfterMs = parseRetryAfterUncappedMs(getResponseHeader(resp.headers, 'Retry-After'));
+          if (retryAfterMs != null) {
+            err.retryAfterMs = retryAfterMs;
+            // A bounded Redis operation cannot wait out a longer cooldown.
+            if (retryAfterMs > MAX_RETRY_AFTER_MS) err.nonRetryable = true;
+          }
         }
         err.httpStatus = resp.status;
         throw err;
@@ -737,8 +747,12 @@ export async function readCanonicalEnvelopeMeta(canonicalKey) {
         if (PERMANENT_4XX_STATUSES.has(resp.status)) {
           err.nonRetryable = true;
         } else if (resp.status === 429) {
-          const retryAfterMs = parseRetryAfterMs(getResponseHeader(resp.headers, 'Retry-After'));
-          if (retryAfterMs != null) err.retryAfterMs = retryAfterMs;
+          const retryAfterMs = parseRetryAfterUncappedMs(getResponseHeader(resp.headers, 'Retry-After'));
+          if (retryAfterMs != null) {
+            err.retryAfterMs = retryAfterMs;
+            // A bounded Redis operation cannot wait out a longer cooldown.
+            if (retryAfterMs > MAX_RETRY_AFTER_MS) err.nonRetryable = true;
+          }
         }
         throw err;
       }
@@ -863,6 +877,10 @@ function parseRetryAfterUncappedMs(value) {
 }
 
 export async function withRetry(fn, maxRetries = 3, delayMs = 1000) {
+  if (!Number.isInteger(maxRetries) || maxRetries < 0 || maxRetries > 10
+      || !Number.isFinite(delayMs) || delayMs < 0) {
+    throw new RangeError('withRetry requires 0-10 retries and a finite non-negative delay');
+  }
   let lastErr;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -878,8 +896,15 @@ export async function withRetry(fn, maxRetries = 3, delayMs = 1000) {
         // (typically 429 / 503). Take whichever is longer — the upstream
         // hint OR the exponential backoff — so a generous server hint
         // isn't undercut, and a missing/short hint still gets back-off.
-        const baseWait = delayMs * 2 ** attempt;
-        const wait = err?.retryAfterMs ? Math.max(baseWait, err.retryAfterMs) : baseWait;
+        const capMs = 60_000;
+        const ceiling = Math.min(capMs, delayMs * 2 ** attempt * 1.25);
+        // Keep the existing minimum delay below the cap, then spread workers
+        // across the upper 20% of the capped exponential window.
+        const baseWait = Math.round(ceiling * (0.8 + Math.random() * 0.2));
+        const retryAfterMs = Number(err?.retryAfterMs);
+        // Provider cooldowns can exceed the backoff cap; callers with phase
+        // budgets reject hints that cannot fit before starting another attempt.
+        const wait = Number.isFinite(retryAfterMs) ? Math.max(baseWait, retryAfterMs) : baseWait;
         const cause = err.cause ? ` (cause: ${err.cause.message || err.cause.code || err.cause})` : '';
         console.warn(`  Retry ${attempt + 1}/${maxRetries} in ${wait}ms: ${err.message || err}${cause}`);
         // Test-only cap on the idle wait between attempts (WM_SEED_RETRY_DELAY_MS):
@@ -1313,8 +1338,12 @@ export async function extendExistingTtlDetailed(keys, ttlSeconds = 600, options 
         if (PERMANENT_4XX_STATUSES.has(r.status)) {
           err.nonRetryable = true;
         } else if (r.status === 429) {
-          const retryAfterMs = parseRetryAfterMs(getResponseHeader(r.headers, 'Retry-After'));
-          if (retryAfterMs != null) err.retryAfterMs = retryAfterMs;
+          const retryAfterMs = parseRetryAfterUncappedMs(getResponseHeader(r.headers, 'Retry-After'));
+          if (retryAfterMs != null) {
+            err.retryAfterMs = retryAfterMs;
+            // A bounded Redis operation cannot wait out a longer cooldown.
+            if (retryAfterMs > MAX_RETRY_AFTER_MS) err.nonRetryable = true;
+          }
         }
         throw err;
       }
@@ -1469,12 +1498,12 @@ async function httpsProxyFetchJson(url, proxyAuth, proxyAttempt = 0) {
 // `headers` are forwarded to the origin (e.g. an API subscription key); the
 // shared User-Agent is applied unless a caller sets its own.
 export async function httpsProxyFetchRaw(url, proxyAuth, {
-  accept = '*/*', timeoutMs = 20_000, signal, proxyAttempt = 0, headers = {}, onErrorResponse,
+  accept = '*/*', timeoutMs = 20_000, signal, proxyAttempt = 0, headers = {}, onErrorResponse, maxResponseBytes,
 } = {}) {
   const { proxyFetch, parseProxyConfigForAttempt } = createRequire(import.meta.url)('./_proxy-utils.cjs');
   const proxyConfig = parseProxyConfigForAttempt(proxyAuth, proxyAttempt);
   if (!proxyConfig) throw new Error('Invalid proxy auth string');
-  const result = await proxyFetch(url, proxyConfig, { accept, timeoutMs, signal, headers: { 'User-Agent': CHROME_UA, ...headers } });
+  const result = await proxyFetch(url, proxyConfig, { accept, timeoutMs, signal, maxResponseBytes, headers: { 'User-Agent': CHROME_UA, ...headers } });
   if (!result.ok) {
     onErrorResponse?.(result);
     throw Object.assign(new Error(`HTTP ${result.status}`), { status: result.status });
@@ -1765,7 +1794,8 @@ export async function imfSdmxFetchIndicatorWithRelease(indicator, { database = '
       // 429 (rate limit) and 503 (overloaded) typically carry Retry-After;
       // attach so withRetry can honor the upstream hint.
       if (r.status === 429 || r.status === 503) {
-        err.retryAfterMs = parseRetryAfterMs(r.headers.get('retry-after'));
+        err.retryAfterMs = parseRetryAfterUncappedMs(r.headers.get('retry-after'));
+        if (err.retryAfterMs > MAX_RETRY_AFTER_MS) err.nonRetryable = true;
       }
       throw err;
     }
@@ -2292,7 +2322,12 @@ export function finiteObservation(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-export function parseYahooChart(data, symbol) {
+/**
+ * `previousClose` replaces the chart's own. fetchYahooQuoteChart passes the
+ * last completed session's when Yahoo has rolled the chart to a session that
+ * has not traded, where the chart's own equals the price.
+ */
+export function parseYahooChart(data, symbol, { previousClose = null } = {}) {
   const result = data?.chart?.result?.[0];
   const meta = result?.meta;
   if (!meta) return null;
@@ -2303,7 +2338,7 @@ export function parseYahooChart(data, symbol) {
   if (price == null) return null;
   // A zero previous close makes the percentage change infinite, so it is
   // treated as unusable here exactly as the previous `||` chain did.
-  const prevClose = [meta.chartPreviousClose, meta.previousClose]
+  const prevClose = [previousClose, meta.chartPreviousClose, meta.previousClose]
     .map(finiteObservation)
     .find(value => value != null && value !== 0) ?? price;
   const change = prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
@@ -2771,7 +2806,7 @@ export async function runSeed(domain, resource, canonicalKey, fetchFn, opts = {}
   const fetchDeadlineAtMs = Date.now() + fetchDeadlineMs;
   try {
     data = await raceFetchDeadline(
-      withRetry(() => fetchFn({ runStartedAtMs: startMs, fetchDeadlineAtMs })),
+      withRetry(() => fetchFn({ runId, runStartedAtMs: startMs, fetchDeadlineAtMs })),
       fetchDeadlineMs,
       `${domain}:${resource}`,
     );
@@ -2792,6 +2827,17 @@ export async function runSeed(domain, resource, canonicalKey, fetchFn, opts = {}
     const durationMs = Date.now() - startMs;
     const cause = err.cause ? ` (cause: ${err.cause.message || err.cause.code || err.cause})` : '';
     console.error(`  FETCH FAILED: ${err.message || err}${cause}`);
+
+    if (opts.recordInitialFetchFailure === true) {
+      try {
+        const { url, token } = getRedisCredentials();
+        await redisCommand(url, token, ['SET', `seed-meta:${domain}:${resource}`, JSON.stringify({
+          status: 'error', firstFailureAt: startMs, recordCount: 0, runId,
+        }), 'NX']);
+      } catch {
+        console.warn(`  [${domain}:${resource}] initial failure receipt could not be stored`);
+      }
+    }
 
     const preserved = await preserveExistingKeys();
 
@@ -3294,6 +3340,10 @@ export async function runSeed(domain, resource, canonicalKey, fetchFn, opts = {}
         ? afterPublishResult.completionState
         : (contractState || 'LEGACY');
     logSeedResult(domain, recordCount, durationMs, {
+      runId,
+      canonicalKey,
+      fetchedAt: envelopeMeta?.fetchedAt ?? meta?.fetchedAt ?? null,
+      ...(contentAgeOptedIn ? { newestItemAt: contentNewestAt, oldestItemAt: contentOldestAt, maxContentAgeMin } : {}),
       payloadBytes,
       contractMode,
       state: completionState,

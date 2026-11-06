@@ -40,8 +40,78 @@ describe('root dependency cache (#8710)', () => {
     const cache = action.runs.steps.find((step) => step.id === 'node-modules');
     assert.match(cache.uses, /^actions\/cache\/restore@[a-f0-9]{40}$/);
     assert.equal(cache.with.path, 'node_modules');
-    assert.equal(cache.with.key, "node-modules-v2-${{ runner.os }}-${{ runner.arch }}-node24-${{ hashFiles('package-lock.json', 'package.json', '.npmrc', 'vendor/braces/**', 'vendor/stream-json/**') }}");
+    assert.equal(cache.with.key, "node-modules-v3-${{ runner.os }}-${{ runner.arch }}-node24-${{ hashFiles('package-lock.json', '.npmrc', 'vendor/braces/**', 'vendor/stream-json/**', 'vendor/vercel-og/**') }}-${{ steps.install-inputs.outputs.hash }}");
     assert.equal(cache.with['restore-keys'], undefined);
+  });
+
+  // The key hashes only the package.json fields an install reads. Hashing the
+  // whole file made every scripts-only edit a miss in every job: run
+  // 41229529882 reinstalled in 16 jobs for one changed test:e2e command. The
+  // dependency fields stay in the key so a hit cannot mask a manifest that is
+  // out of sync with the lockfile (#8716): that edit still misses, and npm ci
+  // then fails on the mismatch.
+  describe('install-input hash', () => {
+    const hashStep = () => {
+      const steps = readAction().runs.steps;
+      const step = steps.find((s) => s.id === 'install-inputs');
+      assert.ok(step, 'the action must hash the install inputs of package.json');
+      assert.equal(step.shell, 'bash');
+      assert.ok(steps.indexOf(step) < steps.findIndex((s) => s.id === 'node-modules'), 'the hash must exist before the restore reads it');
+      return step;
+    };
+    const hashOf = (manifest: Record<string, unknown>) => {
+      const dir = mkdtempSync(resolve(tmpdir(), 'wm-install-inputs-'));
+      try {
+        const output = resolve(dir, 'github-output');
+        writeFileSync(resolve(dir, 'package.json'), JSON.stringify(manifest, null, 2));
+        writeFileSync(output, '');
+        execFileSync('bash', ['-c', hashStep().run], { cwd: dir, env: { ...process.env, GITHUB_OUTPUT: output } });
+        const match = /^hash=([a-f0-9]{64})$/m.exec(readFileSync(output, 'utf8'));
+        assert.ok(match, 'the step must publish a sha256 hash output');
+        return match[1];
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    };
+    const base = {
+      name: 'fixture',
+      version: '1.0.0',
+      scripts: { postinstall: 'npm run inventory:facts', test: 'node --test' },
+      dependencies: { a: '^1.0.0', b: '^2.0.0' },
+      devDependencies: { c: '^3.0.0' },
+      overrides: { d: '4.0.0' },
+    };
+
+    it('ignores edits that cannot change node_modules', () => {
+      const same = hashOf(base);
+      assert.equal(hashOf({ ...base, scripts: { ...base.scripts, test: 'node --test --shard=1/2', lint: 'biome lint' } }), same);
+      assert.equal(hashOf({ ...base, version: '1.0.1', description: 'changed' }), same);
+      assert.equal(hashOf({ ...base, dependencies: { b: '^2.0.0', a: '^1.0.0' } }), same, 'key order is not an input');
+    });
+
+    it('changes when a dependency field or an install lifecycle script changes', () => {
+      const same = hashOf(base);
+      const variants: Record<string, unknown>[] = [
+        { ...base, dependencies: { ...base.dependencies, a: '^1.1.0' } },
+        { ...base, devDependencies: {} },
+        { ...base, optionalDependencies: { e: '1.0.0' } },
+        { ...base, peerDependencies: { f: '1.0.0' } },
+        { ...base, overrides: { d: '4.0.1' } },
+        { ...base, peerDependenciesMeta: { f: { optional: true } } },
+        { ...base, workspaces: ['packages/*'] },
+        { ...base, bundleDependencies: ['a'] },
+        { ...base, bundledDependencies: ['b'] },
+        // npm ci reads allowScripts to decide which dependency install scripts run.
+        { ...base, allowScripts: { esbuild: false } },
+        { ...base, devEngines: { runtime: { name: 'node', version: '24' } } },
+        // Every event npm ci runs for the root package (npm lib/commands/ci.js).
+        ...['preinstall', 'install', 'postinstall', 'prepublish', 'preprepare', 'prepare', 'postprepare']
+          .map((hook) => ({ ...base, scripts: { ...base.scripts, [hook]: 'node changed.mjs' } })),
+      ];
+      const hashes = variants.map(hashOf);
+      for (const hash of hashes) assert.notEqual(hash, same);
+      assert.equal(new Set(hashes).size, hashes.length);
+    });
   });
 
   it('saves the clean install immediately on a successful miss, before consumers run', () => {
@@ -96,9 +166,13 @@ describe('root dependency cache (#8710)', () => {
   // and use the action's miss-only fallback. Jobs with another npm install
   // (blog-site, pro-test, including through build:pro) keep setup-node's
   // cache for it and turn the action's off, so a miss restores it once.
+  // unit-shards and unit-built-output restore their nested installed trees
+  // instead (see the 'unit-shard nested dependency cache' and
+  // 'unit-built-output nested dependency cache' blocks), so they are in the
+  // first group.
   for (const [workflowText, jobIds, setupCache] of [
-    [testWorkflow, ['docs-stats', 'sidecar', 'convex-tests', 'dom-tests', 'variant-smoke-shards', 'resilience-validation-smoke'], undefined],
-    [testWorkflow, ['unit-shards', 'unit-built-output', 'variant-smoke-pro-webmcp'], 'npm'],
+    [testWorkflow, ['docs-stats', 'sidecar', 'convex-tests', 'dom-tests', 'variant-smoke-shards', 'resilience-validation-smoke', 'unit-shards', 'unit-built-output'], undefined],
+    [testWorkflow, ['variant-smoke-pro-webmcp'], 'npm'],
     [read(resolve(workflowsDir, 'perf-style-layout-budget.yml')), ['measure'], undefined],
     [lintCodeWorkflow, ['biome', 'markdown'], undefined],
     [read(resolve(workflowsDir, 'typecheck.yml')), ['typecheck'], 'npm'],
@@ -122,25 +196,192 @@ describe('root dependency cache (#8710)', () => {
   }
 });
 
-describe('shipped desktop Node coverage (#5909)', () => {
+describe('unit-shard nested dependency cache', () => {
+  // Each shard installed blog-site/ and scripts/ from setup-node's npm
+  // download cache (4-9s to restore four lockfiles' downloads), then ran both
+  // installs (7-10s). The installed trees are restored instead, keyed on
+  // every file that decides their contents, and installed only on a miss.
+  const steps = YAML.parse(testWorkflow).jobs['unit-shards'].steps
+    .flatMap((step: { parallel?: unknown[] }) => step.parallel ?? [step]);
+  const restore = steps.find((step) => step.id === 'nested-deps');
+  const blogInstall = steps.find((step) => step.run === 'npm run ci:blog-site');
+  const scriptsInstall = steps.find((step) => step.run === 'npm ci --prefix scripts --ignore-scripts --no-audit --no-fund');
+  const save = steps.find((step) => step.uses?.startsWith('actions/cache/save@') && step.with?.key === '${{ steps.nested-deps.outputs.cache-primary-key }}');
+  const tests = steps.find((step) => step.run?.includes('npm run test:data'));
+  const miss = "steps.nested-deps.outputs.cache-hit != 'true'";
+
+  it('restores both installed trees before the tests', () => {
+    assert.ok(restore?.uses?.startsWith('actions/cache/restore@'));
+    assert.deepEqual(restore.with.path.trim().split('\n'), ['blog-site/node_modules', 'scripts/node_modules']);
+    assert.ok(steps.indexOf(restore) < steps.indexOf(tests));
+  });
+
+  it('keys the trees on every install input', () => {
+    const key = restore.with.key;
+    assert.match(key, /^nested-deps-v1-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-node24-/);
+    for (const input of [
+      'blog-site/package.json',
+      'blog-site/package-lock.json',
+      'blog-site/.npmrc',
+      'scripts/package.json',
+      'scripts/package-lock.json',
+      'scripts/.npmrc',
+      '.npmrc',
+      'vendor/http-cache-semantics/**',
+    ]) {
+      assert.ok(key.includes(`'${input}'`), `nested-deps key must hash ${input}`);
+    }
+  });
+
+  it('installs and saves only on a miss, after the restore', () => {
+    for (const step of [blogInstall, scriptsInstall, save]) {
+      assert.ok(step, 'nested install and save steps must exist');
+      assert.equal(step.if, miss);
+      assert.ok(steps.indexOf(restore) < steps.indexOf(step));
+    }
+    assert.ok(steps.indexOf(blogInstall) < steps.indexOf(save));
+    assert.ok(steps.indexOf(scriptsInstall) < steps.indexOf(save));
+    assert.equal(save.with.path, restore.with.path);
+  });
+
+  // A restored tree skips both installs, so the tests must still notice a
+  // tree that lacks what they need, and a changed install command must
+  // change the key.
+  it('keeps the scripts/ presence guard on the test step', () => {
+    assert.equal(tests.env?.WM_EXPECT_SCRIPTS_DEPS, '1');
+  });
+
+  it('versions the key with the blog-site install command', () => {
+    const scripts = JSON.parse(read(resolve(root, 'package.json'))).scripts;
+    assert.equal(
+      scripts['ci:blog-site'],
+      'cross-env npm_config_allow_scripts= npm --prefix blog-site ci --prefer-offline',
+      'ci:blog-site changed: bump nested-deps-vN in the unit-shards cache key, then update this string',
+    );
+    assert.match(restore.with.key, /^nested-deps-v1-/);
+  });
+});
+
+describe('unit-built-output nested dependency cache', () => {
+  // setup-node restored the npm download cache for three lockfiles (6-9s,
+  // mostly the root's), then blog-site and pro-test installed from it (3s and
+  // 12s). The installed trees are restored instead and installed only on a
+  // miss, like the unit shards' nested-deps cache.
+  const steps = YAML.parse(testWorkflow).jobs['unit-built-output'].steps
+    .flatMap((step: { parallel?: unknown[] }) => step.parallel ?? [step]);
+  const restore = steps.find((step) => step.id === 'built-output-deps');
+  const blogInstall = steps.find((step) => step.run === 'npm run ci:blog-site');
+  const proInstall = steps.find((step) => step.run === 'npm --prefix pro-test ci --prefer-offline');
+  const save = steps.find((step) => step.uses?.startsWith('actions/cache/save@') && step.with?.key === '${{ steps.built-output-deps.outputs.cache-primary-key }}');
+  const blogBuild = steps.find((step) => step.run?.includes('npm --prefix blog-site run build'));
+  const proBuild = steps.find((step) => step.run === 'npm --prefix pro-test run build');
+  const miss = "steps.built-output-deps.outputs.cache-hit != 'true'";
+
+  it('restores both installed trees before the builds that read them', () => {
+    assert.ok(restore?.uses?.startsWith('actions/cache/restore@'));
+    assert.deepEqual(restore.with.path.trim().split('\n'), ['blog-site/node_modules', 'pro-test/node_modules']);
+    assert.ok(blogBuild && proBuild, 'the blog-site and /pro builds must exist');
+    assert.ok(steps.indexOf(save) < steps.indexOf(blogBuild));
+    assert.ok(steps.indexOf(save) < steps.indexOf(proBuild));
+  });
+
+  it('keys the trees on every install input', () => {
+    const key = restore.with.key;
+    assert.match(key, /^built-output-deps-v1-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-node24-/);
+    for (const input of [
+      'blog-site/package.json',
+      'blog-site/package-lock.json',
+      'blog-site/.npmrc',
+      'pro-test/package.json',
+      'pro-test/package-lock.json',
+      'pro-test/.npmrc',
+      '.npmrc',
+      'vendor/**',
+    ]) {
+      assert.ok(key.includes(`'${input}'`), `built-output-deps key must hash ${input}`);
+    }
+  });
+
+  it('installs and saves only on a miss, after the restore and before the save', () => {
+    for (const step of [blogInstall, proInstall, save]) {
+      assert.ok(step, 'nested install and save steps must exist');
+      assert.equal(step.if, miss);
+      assert.ok(steps.indexOf(restore) < steps.indexOf(step));
+    }
+    assert.ok(steps.indexOf(blogInstall) < steps.indexOf(save));
+    assert.ok(steps.indexOf(proInstall) < steps.indexOf(save));
+    assert.equal(save.with.path, restore.with.path);
+    // A hit must skip every nested install, or the restore buys nothing.
+    assert.equal(steps.some((step) => /ci:blog-site|pro-test ci/.test(step.run ?? '') && step.if !== miss), false,
+      'no unconditional nested install may remain');
+  });
+
+  it('runs the same install and build build:pro runs, with install scripts off', () => {
+    const scripts = JSON.parse(read(resolve(root, 'package.json'))).scripts;
+    assert.equal(
+      scripts['build:pro'],
+      'cross-env npm_config_allow_scripts= npm --prefix pro-test ci --prefer-offline && npm --prefix pro-test run build',
+      'build:pro changed: mirror it in unit-built-output\'s /pro install and build steps, bump built-output-deps-vN, then update this string',
+    );
+    assert.equal(proInstall.env?.npm_config_allow_scripts, '');
+    assert.equal(
+      scripts['ci:blog-site'],
+      'cross-env npm_config_allow_scripts= npm --prefix blog-site ci --prefer-offline',
+      'ci:blog-site changed: bump built-output-deps-vN in the unit-built-output cache key, then update this string',
+    );
+  });
+});
+
+describe('shipped desktop Node coverage (#5909, #9906)', () => {
   const steps = YAML.parse(testWorkflow).jobs.sidecar.steps;
+  const cache = steps.find((step) => step.name === 'Restore the shipped Node.js runtime');
   const download = steps.find((step) => step.name === 'Download the shipped Node.js runtime');
+  const build = steps.find((step) => step.name === 'Build the sidecar handler bundles');
   const shippedTest = steps.find((step) => step.name === 'Test sidecar with the shipped Node.js runtime');
 
   it('tests the shared downloader output after the repository Node suite', () => {
-    assert.ok(download);
-    assert.ok(shippedTest);
+    assert.ok(cache && download && build && shippedTest);
     const repoSuite = steps.findIndex((step) => step.run === 'npm run test:sidecar');
     assert.ok(repoSuite >= 0);
-    assert.ok(steps.indexOf(download) > repoSuite);
+    assert.ok(steps.indexOf(cache) > repoSuite);
+    assert.ok(steps.indexOf(download) > steps.indexOf(cache));
     assert.ok(steps.indexOf(shippedTest) > steps.indexOf(download));
-    assert.equal(download.run, 'bash scripts/download-node.sh --target x86_64-unknown-linux-gnu');
+    assert.ok(steps.indexOf(shippedTest) > steps.indexOf(build));
+    assert.match(download.run, /bash scripts\/download-node\.sh --target x86_64-unknown-linux-gnu && exit 0/);
     assert.equal(download.env?.NODE_VERSION, undefined, 'CI must use the same pin as the release downloader');
-    for (const step of [download, shippedTest]) {
-      assert.equal(step.if, undefined);
-      assert.equal(step['continue-on-error'], undefined);
-    }
+    for (const step of [download, build, shippedTest]) assert.equal(step['continue-on-error'], undefined);
+    for (const step of [build, shippedTest]) assert.equal(step.if, undefined);
   });
+
+  // A hit skips the downloader, so the key must change whenever the pinned
+  // version or the verification in the script does.
+  it('caches only the verified runtime, keyed on the downloader script', () => {
+    assert.match(cache.uses, /^actions\/cache@[a-f0-9]{40}$/);
+    assert.equal(cache.with.path, 'src-tauri/sidecar/node');
+    assert.equal(cache.with.key, "shipped-node-x86_64-unknown-linux-gnu-${{ hashFiles('scripts/download-node.sh') }}");
+    assert.equal(cache.with['restore-keys'], undefined);
+    assert.equal(download.if, `steps.${cache.id}.outputs.cache-hit != 'true'`);
+  });
+
+  for (const [failures, status] of [[2, 0], [3, 1]]) {
+    it(`retries the download: ${failures} failures exit ${status}`, () => {
+      const dir = mkdtempSync(resolve(tmpdir(), 'wm-shipped-node-download-'));
+      try {
+        mkdirSync(resolve(dir, 'scripts'));
+        mkdirSync(resolve(dir, 'tools'));
+        writeFileSync(resolve(dir, 'scripts/download-node.sh'),
+          `n=$(cat count 2>/dev/null || echo 0); n=$((n + 1)); echo $n > count\n[ "$n" -gt ${failures} ]\n`);
+        writeFileSync(resolve(dir, 'tools/sleep'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+        const result = spawnSync('bash', ['-e', '-c', download.run], {
+          cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: `${resolve(dir, 'tools')}:${process.env.PATH}` },
+        });
+        assert.equal(result.status, status, result.stderr);
+        assert.equal(readFileSync(resolve(dir, 'count'), 'utf8').trim(), String(Math.min(failures + 1, 3)));
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  }
 
   for (const exitCode of [0, 37]) {
     it(`uses the bundled binary and preserves suite exit ${exitCode}`, () => {
@@ -151,13 +392,16 @@ describe('shipped desktop Node coverage (#5909)', () => {
         const toolsDir = resolve(dir, 'tools');
         mkdirSync(bundledDir, { recursive: true });
         mkdirSync(toolsDir);
-        writeFileSync(resolve(bundledDir, 'node'), '#!/bin/sh\necho shipped-node\n', { mode: 0o755 });
+        writeFileSync(resolve(bundledDir, 'node'), '#!/bin/sh\necho shipped-node "$@"\n', { mode: 0o755 });
         writeFileSync(resolve(toolsDir, 'npm'), `#!/bin/sh\n[ "$*" = 'run test:sidecar' ] || exit 99\nnode\nexit ${exitCode}\n`, { mode: 0o755 });
         const result = spawnSync('bash', ['-e', '-c', shippedTest.run], {
           cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: `${toolsDir}:${process.env.PATH}` },
         });
         assert.equal(result.status, exitCode, result.stderr);
-        assert.equal(result.stdout, 'shipped-node\nshipped-node\n');
+        // The shipped-route check runs on the bundled binary, and only after the suite passed.
+        const lines = ['shipped-node --version', 'shipped-node'];
+        if (exitCode === 0) lines.push('shipped-node scripts/check-sidecar-shipped-routes.mjs');
+        assert.equal(result.stdout, `${lines.join('\n')}\n`);
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -242,6 +486,21 @@ const REQUIRED_CI_SMOKE_SPECS = [
   'e2e/a11y-axe-scan.spec.ts',
   'e2e/map-overlay-marker-budget.spec.ts',
   'e2e/mcp-market-built.spec.ts',
+  'e2e/live-panel-layout-8276.spec.ts',
+  'e2e/panel-grid-no-overlap.spec.ts',
+  'e2e/panel-table-overflow.spec.ts',
+  'e2e/etf-panel-overflow.spec.ts',
+  'e2e/panel-header-fits.spec.ts',
+  'e2e/procurement-filters-fit.spec.ts',
+  'e2e/news-source-row-fits.spec.ts',
+  'e2e/progress-chart-fits.spec.ts',
+  'e2e/energy-table-values-whole.spec.ts',
+  'e2e/panel-text-unclipped.spec.ts',
+  'e2e/regional-intelligence-region-select.spec.ts',
+  'e2e/settings-tabs-all-visible.spec.ts',
+  'e2e/panel-grid-column-clamp.spec.ts',
+  'e2e/narrow-panel-overflow.spec.ts',
+  'e2e/hormuz-chart-width.spec.ts',
 ] as const;
 
 const REQUIRED_TEST_JOBS = [
@@ -1194,6 +1453,16 @@ describe('CI workflow coverage', () => {
     assert.equal(save.if, download.if);
   });
 
+  it('requires real Redis before the consumer-prices publisher regressions', () => {
+    const steps = YAML.parse(testWorkflow).jobs['consumer-prices'].steps;
+    const installIndex = steps.findIndex((step: { uses?: string }) => step.uses === './.github/actions/install-redis');
+    const testIndex = steps.findIndex((step: { run?: string }) => step.run === 'npm test --prefix consumer-prices-core');
+    assert.ok(installIndex >= 0 && installIndex < testIndex, 'consumer-prices must install Redis before its tests');
+    assert.equal(steps[installIndex].if, undefined, 'Redis must be installed on every consumer-prices run');
+    assert.equal(steps[installIndex]['continue-on-error'], undefined, 'Redis installation failure must fail CI');
+    assert.equal(steps[testIndex]['continue-on-error'], undefined, 'publisher regression failure must fail CI');
+  });
+
   it('installs the locale font subset from a package cache in every browser job', () => {
     const action = YAML.parse(read(resolve(root, '.github/actions/install-browser-fonts/action.yml')));
     const steps = action.runs.steps;
@@ -1555,9 +1824,21 @@ describe('CI workflow coverage', () => {
     const evaluate = direct.steps.find((step: { run?: string }) => step.run === 'bash -e .github/scripts/deploy-gate.sh evaluate');
     assert.equal(evaluate.env.SHA, '${{ matrix.sha }}');
     assert.equal(evaluate.env.CHECK_ATTEMPTS, 2, 'retain the stale-read retry');
-    const checkout = direct.steps.find((step: { uses?: string }) => step.uses?.startsWith('actions/checkout@'));
-    assert.equal(checkout.with['fetch-depth'], 0, 'base drift requires the full commit graph');
-    assert.equal(checkout.with.filter, 'blob:none');
+    assert.equal(
+      evaluate.env.TRIGGER_RUN_ID,
+      '${{ github.event.workflow_run.id }}',
+      'a stale listing of the run that fired this event must not skip the last re-poll',
+    );
+    // base_drift unshallows on demand, so both evaluators check out one commit
+    // and only the script; a full-history checkout on every event cost a
+    // median 11s (p90 62s) of runner time for a graph few evaluations read.
+    for (const job of [direct, jobs.evaluate]) {
+      const checkout = job.steps.find((step: { uses?: string }) => step.uses?.startsWith('actions/checkout@'));
+      assert.equal(checkout.with['fetch-depth'], undefined);
+      assert.equal(checkout.with.filter, 'blob:none');
+      assert.equal(checkout.with['sparse-checkout'], '.github/scripts');
+    }
+    assert.match(deployGateScript, /--is-shallow-repository\)" = "true" \]; then\n\s+deepen=\(--unshallow\)/);
 
     for (const event of ['workflow_run', 'schedule', 'workflow_dispatch']) {
       const completion = event === 'workflow_run';
@@ -1618,6 +1899,15 @@ describe('CI workflow coverage', () => {
     const download = jobs.recover?.steps?.find((step) => step.uses?.startsWith('actions/download-artifact@'));
     assert.equal(download?.with?.pattern, 'deploy-gate-invalidate-${{ github.run_attempt }}-*');
     assert.notEqual(download?.with?.['merge-multiple'], true, 'per-SHA result files must not overwrite one another');
+  });
+
+  it('names exactly the triggering workflows as the ones whose runs skip the stale-read wait', () => {
+    // An evaluation skips its 60s re-poll while a gated run for the head is
+    // unfinished, because that run's completion event evaluates again. A name
+    // missing here only keeps a wait; an extra name could skip the wait on the
+    // head's last event, which is #5479.
+    const workflow = YAML.parse(deployGateWorkflow);
+    assert.deepEqual(workflow.env.GATED_WORKFLOWS.split(','), workflow.on.workflow_run.workflows);
   });
 
   it('treats sidecar changes as code for PR smoke gating', () => {
@@ -3030,21 +3320,22 @@ describe('variant-smoke-pro-webmcp runs the /pro gates and the WebMCP smoke on s
     assert.equal(setup?.with['cache-dependency-path'], 'pro-test/package-lock.json');
   });
 
-  it('runs the four /pro browser gates in one Playwright run', () => {
+  it('runs the /pro browser gates in one Playwright run', () => {
     // Each Playwright run starts the Vite dev server and Chrome (~3.5s), and
-    // the four gates ran one after another.
+    // the gates used to run one after another.
     const specs = [
       'e2e/pro-critical-css-cls.spec.ts',
       'e2e/pro-mobile-overflow.spec.ts',
       'e2e/pro-hero-animation.spec.ts',
       'e2e/pro-hero-lcp.spec.ts',
+      'e2e/pro-pricing-anchor.spec.ts',
     ];
     const script = packageScripts['test:e2e:pro-gates'] ?? '';
     assert.match(script, /^cross-env VITE_VARIANT=full playwright test /);
     assert.match(script, / --project=chromium$/);
     assert.deepEqual(script.match(/e2e\/[\w-]+\.spec\.ts/g), specs);
     for (const spec of specs) assert.ok(existsSync(resolve(root, spec)), `${spec} must exist`);
-    for (const single of ['pro-cls', 'pro-overflow', 'pro-hero', 'pro-lcp']) {
+    for (const single of ['pro-cls', 'pro-overflow', 'pro-hero', 'pro-lcp', 'pro-anchor']) {
       assert.ok(!flat.some((step) => step.run?.includes(`test:e2e:${single}`)), `test:e2e:${single} must run via test:e2e:pro-gates`);
     }
   });

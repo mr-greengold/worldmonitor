@@ -77,6 +77,7 @@
                 "pages": [
                   "documentation",
                   "getting-started",
+                  "self-hosting",
                   "architecture"
                 ]
               },
@@ -242,6 +243,7 @@
                   "mcp-overview",
                   "webmcp",
                   "mcp-apps",
+                  "gemini-antigravity",
                   "mcp-tools-reference",
                   "mcp-jmespath",
                   "mcp-error-catalog",
@@ -564,6 +566,7 @@
                 "pages": [
                   "zh/documentation",
                   "zh/getting-started",
+                  "zh/self-hosting",
                   "zh/architecture"
                 ]
               },
@@ -726,6 +729,7 @@
                   "zh/mcp-overview",
                   "zh/webmcp",
                   "zh/mcp-apps",
+                  "zh/gemini-antigravity",
                   "zh/mcp-tools-reference",
                   "zh/mcp-jmespath",
                   "zh/mcp-error-catalog",

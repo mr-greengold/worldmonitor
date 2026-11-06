@@ -70,26 +70,46 @@ const run = transport => fetchNaturalEvents({
 });
 
 test('late EONET headers leave progressing body time within the shared budget', { timeout: 10_000 }, async t => {
-  compressTime(t);
-  const body = JSON.stringify({ events: [event] });
-  const timers = [];
-  const server = createServer((_req, res) => {
-    timers.push(setTimeout(() => { res.writeHead(200); res.write(body.slice(0, 20)); }, 12_900));
-    timers.push(setTimeout(() => res.end(body.slice(20)), 16_000));
+  // Drive deadlines without charging real connection setup or CI scheduling
+  // delays against the narrow gap between late headers and their deadline.
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
+  t.mock.method(performance, 'now', () => Date.now());
+  t.mock.method(AbortSignal, 'timeout', ms => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), ms);
+    return controller.signal;
   });
-  server.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  t.after(() => { timers.forEach(clearTimeout); server.closeAllConnections(); server.close(); });
+  const body = new TextEncoder().encode(JSON.stringify({ events: [event] }));
   const transport = fixture((source, attempt, options) => {
     if (source !== 'eonet') return;
     if (attempt === 1) throw dualFamilyFailure();
-    return fetch(`http://127.0.0.1:${server.address().port}`, options);
+    return new Promise((resolve, reject) => {
+      options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+      setTimeout(() => {
+        let bodyTimer;
+        resolve(new Response(new ReadableStream({
+          start(controller) {
+            controller.enqueue(body.slice(0, 20));
+            bodyTimer = setTimeout(() => { controller.enqueue(body.slice(20)); controller.close(); }, 3_100);
+          },
+          cancel() { clearTimeout(bodyTimer); },
+        })));
+      }, 12_900);
+    });
   });
   const started = performance.now();
-  const result = await run(transport);
+  const pending = run(transport);
+  await new Promise(setImmediate);
+  t.mock.timers.tick(0); // Release the test-only zero-delay retry.
+  await new Promise(setImmediate);
+  assert.equal(transport.calls.get('eonet'), 2);
+  t.mock.timers.tick(12_900);
+  await new Promise(setImmediate);
+  t.mock.timers.tick(3_100); // Body completes after the 15 s header deadline.
+  const result = await pending;
   assert.ok(result.events.some(item => item.id === event.id));
   assert.equal(result._eonetFailed, false);
-  assert.ok(performance.now() - started < 20_000);
+  assert.equal(performance.now() - started, 16_000);
   assert.equal(transport.calls.get('eonet'), 2);
 });
 
@@ -455,6 +475,36 @@ test('native fetch covers header and body stalls and exhausts within the source 
   assert.ok(elapsed >= 29_000, `elapsed ${elapsed}ms`);
 });
 
+// GDACS's DR (2.9 MB) and TC (0.8 MB) feeds routinely take 17-32 s end to
+// end, with the first byte alone at 6-11 s. A 15 s cap failed them on healthy
+// days and published naturalEvents as SEED_ERROR (GDACS_TYPE_COVERAGE_INCOMPLETE).
+test('a slow but healthy GDACS feed completes inside its own per-attempt limit', { timeout: 10_000 }, async t => {
+  compressTime(t);
+  let drRequests = 0;
+  const drought = {
+    type: 'Feature', geometry: { type: 'Point', coordinates: [12, 8] },
+    properties: { eventtype: 'DR', eventid: 7, alertlevel: 'Orange', name: 'Drought', fromdate: new Date(NOW).toISOString() },
+  };
+  const server = createServer((req, res) => {
+    drRequests++;
+    setTimeout(() => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.write('{"type":"FeatureCollection",');
+      setTimeout(() => res.end(`"features":${JSON.stringify([drought])}}`), 18_000);
+    }, 11_000);
+  });
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const transport = fixture((source, _attempt, options) => {
+    if (source === 'gdacs:DR') return fetch(`${origin}/dr`, options);
+  });
+  const result = await run(transport);
+  assert.equal(drRequests, 1);
+  assert.deepEqual(naturalEventsAfterPublish(result).freshnessMetaPatch.failedSources ?? [], []);
+});
+
 test('Retry-After is honored and an elapsed deadline prevents a late retry', async t => {
   const originalDelay = process.env.WM_SEED_RETRY_DELAY_MS;
   delete process.env.WM_SEED_RETRY_DELAY_MS;
@@ -554,6 +604,7 @@ test('throwing diagnostic getters preserve bounded failures and the retry limit'
 
 test('failure timing separates each request duration from total elapsed time', async t => {
   useRealRetryDelay(t);
+  t.mock.method(Math, 'random', () => 0);
   let clock = 0;
   const logs = [];
   t.mock.method(performance, 'now', () => clock);
@@ -577,6 +628,7 @@ test('failure timing separates each request duration from total elapsed time', a
 
 test('failure phase timings distinguish late headers from a stalled body and reset on retry', async t => {
   useRealRetryDelay(t);
+  t.mock.method(Math, 'random', () => 0);
   let clock = 0;
   const logs = [];
   t.mock.method(performance, 'now', () => clock);
