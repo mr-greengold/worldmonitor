@@ -934,6 +934,9 @@
           "path": "api/_github-release.js"
         },
         {
+          "path": "scripts/check-review-pr-token.mjs"
+        },
+        {
           "path": "scripts/dispatch-stale-railway-reconcile.mjs"
         },
         {
@@ -1305,6 +1308,9 @@
       "references": [
         {
           "path": "scripts/seed-economic-calendar.mjs"
+        },
+        {
+          "path": "scripts/seed-oecd-lt-rates.mjs"
         },
         {
           "path": "scripts/seed-us-cpi.mjs"
@@ -2140,9 +2146,6 @@
       "references": [
         {
           "path": "shared/news-catalog.json"
-        },
-        {
-          "path": "src/config/live-video-sources.ts"
         }
       ]
     },
@@ -2518,6 +2521,9 @@
       "references": [
         {
           "path": "api/oauth/_client-metadata.js"
+        },
+        {
+          "path": "src/config/mcp-agent-clients.ts"
         }
       ]
     },
@@ -2555,6 +2561,20 @@
         },
         {
           "path": "server/worldmonitor/shipping/v2/webhook-shared.ts"
+        }
+      ]
+    },
+    {
+      "host": "cmr.earthdata.nasa.gov",
+      "provider": "NASA Earthdata CMR",
+      "kind": "structured",
+      "observed": true,
+      "license": "U.S. government public metadata; NASA Earthdata terms apply",
+      "attribution": "NASA Earthdata Common Metadata Repository (CMR); credit the dataset (NSIDC ICESat-2 ATL13 and ATL06).",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "scripts/_reservoir-levels.mjs"
         }
       ]
     },
@@ -2883,6 +2903,20 @@
       "references": [
         {
           "path": "shared/news-catalog.json"
+        }
+      ]
+    },
+    {
+      "host": "cursor.com",
+      "provider": "cursor.com",
+      "kind": "structured",
+      "observed": true,
+      "license": "Excluded: first-party, control-plane, UI, or rendering transport",
+      "attribution": "Excluded from the external-provider count: not an ingested upstream dataset.",
+      "status": "excluded",
+      "references": [
+        {
+          "path": "src/config/mcp-agent-clients.ts"
         }
       ]
     },
@@ -5035,6 +5069,9 @@
           "path": "scripts/generate-airline-codes.mjs"
         },
         {
+          "path": "scripts/mcp-tool-canary.mjs"
+        },
+        {
           "path": "scripts/seed-research.mjs"
         },
         {
@@ -5045,6 +5082,9 @@
         },
         {
           "path": "src/services/analytics.ts"
+        },
+        {
+          "path": "src/services/github-star-prompt-state.ts"
         },
         {
           "path": "src/services/preferences-content.ts"
@@ -5512,6 +5552,20 @@
       "references": [
         {
           "path": "shared/news-catalog.json"
+        }
+      ]
+    },
+    {
+      "host": "id.usembassy.gov",
+      "provider": "id.usembassy.gov",
+      "kind": "structured",
+      "observed": true,
+      "license": "Provider terms for this upstream API/dataset; verify before redistribution",
+      "attribution": "Credit id.usembassy.gov and link to the original upstream API/dataset.",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "scripts/seed-security-advisories.mjs"
         }
       ]
     },
@@ -5993,6 +6047,20 @@
       "references": [
         {
           "path": "shared/news-catalog.json"
+        }
+      ]
+    },
+    {
+      "host": "kh.usembassy.gov",
+      "provider": "kh.usembassy.gov",
+      "kind": "structured",
+      "observed": true,
+      "license": "Provider terms for this upstream API/dataset; verify before redistribution",
+      "attribution": "Credit kh.usembassy.gov and link to the original upstream API/dataset.",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "scripts/seed-security-advisories.mjs"
         }
       ]
     },
@@ -6873,10 +6941,7 @@
       "status": "terms-review",
       "references": [
         {
-          "path": "server/worldmonitor/infrastructure/v1/get-cable-health.ts"
-        },
-        {
-          "path": "server/worldmonitor/maritime/v1/list-navigational-warnings.ts"
+          "path": "server/_shared/nga-broadcast-warnings.ts"
         }
       ]
     },
@@ -6887,6 +6952,20 @@
       "observed": true,
       "license": "Provider terms for this upstream API/dataset; verify before redistribution",
       "attribution": "Credit mx.usembassy.gov and link to the original upstream API/dataset.",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "scripts/seed-security-advisories.mjs"
+        }
+      ]
+    },
+    {
+      "host": "my.usembassy.gov",
+      "provider": "my.usembassy.gov",
+      "kind": "structured",
+      "observed": true,
+      "license": "Provider terms for this upstream API/dataset; verify before redistribution",
+      "attribution": "Credit my.usembassy.gov and link to the original upstream API/dataset.",
       "status": "terms-review",
       "references": [
         {
@@ -7309,6 +7388,23 @@
       "references": [
         {
           "path": "src/config/live-video-sources.ts"
+        }
+      ]
+    },
+    {
+      "host": "nsidc.org",
+      "provider": "NSIDC",
+      "kind": "structured",
+      "observed": true,
+      "license": "U.S. government/public dataset terms; collection-specific license applies",
+      "attribution": "National Snow and Ice Data Center (NSIDC); link to the dataset.",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "scripts/seed-reservoir-levels.mjs"
+        },
+        {
+          "path": "src/components/reservoir-levels-view.ts"
         }
       ]
     },
@@ -7817,6 +7913,20 @@
       "references": [
         {
           "path": "scripts/shared/regional-energy-feeds.json"
+        }
+      ]
+    },
+    {
+      "host": "ph.usembassy.gov",
+      "provider": "ph.usembassy.gov",
+      "kind": "structured",
+      "observed": true,
+      "license": "Provider terms for this upstream API/dataset; verify before redistribution",
+      "attribution": "Credit ph.usembassy.gov and link to the original upstream API/dataset.",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "scripts/seed-security-advisories.mjs"
         }
       ]
     },
@@ -9183,6 +9293,20 @@
       ]
     },
     {
+      "host": "sg.usembassy.gov",
+      "provider": "sg.usembassy.gov",
+      "kind": "structured",
+      "observed": true,
+      "license": "Provider terms for this upstream API/dataset; verify before redistribution",
+      "attribution": "Credit sg.usembassy.gov and link to the original upstream API/dataset.",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "scripts/seed-security-advisories.mjs"
+        }
+      ]
+    },
+    {
       "host": "sh.dataspace.copernicus.eu",
       "provider": "sh.dataspace.copernicus.eu",
       "kind": "structured",
@@ -9304,6 +9428,37 @@
       ]
     },
     {
+      "host": "sliderule.slideruleearth.io",
+      "provider": "SlideRule Earth",
+      "kind": "structured",
+      "observed": true,
+      "license": "Public NASA-funded processing service; output carries the source dataset terms (ICESat-2 ATL13 and ATL06, NSIDC)",
+      "attribution": "Processed with SlideRule Earth (slideruleearth.io); credit NASA ICESat-2 ATL13 and ATL06 (NSIDC).",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "scripts/_reservoir-levels.mjs"
+        }
+      ]
+    },
+    {
+      "host": "slideruleearth.io",
+      "provider": "SlideRule Earth",
+      "kind": "structured",
+      "observed": true,
+      "license": "Public NASA-funded processing service; output carries the source dataset terms (ICESat-2 ATL13 and ATL06, NSIDC)",
+      "attribution": "Processed with SlideRule Earth (slideruleearth.io); credit NASA ICESat-2 ATL13 and ATL06 (NSIDC).",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "scripts/seed-reservoir-levels.mjs"
+        },
+        {
+          "path": "src/components/reservoir-levels-view.ts"
+        }
+      ]
+    },
+    {
       "host": "slidstvo.info",
       "provider": "slidstvo.info",
       "kind": "feed",
@@ -9370,6 +9525,24 @@
       "references": [
         {
           "path": "scripts/lib/food-prices-adapters/statkz.mjs"
+        }
+      ]
+    },
+    {
+      "host": "stat.ripe.net",
+      "provider": "stat.ripe.net",
+      "kind": "structured",
+      "observed": true,
+      "catalogActive": false,
+      "license": "RIPEstat Service Terms section 3.3: commercial reuse and redistribution require prior written RIPE NCC permission. Integration disabled by default until authorized.",
+      "attribution": "RIPEstat / RIPE NCC; routing origins from RIS and ASN holders from WHOIS; optional reverse DNS. Not attacker attribution. See https://www.ripe.net/about-us/legal/ripestat-service-terms-and-conditions/.",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "server/worldmonitor/cyber/v1/get-network-info.ts"
+        },
+        {
+          "path": "src/components/cyber-network-info.ts"
         }
       ]
     },
@@ -10794,6 +10967,20 @@
       ]
     },
     {
+      "host": "vn.usembassy.gov",
+      "provider": "vn.usembassy.gov",
+      "kind": "structured",
+      "observed": true,
+      "license": "Provider terms for this upstream API/dataset; verify before redistribution",
+      "attribution": "Credit vn.usembassy.gov and link to the original upstream API/dataset.",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "scripts/seed-security-advisories.mjs"
+        }
+      ]
+    },
+    {
       "host": "vnexpress.net",
       "provider": "vnexpress.net",
       "kind": "feed",
@@ -10818,6 +11005,20 @@
       "references": [
         {
           "path": "src/config/live-video-sources.ts"
+        }
+      ]
+    },
+    {
+      "host": "vscode.dev",
+      "provider": "vscode.dev",
+      "kind": "structured",
+      "observed": true,
+      "license": "Excluded: first-party, control-plane, UI, or rendering transport",
+      "attribution": "Excluded from the external-provider count: not an ingested upstream dataset.",
+      "status": "excluded",
+      "references": [
+        {
+          "path": "src/config/mcp-agent-clients.ts"
         }
       ]
     },
@@ -11144,6 +11345,9 @@
           "path": "scripts/mcp-proxy-live-smoke.mjs"
         },
         {
+          "path": "scripts/mcp-tool-canary.mjs"
+        },
+        {
           "path": "scripts/measure-mobile-mainthread.mjs"
         },
         {
@@ -11207,7 +11411,7 @@
           "path": "src/bootstrap/web-vitals-utils.ts"
         },
         {
-          "path": "src/components/UnifiedSettings.ts"
+          "path": "src/config/mcp-agent-clients.ts"
         },
         {
           "path": "src/config/web-origin.ts"
@@ -11804,6 +12008,20 @@
       "status": "excluded"
     },
     {
+      "host": "www.bloomberg.com",
+      "provider": "www.bloomberg.com",
+      "kind": "feed",
+      "observed": true,
+      "license": "Excluded: live-video playback transport; channel/provider terms apply separately",
+      "attribution": "Excluded from the external-provider count: presentation-only HLS stream, not an ingested dataset.",
+      "status": "excluded",
+      "references": [
+        {
+          "path": "src/config/live-video-sources.ts"
+        }
+      ]
+    },
+    {
       "host": "www.brasilparalelo.com.br",
       "provider": "www.brasilparalelo.com.br",
       "kind": "feed",
@@ -12346,6 +12564,20 @@
       ]
     },
     {
+      "host": "www.deutschlandfunk.de",
+      "provider": "www.deutschlandfunk.de",
+      "kind": "feed",
+      "observed": true,
+      "license": "Provider terms for this feed publisher; verify before redistribution",
+      "attribution": "Credit www.deutschlandfunk.de and link to the original feed publisher.",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "shared/news-catalog.json"
+        }
+      ]
+    },
+    {
       "host": "www.digi24.ro",
       "provider": "www.digi24.ro",
       "kind": "feed",
@@ -12839,6 +13071,12 @@
       "attribution": "Credit www.gdacs.org and link to the original upstream API/dataset.",
       "status": "terms-review",
       "references": [
+        {
+          "path": "api/mcp/registry/_travel-risk-document.ts"
+        },
+        {
+          "path": "scripts/build-seasonal-hazard-calendar.mjs"
+        },
         {
           "path": "scripts/seed-natural-events.mjs"
         }
@@ -15307,10 +15545,19 @@
           "path": "api/customer-portal.ts"
         },
         {
+          "path": "api/mcp/auth.ts"
+        },
+        {
+          "path": "api/mcp/handler.ts"
+        },
+        {
           "path": "api/mcp/skill-extension/generated.ts"
         },
         {
           "path": "api/mcp/ui/news-dashboard-app.ts"
+        },
+        {
+          "path": "api/mcp/ui/shell.ts"
         },
         {
           "path": "api/not-found.ts"
@@ -15353,6 +15600,9 @@
         },
         {
           "path": "scripts/check-live-video-sources.mjs"
+        },
+        {
+          "path": "scripts/check-population-exposure.mjs"
         },
         {
           "path": "scripts/comparison-shortlist.mjs"
@@ -15418,6 +15668,9 @@
           "path": "server/_shared/deprecation-policy.ts"
         },
         {
+          "path": "server/worldmonitor/cyber/v1/get-network-info.ts"
+        },
+        {
           "path": "server/worldmonitor/intelligence/v1/_country-brief-evidence.ts"
         },
         {
@@ -15431,6 +15684,9 @@
         },
         {
           "path": "src/components/RuntimeConfigPanel.ts"
+        },
+        {
+          "path": "src/config/dashboard-reference-links.ts"
         },
         {
           "path": "src/config/docs-locale-seo.ts"
@@ -15540,6 +15796,20 @@
         },
         {
           "path": "src/services/live-video/session.ts"
+        }
+      ]
+    },
+    {
+      "host": "www.zdfheute.de",
+      "provider": "www.zdfheute.de",
+      "kind": "feed",
+      "observed": true,
+      "license": "Provider terms for this feed publisher; verify before redistribution",
+      "attribution": "Credit www.zdfheute.de and link to the original feed publisher.",
+      "status": "terms-review",
+      "references": [
+        {
+          "path": "shared/news-catalog.json"
         }
       ]
     },

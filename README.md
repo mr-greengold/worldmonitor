@@ -94,6 +94,16 @@ Issues filed against any of the above are triaged from the same backlog — see 
 
 ## Quick Start
 
+**One-line install** (self-host the full stack with Docker — dashboard, Redis, AIS relay, seeded public data):
+
+```bash
+curl -fsSL https://www.worldmonitor.app/install.sh | bash
+```
+
+This clones into `./worldmonitor` (or reuses your checkout), generates the required secrets, starts the stack, and seeds data. Then open [localhost:3000](http://localhost:3000). Options: `--dir`, `--port`, `--no-seed`, `--no-build`, passed after `bash -s --` (see `scripts/install.sh --help`). API keys are optional. Details, production notes, and uninstall: [SELF_HOSTING.md](./SELF_HOSTING.md).
+
+**Local development** (hot-reload Vite server):
+
 Requires Node.js 24, the version pinned in `.nvmrc`. Distribution packages are often older. Debian 12 and Raspberry Pi OS ship Node.js 18 with npm 9.2.0, where `npm install` stops with `Invalid comparator: file:vendor/braces`. Install Node.js 24 with [nvm](https://github.com/nvm-sh/nvm) (`nvm install` inside the checkout reads `.nvmrc`) or from [nodejs.org](https://nodejs.org/en/download).
 
 ```bash
@@ -202,7 +212,7 @@ npm run build:full       # Production build
 
 See [LICENSE](LICENSE) for the full code license and [docs/license.mdx](docs/license.mdx) for a plain-language summary. Commercial licensing is available as an alternative option for teams that need non-AGPL terms.
 
-Copyright (C) 2024-2026 Elie Habib. All rights reserved.
+Copyright (C) 2026 Elie Habib. All rights reserved.
 
 ---
 

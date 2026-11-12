@@ -494,7 +494,8 @@
     "marketBreadth": "Amploarea pieței",
     "climateNews": "Știri despre climă",
     "fx": "Cursuri de schimb valutar",
-    "ukmtoIncidents": "Incidente UKMTO"
+    "ukmtoIncidents": "Incidente UKMTO",
+    "reservoirLevels": "Niveluri strategice ale apei"
   },
   "commands": {
     "prefixes": {
@@ -875,7 +876,7 @@
         "asia": "ASIA",
         "space": "SPAȚIU"
       },
-      "play": "Redă",
+      "play": "Urmărește în direct",
       "previewStatus": "Gata de redare",
       "connecting": "Se conectează…",
       "unverified": "Nu pot confirma că acest flux este live",
@@ -1097,7 +1098,8 @@
       "skipToStart": "Sariți pentru a începe",
       "previous": "Anterior",
       "next": "Următorul",
-      "skipToEnd": "Treci la final"
+      "skipToEnd": "Treci la final",
+      "storageUnavailable": "Redarea nu este disponibilă deoarece acest browser blochează stocarea datelor site-ului. Permiteți datele site-ului pentru acest site pentru a începe salvarea instantaneelor."
     },
     "pizzint": {
       "indexSource": "Indice: World Monitor",
@@ -1208,6 +1210,7 @@
       "emojiKeyNaval": "Active Navale"
     },
     "countryBrief": {
+      "moreActions": "Mai multe acțiuni",
       "shareLink": "Distribuie linkul",
       "shareStory": "Distribuie povestea",
       "printPdf": "Imprimare / PDF",
@@ -1311,7 +1314,8 @@
         "canadaRoads": "Drumuri Canada",
         "canadaAlerts": "Alerte Canada",
         "notamAirspace": "Restricții de spațiu aerian NOTAM",
-        "no2Activity": "Activitate industrială"
+        "no2Activity": "Activitate industrială",
+        "reservoirLevels": "Niveluri ale apei"
       },
       "tooltip": {
         "earthquake": "Cutremur",
@@ -1428,11 +1432,26 @@
           "canadaRoads": "Incidente rutiere oficiale, avertismente, condiții, închideri, lucrări și pericole din jurisdicțiile canadiene acceptate.",
           "canadaAlerts": "Alerte provinciale de siguranță publică de la Alberta Emergency Alert, B.C. Evacuation Orders and Alerts și SaskAlert.",
           "notamAirspace": "Restricții temporare de zbor și spațiu aerian restricționat, de pericol și interzis din NOTAM-urile FAA, în vigoare acum sau începând în următoarele 24 de ore",
-          "no2Activity": "Direcția activității NO2 din Sentinel-5P pentru 167 de țări și 32 de clustere industriale: cea mai recentă fereastră de 56 de zile față de aceleași date din anii anteriori, după o bandă moartă de 10%. Conține date Copernicus Sentinel modificate."
+          "no2Activity": "Direcția activității NO2 din Sentinel-5P pentru 167 de țări și 32 de clustere industriale: cea mai recentă fereastră de 56 de zile față de aceleași date din anii anteriori, după o bandă moartă de 10%. Conține date Copernicus Sentinel modificate.",
+          "reservoirLevels": "Nivelul suprafeței apei în lacuri de acumulare și lacuri strategice, din lidarul satelitar NASA ICESat-2, față de nivelul obișnuit al lunii. NASA publică fiecare trecere la aproximativ două luni după măsurare."
         },
         "notes": {
           "timeAffects": "Afectează: cutremure, vreme, proteste, întreruperi"
         }
+      },
+      "measure": {
+        "title": "Măsoară distanța",
+        "units": "Unități de distanță",
+        "pointA": "Selectează punctul A. Apasă pe hartă sau tastează Enter pe centrul hărții.",
+        "pointB": "Selectează punctul B. Navighează harta și apasă Enter pentru a folosi centrul acesteia.",
+        "geodesic": "Distanță geodezică",
+        "note": "Între coordonatele apăsate; nu este o rută sau separare de active verificată. Escape pentru a ieși.",
+        "cancel": "Anulează selecția",
+        "cancelShort": "Anulează",
+        "resetShort": "Resetează",
+        "exitShort": "Ieși",
+        "reset": "Resetează măsurarea",
+        "exit": "Ieși din măsurare"
       }
     },
     "cii": {
@@ -1484,8 +1503,8 @@
       "badgeAnimDesc": "Animați insigne de actualizare pe anteturile panoului",
       "headlineMemoryLabel": "Memorie titlu",
       "headlineMemoryDesc": "Amintiți-vă titlurile văzute pentru a evidenția povești noi",
-      "streamAlwaysOnLabel": "Redă automat fluxurile live în tabloul de bord",
-      "streamAlwaysOnDesc": "Pornește automat Live News și Live Webcams când sunt vizibile. Lasă dezactivat pentru a încărca video doar după ce dai clic pe Redă.",
+      "streamAlwaysOnLabel": "Redare automată a camerelor web în direct",
+      "streamAlwaysOnDesc": "Începe redarea videoclipurilor cu cameră web live imediat ce acestea apar pe ecran. Lăsați această opțiune dezactivată pentru a le încărca doar când le porniți dvs.",
       "analysisFrameworksLabel": "Cadre de Analiză",
       "analysisFrameworksActivePerPanel": "Activ per panou",
       "analysisFrameworksSkillLibrary": "Bibliotecă de Abilități",
@@ -1528,7 +1547,9 @@
       "briefStoryDetails": "Detalii despre știre ({{count}})",
       "streamIdleStopLabel": "Oprește video live când este inactiv",
       "streamIdleStopDesc": "Oprește Live News și Live Webcams după această perioadă fără activitate și afișează o notificare în panou.",
-      "streamIdleStopNever": "Niciodată"
+      "streamIdleStopNever": "Niciodată",
+      "liveNewsAutoplayLabel": "Redare automată a știrilor live",
+      "liveNewsAutoplayDesc": "Începe redarea videoclipului cu știri live, fără sunet, imediat ce acesta apare pe ecran. Dezactivați această opțiune pentru a încărca videoclipul doar când îl porniți dvs."
     },
     "settings": {
       "exportSettings": "Exportare setări",
@@ -1633,6 +1654,10 @@
       "infoTooltip": "<strong>Evenimente tech</strong> Evenimente tehnologice viitoare și recente: conferințe, lansări de produse, audieri de reglementare și apeluri de rezultate. Agregate din calendare oficiale de evenimente și surse din industrie."
     },
     "techReadiness": {
+      "ranked": "Clasificate",
+      "unranked": "Neclasificate",
+      "coverageRequirement": "Acoperire minimă pentru clasificare",
+      "coverageLabel": "Indicatori disponibili",
       "internetUsers": "Utilizatori de Internet",
       "mobileSubscriptions": "Abonamente mobile",
       "rdSpending": "Cheltuieli de cercetare și dezvoltare",
@@ -1648,10 +1673,18 @@
       "dataPreparing": "Se reîmprospătează datele de tech readiness — vor apărea în scurt timp."
     },
     "populationExposure": {
-      "totalAffected": "Total afectat",
-      "affectedCount": "{{count}} afectat",
-      "radiusKm": "{{km}}km rază",
-      "infoTooltip": "<strong>Estimări ale expunerii populației</strong> Populația estimată în raza de impact a evenimentului. Pe baza datelor WorldPop despre densitatea țării.<ul><li>Conflict: rază de 50 km</li><li>Cutremur: rază de 100 km</li><li>Inundație: rază de 100 km</li><li>Incendiu: rază de 30 km</li></ul>"
+      "estimateWithin": "Aproximativ {{count}} de persoane pe o rază de {{km}} km",
+      "method": "Estimările se bazează pe densitatea medie a populației din țară.",
+      "empty": "Nicio locație de eveniment eligibilă",
+      "infoTooltip": "Sunt afișate evenimentele cu date despre densitatea populației țării. Locațiile evenimentelor UCDP fără informații despre precizie sunt marcate ca așteptând actualizarea. Zonele estimate se pot suprapune. Tulburările necesită o locație precisă; evenimentele UCDP marcate ca imprecise sunt excluse. Un loc raportat de două surse (tulburări și UCDP) apare pe două rânduri.",
+      "eventCount_one": "{{count}} eveniment",
+      "eventCount_few": "{{count}} evenimente",
+      "eventCount_other": "{{count}} de evenimente",
+      "locationPending": "Precizia locației așteaptă actualizarea",
+      "unrestCoverage": "Acoperirea tulburărilor",
+      "ucdpPending": "Acoperirea UCDP așteaptă actualizarea",
+      "coverageShown": "Evenimente afișate: {{shown}} din {{total}}",
+      "coverageLeftOut": "Neafișate: {{imprecise}} fără locație precisă, {{noEstimate}} în țări fără date de densitate, {{otherPlaces}} după primele 10 locuri pe sursă"
     },
     "securityAdvisories": {
       "loading": "Se preiau avizele de călătorie...",
@@ -2087,7 +2120,8 @@
       "channelUrlHint": "Lipiți o adresă URL de canal (youtube.com/channel/UC…) sau o adresă URL de video live",
       "youtubeChannel": "Canal YouTube",
       "insecureStream": "{{name}} folosește un flux nesecurizat (http), pe care browserele îl blochează. Adăugați-l din nou cu o adresă URL de flux securizată (https)",
-      "httpsStreamHint": "Browserele blochează fluxurile nesecurizate (http). Lipiți o adresă URL de flux securizată (https)"
+      "httpsStreamHint": "Browserele blochează fluxurile nesecurizate (http). Lipiți o adresă URL de flux securizată (https)",
+      "tapToPlay": "Apasă pentru redare"
     },
     "map": {
       "showMap": "Arată harta",
@@ -2366,7 +2400,15 @@
       "noData": "Datele energetice temporar indisponibile - va reîncerca",
       "liveTape": "Bandă Live",
       "liveTapeSource": "Cote de piață",
-      "infoTooltip": "<strong>Complexul energetic</strong> Semnale energetice fizice și tranzacționabile într-un singur loc:<ul><li><strong>Metrice US Energy Information Administration</strong>: WTI, Brent, producție SUA și stocuri</li><li><strong>Bandă live</strong>: Prețuri energetice tranzacționabile precum crude și gaze naturale</li><li><strong>Scop</strong>: Separarea stresului energetic fizic de panouri macroeconomice și de mărfuri mai largi</li></ul>"
+      "infoTooltip": "<strong>Complexul energetic</strong> Semnale energetice fizice și tranzacționabile într-un singur loc:<ul><li><strong>Metrice US Energy Information Administration</strong>: WTI, Brent, producție SUA și stocuri</li><li><strong>Bandă live</strong>: Prețuri energetice tranzacționabile precum crude și gaze naturale</li><li><strong>Scop</strong>: Separarea stresului energetic fizic de panouri macroeconomice și de mărfuri mai largi</li></ul>",
+      "marketTape": "Cotații de piață",
+      "futures": "Contracte futures",
+      "dailySpot": "Preț spot zilnic",
+      "eiaWeeklySpot": "Preț spot EIA · medie săptămânală",
+      "weekEnding": "Săptămâna încheiată la {{date}}",
+      "unknownPriceDate": "Ora observației nu este disponibilă",
+      "unknownQuoteSource": "Sursa cotației nu este disponibilă",
+      "stalePrice": "Neactualizat"
     },
     "consumerPrices": {
       "tabs": {
@@ -2566,8 +2608,8 @@
     },
     "proBanner": {
       "badge": "PRO",
-      "headline": "Pro este lansat",
-      "tagline": "Mai mult semnal, mai puțin zgomot. Mai multe rapoarte AI. Un cercetător geopolitic și de capitaluri proprii special pentru tine.",
+      "headline": "Rapoarte zilnice AI prin email sau Slack",
+      "tagline": "plus WM Analyst, reguli de alertă și MCP pentru Claude",
       "cta": "Upgrade la Pro →",
       "dismiss": "Închide"
     },
@@ -2692,7 +2734,7 @@
     },
     "sanctionsPressure": {
       "title": "Sancțiuni și Desemnări",
-      "infoTooltip": "Office of Foreign Assets Control Specially Designated Nationals și Consolidated Lists plus desemnări Global Affairs Canada SEMA/JVCFOA. Arată care țări se confruntă cu cea mai mare presiune de desemnare, ce programe o conduc și ce a fost nou adăugat de la ultima actualizare.",
+      "infoTooltip": "Listele OFAC SDN și consolidate, plus desemnările SEMA/JVCFOA ale Canadei. Rândurile țărilor folosesc asocieri directe. Pavilioanele navelor și înmatriculările aeronavelor sunt numărate separat în registre; zero active pentru o țară nu înseamnă absența activelor sancționate.",
       "loading": "Se încarcă datele sancțiunilor...",
       "unavailable": "Datele sancțiunilor nu sunt disponibile.",
       "summary": {
@@ -2704,7 +2746,9 @@
       "sections": {
         "countries": "Țări sancționate",
         "entries": "Desemnări recente",
-        "programs": "Programe"
+        "programs": "Programe",
+        "flagRegistries": "Registre de pavilion ale navelor și de înmatriculare a aeronavelor",
+        "regulationTargets": "Țări vizate de reglementările SEMA"
       },
       "empty": {
         "countries": "Nicio atribuire de țară disponibilă.",
@@ -2728,7 +2772,8 @@
         "program": "Program",
         "undated": "fără dată"
       },
-      "designations_few": "{{count}} desemnări"
+      "designations_few": "{{count}} desemnări",
+      "targetExplanation": "Țările vizate de reglementări nu constituie dovezi privind naționalitatea sau adresa. Sunt excluse din scorurile de risc ale țărilor și din sinteze."
     },
     "radiationWatch": {
       "title": "Monitorizare Radiații",
@@ -3113,6 +3158,55 @@
           "placeholder": "Opțional"
         }
       }
+    },
+    "githubStarPrompt": {
+      "title": "Îți place World Monitor?",
+      "body": "O stea pe GitHub ajută alte persoane să o găsească.",
+      "star": "Adaugă stea pe GitHub",
+      "dismiss": "Închide și nu mai întreba"
+    },
+    "reservoirLevels": {
+      "note": "Nivelul suprafeței apei din lidarul satelitar NASA ICESat-2. NASA publică fiecare trecere la aproximativ două luni după măsurare, deci aici se urmăresc schimbări pe parcursul săptămânilor și anotimpurilor, nu al zilelor. Doar nivel, nu volum.",
+      "source": "Sursă:",
+      "processedWith": "procesat cu",
+      "empty": "Încă nu există citiri",
+      "filterEmpty": "Niciun corp de apă nu corespunde acestui filtru",
+      "unavailable": "Datele despre nivelul apei nu sunt disponibile acum",
+      "filterLabel": "Filtrează corpurile de apă",
+      "filter": {
+        "all": "Toate",
+        "attention": "Necesită atenție",
+        "transboundary": "Transfrontaliere"
+      },
+      "status": {
+        "record_low": "Minim record",
+        "record_high": "Maxim record",
+        "falling_fast": "Scădere rapidă",
+        "rising_fast": "Creștere rapidă",
+        "low": "Scăzut pentru sezon",
+        "high": "Ridicat pentru sezon",
+        "normal": "Obișnuit",
+        "insufficient_history": "Istoric insuficient",
+        "no_recent_data": "Nicio trecere recentă",
+        "lowInRange": "Scăzut în intervalul său",
+        "highInRange": "Ridicat în intervalul său"
+      },
+      "vsUsual": "{{value}} față de obișnuit în {{month}}",
+      "in12Months": "{{value}} în 12 luni",
+      "noComparison": "Încă nicio comparație",
+      "measured": "măsurat pe {{date}} ({{age}})",
+      "noPass": "Încă nicio trecere utilizabilă",
+      "popup": {
+        "level": "Nivel",
+        "levelValue": "{{value}} deasupra nivelului mării (EGM2008)",
+        "anomaly": "Față de obișnuit în {{month}}",
+        "anomalyPlain": "Față de obișnuitul lunii",
+        "changePrev": "De la trecerea anterioară",
+        "change90": "În 90 de zile",
+        "change365": "În 12 luni",
+        "measured": "Măsurat",
+        "sparkline": "Nivelul apei în 36 de luni"
+      }
     }
   },
   "popups": {
@@ -3204,7 +3298,44 @@
       "airborne": "În zbor"
     },
     "cyberThreat": {
-      "title": "AMENINȚARE CYBER"
+      "title": "AMENINȚARE CYBER",
+      "evidence": "Dovezi din feed-ul de amenințări",
+      "firstSeen": "Prima apariție",
+      "explanations": {
+        "c2_server": "Feed-ul raportează un server de comandă și control folosit pentru a trimite instrucțiuni malware-ului.",
+        "malware_host": "Feed-ul raportează o adresă folosită pentru găzduirea malware-ului.",
+        "phishing": "Feed-ul raportează un indicator asociat cu phishing-ul.",
+        "malicious_url": "Feed-ul raportează un URL asociat cu activitate rău intenționată."
+      },
+      "downloadTag": "malware_download: sursa raportează o locație de descărcare malware.",
+      "familyNote": "Eticheta familiei de malware provine din feed-ul de amenințări. Nu identifică o persoană sau o organizație.",
+      "approximateLocation": "Locația mapată este context aproximativ derivat din IP, nu o locație fizică verificată a gazdei.",
+      "network": {
+        "title": "Informații de rețea",
+        "privacy": "Extindeți pentru a solicita date de rețea pasive din RIPEstat. Indicatorul IP este partajat cu acel furnizor.",
+        "disclaimer": "Înregistrarea rețelei și rutarea nu identifică atacatorul și nu fac furnizorul responsabil pentru activitate.",
+        "loading": "Se încarcă informații de rețea…",
+        "unknown": "Indisponibil",
+        "disabled": "Căutarea în rețea nu este activată.",
+        "invalid": "Căutarea în rețea necesită o adresă IP publică.",
+        "unavailable": "Căutarea în rețea a eșuat. Închideți și redeschideți fereastra pentru a încerca din nou mai târziu.",
+        "rateLimited": "Căutarea în rețea este temporar limitată. Încercați din nou mai târziu.",
+        "noData": "Furnizorul nu a returnat informații de rețea pentru acest IP.",
+        "partial": "Unele informații de rețea nu au putut fi recuperate.",
+        "ip": "IP",
+        "asn": "ASN de origine",
+        "operator": "Deținătorul ASN raportat / operator de rețea",
+        "prefix": "Prefix de rutare raportat",
+        "hostname": "Nume gazdă DNS invers (rDNS)",
+        "lookupAt": "Ora căutării în rețea",
+        "routingAt": "Ora datelor de rutare",
+        "broaderPrefix": "Furnizorul a potrivit un prefix de rutare mai larg. Acesta nu este un înregistrament exact de alocare IP.",
+        "rdnsNote": "rDNS este o etichetă DNS, nu o dovadă de proprietate. Organizația înregistrată și locația precisă nu sunt furnizate de această căutare.",
+        "copy": "Copiați",
+        "copied": "Copiat.",
+        "copyFailed": "Copierea a eșuat. Selectați textul pentru a-l copia."
+      },
+      "firstSeenNote": "Aceasta este cea mai veche dată indicator disponibilă din feed-uri sau observații World Monitor; poate diferi de data sursei listate."
     },
     "nuclear": {
       "types": {
@@ -3374,6 +3505,28 @@
       "readReport": "Citiți raportul complet"
     },
     "datacenter": {
+      "details": {
+        "more": "Mai multe detalii",
+        "owner": "Proprietar / furnizor al clusterului (set de date)",
+        "power": "Valoarea puterii din setul de date",
+        "powerCaveat": "Capacitatea de putere poate fi raportată sau estimată. Nu este o măsurare a consumului actual de energie electrică.",
+        "powerBasis": "Baza valorii puterii",
+        "reported": "Raportată",
+        "estimated": "Estimată",
+        "notAvailable": "Indisponibil",
+        "location": "Precizia locației",
+        "locationUnknown": "Punct neverificat pe hartă; nu folosiți ca adresă exactă a instalației.",
+        "site": "Amplasament (verificat prin sursă)",
+        "city": "Doar oraș",
+        "region": "Doar regiune",
+        "country": "Doar țară",
+        "dataset": "Setul de date despre clustere GPU Epoch AI",
+        "evidence": "Sursă justificativă",
+        "sourceDate": "Data publicării sursei",
+        "metadataReviewedAt": "Metadate verificate",
+        "firstOperationalDate": "Data primei puneri în funcțiune (set de date)",
+        "freshness": "Instantaneu salvat al setului de date. Starea și specificațiile actuale se pot fi schimbat."
+      },
       "status": {
         "existing": "OPERAȚIONAL",
         "planned": "PLANIFICAT",
@@ -3524,7 +3677,8 @@
       "vesselsCount": "{{count}} NAVE",
       "vessels": "NAVE",
       "trackedVessels": "NAVE ȘENILE",
-      "showLess": "Afișează mai puțin"
+      "showLess": "Afișează mai puțin",
+      "backToGroup": "Înapoi la grup"
     },
     "naturalEvent": {
       "closed": "ÎNCHIS",
@@ -4374,6 +4528,7 @@
   "auth": {
     "signIn": "Conectare",
     "createAccount": "Creare cont",
+    "freeReason": "Gratuit: salvează aspectul, urmărește țări, alerte",
     "settings": "Setări",
     "passkeyOffer": {}
   },
@@ -4418,7 +4573,17 @@
     "renameHint": "{{name}} — dublu clic pentru redenumire",
     "deleteTab": "Șterge fila",
     "deleteTabAria": "Șterge fila {{name}}",
-    "tabNameAria": "Numele filei"
+    "tabNameAria": "Numele filei",
+    "addTabTitleSaved": "Filă nouă (începe cu panourile pe care le-ai salvat)",
+    "newTabOptions": "Opțiuni pentru fila nouă",
+    "newTabStartsDefault": "Filele noi încep cu panourile implicite.",
+    "newTabStartsSaved": "Filele noi încep cu panourile pe care le-ai salvat.",
+    "newTabOptionsHint": "Filele pe care le ai deja nu se schimbă.",
+    "useThisTabPanels": "Folosiți panourile acestei file",
+    "useDefaultPanels": "Folosiți panourile implicite",
+    "newTabPanelsNotSaved": "Nu s-a putut salva. Acest browser blochează stocarea pentru site.",
+    "team": "Echipă",
+    "teamDashboards": "Dashboard-uri de echipă"
   },
   "theaterPresets": {
     "label": "Preseturi de acoperire",
@@ -4511,6 +4676,21 @@
         "related": {
           "0": "Nowcast al activității Chinei",
           "1": "Profil de țară"
+        }
+      },
+      "reservoirLevels": {
+        "category": "Climă",
+        "purpose": "Marchează lacurile de acumulare și lacurile strategice după cum se compară nivelul apei cu cel obișnuit pentru perioada anului și cât de repede se schimbă.",
+        "source": "Înălțimea suprafeței apelor interioare din NASA ICESat-2 ATL13 prin NSIDC, procesată cu SlideRule Earth și agregată pe fiecare trecere a satelitului de serviciul seed-reservoir-levels.",
+        "freshness": "Actualizat zilnic. NASA publică fiecare trecere la 50–70 de zile după măsurare, iar fiecare lac de acumulare este remăsurat la câteva zile până la aproximativ o lună.",
+        "confidence": "O trecere contează doar dacă cel puțin 5 segmente de apă concordă în limita a 0,25 m. Comparația sezonieră cere treceri din cel puțin 3 ani anteriori în aceeași perioadă a anului.",
+        "limitations": {
+          "0": "Doar nivel, nu volum: aceeași scădere înseamnă o pierdere de rezervă diferită în fiecare lac de acumulare.",
+          "1": "Un corp de apă fără trecere de 150 de zile este marcat ca fără trecere recentă; ultima citire, variațiile și data sunt afișate în continuare."
+        },
+        "related": {
+          "0": "Panoul Niveluri strategice ale apei",
+          "1": "Anomalii climatice"
         }
       },
       "conflicts": {
@@ -4687,7 +4867,7 @@
         "category": "Dezastre naturale",
         "purpose": "Arată cutremure, alerte severe de dezastru și evenimente active de observare a Pământului, pentru imaginea situației.",
         "source": "Cutremure USGS, alerte GDACS și evenimente NASA EONET, reunite în serviciul de evenimente naturale.",
-        "freshness": "Evenimentele naturale se alimentează la fiecare 3 ore. Pentru cutremurele USGS, așteptarea documentată este o cadență a sursei de aproximativ 5 minute.",
+        "freshness": "Evenimentele naturale se alimentează la fiecare 30 de minute. Pentru cutremurele USGS, așteptarea documentată este o cadență a sursei de aproximativ 5 minute.",
         "confidence": "Puternic pentru semnalele publice de dezastru detectate. Încrederea variază după tipul de hazard și latența raportării la sursă.",
         "limitations": {
           "0": "Alertele GDACS de severitate mică sunt filtrate, ca harta să rămână lizibilă.",
@@ -4781,5 +4961,135 @@
     "happy": {
       "map": "Harta Știrilor Bune"
     }
+  },
+  "pwaInstall": {
+    "title": "Instalează aplicația",
+    "share": "În Safari, atinge Partajare (pătratul cu o săgeată în sus). Poate fi necesar să deschizi mai întâi meniul Mai multe.",
+    "add": "Alege Adăugați pe ecranul principal.",
+    "confirm": "Atinge Adăugați, apoi deschide World Monitor de pe ecranul principal.",
+    "close": "Închide",
+    "alertsHint": "Instalează World Monitor pe ecranul principal pentru a primi alerte pe acest iPhone sau iPad.",
+    "how": "Cum se instalează"
+  },
+  "teamDashboards": {
+    "desc": "Dashboard-uri pe care echipa ta le partajează. Deschide unul pentru a-l adăuga ca o nouă filă.",
+    "empty": "Echipa ta nu a partajat încă niciun dashboard. Partajează această filă pentru a da tuturor din echipă panourile, dimensiunile și harta acesteia.",
+    "open": "Deschide {{name}} ca o nouă filă",
+    "stopSharing": "Oprește partajarea {{name}}",
+    "confirmStop": "Oprești partajarea {{name}} cu echipa ta? Filele pe care le-au deschis deja nu se vor schimba.",
+    "shareTab": "Partajează această filă cu echipa ta",
+    "behind": "Echipa ta a modificat acest dashboard după ce l-ai deschis.",
+    "getLatest": "Obține versiunea cea mai recentă",
+    "opened": "{{name}} deschis din echipa ta.",
+    "shared": "{{name}} partajat cu echipa ta.",
+    "updated": "Această filă are acum versiunea cea mai recentă a echipei tale.",
+    "stopped": "Partajarea {{name}} oprit.",
+    "failed": "Nu s-a putut contacta dashboard-urile echipei tale. Încearcă din nou.",
+    "limit": "Echipa ta partajează deja {{limit}} dashboard-uri aici. Oprește partajarea unuia mai întâi.",
+    "shareChanges": "Partajează modificările acestei file cu echipa ta",
+    "focusNotEntitled": "Planul tău nu include partajarea unui dashboard cu focus. Șterge focusul acestei file pentru a-i partaja panourile.",
+    "focusUnreadable": "{{name}} are un focus pe care această versiune nu poate să îl afișeze. Reîncarcă pentru a actualiza, apoi deschide din nou."
+  },
+  "focus": {
+    "barLabel": "Focus",
+    "summary": "Focusat pe {{countries}}",
+    "neighboursOff": "Vecinii nu sunt incluși",
+    "chosenLabel": "Selectate",
+    "neighboursLabel": "Vecini",
+    "neighbourItem": "Vecin: {{name}}",
+    "range": "{{start}} la {{end}}",
+    "windowEnded": "Perioada s-a încheiat {{date}}",
+    "windowStarts": "Începe {{date}}",
+    "windowUntil": "Până la {{date}}",
+    "windowFrom": "De la {{date}}",
+    "edit": "Editează",
+    "clear": "Șterge",
+    "clearAria": "Șterge focusul și afișează întreaga lume",
+    "clearFocus": "Șterge focusul",
+    "notFiltered": "Nefiltrat",
+    "notFilteredGlobal": "Date globale: nefiltrate după țară",
+    "notFilteredYet": "Nefiltrate după țară încă",
+    "gateSignedOutDesc": "Conectează-te pentru a focaliza o filă de dashboard pe țările pe care le urmărești.",
+    "gateUpgradeDesc": "Focalizarea unei file pe țările selectate este inclusă în Pro Business, API Business și Enterprise.",
+    "gateUpgradeCta": "Upgrade",
+    "tabButton": "Focus",
+    "tabButtonTitle": "Focalizează această filă pe țările selectate",
+    "tabButtonTitleActive": "Editează focusul acestei file",
+    "newTitle": "Focalizează această filă",
+    "editTitle": "Editează focusul",
+    "intro": "Panourile care pot filtra după țară arată doar aceste țări. Celelalte spun „Nefiltrat\".",
+    "countriesLabel": "Țări",
+    "count": "{{n}} din {{max}}",
+    "searchPlaceholder": "Caută țări",
+    "resultsLabel": "Țări potrivite",
+    "limitReached": "Ai selectat {{max}} țări, maximul pe care îl poate avea un focus.",
+    "removeCountry": "Elimină {{name}}",
+    "includeNeighbours": "Include țările vecine",
+    "neighboursHint": "Riscul depășește granițele. Vecinii sunt marcați ca atare și nu se numără către {{max}}.",
+    "startLabel": "De la (opțional)",
+    "endLabel": "Până la (opțional)",
+    "datesHint": "Pentru o deplasare sau o sarcină. Când perioada se încheie, focusul rămâne și bara o indică.",
+    "errorNoCountries": "Selectează cel puțin o țară.",
+    "errorTooMany": "Un focus poate conține până la {{max}} țări.",
+    "errorDates": "Data de încheiere este înainte de data de început.",
+    "save": "Salvează",
+    "cancel": "Anulează",
+    "saved": "Această filă este focalizată pe {{countries}}.",
+    "cleared": "Focus șters. Această filă afișează întreaga lume.",
+    "notSaved": "Nu s-a putut salva. Browserul tău blochează stocarea site-ului.",
+    "plusNeighbours_one": "+ {{count}} vecin",
+    "plusNeighbours_few": "+ {{count}} vecini",
+    "plusNeighbours_other": "+ {{count}} vecini",
+    "filter": {
+      "showing": "Se afișează {{countries}}",
+      "showingNeighbours": "Se afișează {{countries}} + țări vecine",
+      "showAll": "Afișează tot",
+      "focusOff": "Focus dezactivat în acest panou: se afișează totul",
+      "applyFocus": "Aplică focus",
+      "applyFocusAria": "Filtrează din nou acest panou după focus",
+      "show": "Afișează",
+      "hide": "Ascunde",
+      "noCountryTag": "Fără țară",
+      "emptyHint": "Totul altceva este numărat mai sus.",
+      "emptyNews": "Nicio știre pentru aceste țări în titlurile actuale",
+      "emptyAdvisories": "Niciun avertisment de călătorie pentru aceste țări",
+      "emptyConflict": "Niciun eveniment de conflict UCDP pentru aceste țări",
+      "emptyConflictPartial": "Niciun eveniment de conflict pentru aceste țări între ultimele evenimente. Lista completă nu s-a încărcat.",
+      "loadingConflict": "Se încarcă toate evenimentele de conflict pentru aceste țări…",
+      "emptyAirports": "Niciun dintre aeroporturile urmărite nu se află în aceste țări",
+      "emptyFlights": "Niciun zbor către sau din aceste țări pe acest tablou",
+      "emptyAviationNews": "Nicio știre de aviaţie pentru aceste țări în ultimele 24 de ore",
+      "tabNotFiltered": "Această filă nu este filtrată după țară",
+      "hidden_one": "{{count}} ascuns de focus",
+      "hidden_few": "{{count}} ascunse de focus",
+      "hidden_other": "{{count}} ascunse de focus",
+      "showAllAria_one": "Afișează totul în acest panou, inclusiv {{count}} element în afara focus-ului",
+      "showAllAria_few": "Afișează totul în acest panou, inclusiv {{count}} elemente în afara focus-ului",
+      "showAllAria_other": "Afișează totul în acest panou, inclusiv {{count}} de elemente în afara focus-ului",
+      "unattributed_one": "{{count}} element fără țară",
+      "unattributed_few": "{{count}} elemente fără țară",
+      "unattributed_other": "{{count}} de elemente fără țară",
+      "showUnattributedAria_one": "Afișează {{count}} element fără țară",
+      "showUnattributedAria_few": "Afișează {{count}} elemente fără țară",
+      "showUnattributedAria_other": "Afișează {{count}} de elemente fără țară",
+      "hideUnattributedAria_one": "Ascunde {{count}} element fără țară",
+      "hideUnattributedAria_few": "Ascunde {{count}} elemente fără țară",
+      "hideUnattributedAria_other": "Ascunde {{count}} de elemente fără țară",
+      "partialConflict": "Se afișează doar evenimentele de conflict din ultimele 150. Lista completă nu s-a încărcat.",
+      "partialConflictLoading": "Se afișează evenimente de conflict din ultimele 150, în timp ce lista completă se încarcă.",
+      "emptyInstability": "Niciun scor de instabilitate pentru aceste țări",
+      "emptyOutbreaks": "Niciun focar de boală pentru aceste țări",
+      "emptyOutages": "Nicio întrerupere de internet pentru aceste țări",
+      "emptyRadiation": "Nicio măsurare de radiații pentru aceste țări",
+      "emptyFuelShortages": "Nicio lipsă de combustibil pentru aceste țări",
+      "emptyEnergyDisruptions": "Nicio întrerupere de energie pentru aceste țări",
+      "emptyDisplacement": "Niciun date de deplasare pentru aceste țări",
+      "emptyCorrelation": "Niciun semnal pentru aceste țări"
+    },
+    "draftAssessment": "Ciornă de evaluare",
+    "draftAssessmentAria": "Copiază o cerere care cere asistentului tău AI să redacteze o evaluare a riscului de călătorie pentru acest focus",
+    "draftCopied": "Cerere copiată. Lipește-o în asistentul tău AI.",
+    "draftCopiedPartial": "Cererea a fost copiată pentru primele {{count}} țări. O evaluare acoperă cel mult {{max}} țări.",
+    "draftCopyFailed": "Nu s-a putut copia cererea."
   }
 }

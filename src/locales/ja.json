@@ -490,7 +490,8 @@
     "marketBreadth": "市場の広がり",
     "climateNews": "気候ニュース",
     "fx": "外国為替レート",
-    "ukmtoIncidents": "UKMTO事案"
+    "ukmtoIncidents": "UKMTO事案",
+    "reservoirLevels": "戦略的水位"
   },
   "commands": {
     "prefixes": {
@@ -869,7 +870,7 @@
         "asia": "アジア",
         "space": "宇宙"
       },
-      "play": "再生",
+      "play": "ライブで視聴",
       "previewStatus": "再生準備完了",
       "connecting": "接続中…",
       "unverified": "このストリームがライブ配信中であることを確認できません",
@@ -1091,7 +1092,8 @@
       "skipToStart": "最初へ移動",
       "previous": "前へ",
       "next": "次へ",
-      "skipToEnd": "最後へ移動"
+      "skipToEnd": "最後へ移動",
+      "storageUnavailable": "このブラウザがサイトストレージをブロックしているため、再生機能が利用できません。このサイトのサイトデータを許可して、スナップショットの保存を開始してください。"
     },
     "pizzint": {
       "indexSource": "指数: World Monitor",
@@ -1202,6 +1204,7 @@
       "emojiKeyNaval": "海上資産"
     },
     "countryBrief": {
+      "moreActions": "その他の操作",
       "shareLink": "リンクを共有",
       "shareStory": "ストーリーを共有",
       "printPdf": "印刷 / PDF",
@@ -1305,7 +1308,8 @@
         "canadaRoads": "カナダ道路情報",
         "canadaAlerts": "カナダ警報",
         "notamAirspace": "NOTAM飛行制限空域",
-        "no2Activity": "産業活動"
+        "no2Activity": "産業活動",
+        "reservoirLevels": "水位"
       },
       "tooltip": {
         "earthquake": "地震",
@@ -1422,11 +1426,26 @@
           "canadaRoads": "対応するカナダの管轄区域における公式の道路事故、警報、路面状況、通行止め、工事、危険情報",
           "canadaAlerts": "Alberta Emergency Alert、B.C. Evacuation Orders and Alerts、SaskAlert による州の公共安全警報",
           "notamAirspace": "FAA NOTAMの一時的飛行制限および制限空域、危険空域、禁止空域。現在有効、または24時間以内に開始予定",
-          "no2Activity": "Sentinel-5P の NO2 活動の方向（167 か国と 32 の工業クラスター）: 直近 56 日間のウィンドウを過去数年の同じ日付と比較し、10% のデッドバンドを適用。改変された Copernicus Sentinel データを含みます。"
+          "no2Activity": "Sentinel-5P の NO2 活動の方向（167 か国と 32 の工業クラスター）: 直近 56 日間のウィンドウを過去数年の同じ日付と比較し、10% のデッドバンドを適用。改変された Copernicus Sentinel データを含みます。",
+          "reservoirLevels": "NASAの衛星ライダーICESat-2による戦略的な貯水池と湖の水面水位を、その月の平年水位と比較して表示します。NASAは各観測パスを測定の約2か月後に公開します。"
         },
         "notes": {
           "timeAffects": "影響: 地震、気象、抗議活動、障害"
         }
+      },
+      "measure": {
+        "title": "距離を測定",
+        "units": "距離の単位",
+        "pointA": "ポイントAを選択します。マップをクリックするか、マップの中心でEnterキーを押してください。",
+        "pointB": "ポイントBを選択します。マップをパンして、その中心でEnterキーを押してください。",
+        "geodesic": "測地線距離",
+        "note": "クリックした座標間の距離です。ルートまたは検証済みのアセット分離ではありません。Escキーで終了します。",
+        "cancel": "選択をキャンセル",
+        "cancelShort": "キャンセル",
+        "resetShort": "リセット",
+        "exitShort": "終了",
+        "reset": "測定をリセット",
+        "exit": "測定を終了"
       }
     },
     "cii": {
@@ -1478,8 +1497,8 @@
       "badgeAnimDesc": "パネルヘッダーの更新バッジをアニメーション表示",
       "headlineMemoryLabel": "ヘッドラインメモリ",
       "headlineMemoryDesc": "閲覧済みの見出しを記憶して新着を強調",
-      "streamAlwaysOnLabel": "ダッシュボードでライブストリームを自動再生",
-      "streamAlwaysOnDesc": "Live News と Live Webcams が表示されたときに自動的に開始します。動画を「再生」をクリックした後だけ読み込むにはオフのままにしてください。",
+      "streamAlwaysOnLabel": "ライブウェブカメラの自動再生",
+      "streamAlwaysOnDesc": "ライブウェブカメラビデオが画面に表示されると同時に自動再生されます。これをオフにしておくと、自分で再生を開始したときだけ読み込まれます。",
       "analysisFrameworksLabel": "分析フレームワーク",
       "analysisFrameworksActivePerPanel": "パネルごとのアクティブ",
       "analysisFrameworksSkillLibrary": "スキルライブラリ",
@@ -1520,7 +1539,9 @@
       "briefStoryDetails": "記事の詳細 ({{count}})",
       "streamIdleStopLabel": "アイドル時にライブ動画を停止",
       "streamIdleStopDesc": "設定した時間、操作がない状態が続くと、ライブニュースとライブウェブカメラを停止し、パネルに通知を表示します。",
-      "streamIdleStopNever": "なし"
+      "streamIdleStopNever": "なし",
+      "liveNewsAutoplayLabel": "ライブニュースの自動再生",
+      "liveNewsAutoplayDesc": "ライブニュースビデオが画面に表示されると同時にミュート状態で自動再生されます。これをオフにすると、自分で再生を開始したときだけビデオが読み込まれます。"
     },
     "settings": {
       "exportSettings": "設定をエクスポート",
@@ -1625,6 +1646,10 @@
       "infoTooltip": "<strong>テックイベント</strong> 今後および最近のテクノロジーイベント：カンファレンス、製品ローンチ、規制公聴会、決算コール。公式イベントカレンダーおよび業界ソースから集約。"
     },
     "techReadiness": {
+      "ranked": "順位あり",
+      "unranked": "順位なし",
+      "coverageRequirement": "順位付けに必要な指標数",
+      "coverageLabel": "利用可能な指標",
       "internetUsers": "インターネットユーザー",
       "mobileSubscriptions": "モバイル契約数",
       "rdSpending": "研究開発支出",
@@ -1640,10 +1665,16 @@
       "dataPreparing": "技術準備状況データを更新中 — すぐに表示されます。"
     },
     "populationExposure": {
-      "totalAffected": "影響を受ける総人口",
-      "affectedCount": "{{count}}人が影響",
-      "radiusKm": "半径{{km}}km",
-      "infoTooltip": "<strong>人口露出推定</strong> イベント影響半径内の推定人口。WorldPopの国別人口密度データに基づく。<ul><li>紛争: 半径50km</li><li>地震: 半径100km</li><li>洪水: 半径100km</li><li>山火事: 半径30km</li></ul>"
+      "estimateWithin": "半径{{km}} km圏内に約{{count}}人",
+      "method": "推計には各国の平均人口密度を使用します。",
+      "empty": "条件を満たすイベント地点がありません",
+      "infoTooltip": "国の人口密度データがあるイベントを表示します。位置精度の情報がないUCDPイベントの場所には更新待ちと表示されます。推定地域は重複する場合があります。 騒乱イベントには正確な位置が必要です。位置が不正確とされたUCDPイベントは除外されます。同じ場所が2つの情報源（騒乱とUCDP）から報告された場合、2行で表示されます。",
+      "eventCount_other": "{{count}}件のイベント",
+      "locationPending": "位置精度の更新待ち",
+      "unrestCoverage": "騒乱の集計範囲",
+      "ucdpPending": "UCDP集計の更新待ち",
+      "coverageShown": "表示中のイベント: {{total}}件中{{shown}}件",
+      "coverageLeftOut": "非表示: 正確な位置なし {{imprecise}}件、人口密度データのない国 {{noEstimate}}件、各ソースの最初の10地点以降 {{otherPlaces}}件"
     },
     "securityAdvisories": {
       "loading": "渡航情報を取得中...",
@@ -2079,7 +2110,8 @@
       "channelUrlHint": "チャンネル URL (youtube.com/channel/UC…) またはライブ動画 URL を貼り付けてください",
       "youtubeChannel": "YouTube チャンネル",
       "insecureStream": "{{name}} は安全でない (http) ストリームを使用しており、ブラウザがブロックします。安全な (https) ストリーム URL で再度追加してください",
-      "httpsStreamHint": "ブラウザは安全でない (http) ストリームをブロックします。安全な (https) ストリーム URL を貼り付けてください"
+      "httpsStreamHint": "ブラウザは安全でない (http) ストリームをブロックします。安全な (https) ストリーム URL を貼り付けてください",
+      "tapToPlay": "タップして再生"
     },
     "map": {
       "showMap": "地図を表示",
@@ -2348,7 +2380,15 @@
       "noData": "エネルギーデータは一時的に利用できません - 再試行します",
       "liveTape": "ライブテープ",
       "liveTapeSource": "市場相場",
-      "infoTooltip": "<strong>エネルギー複合体</strong> 物理的およびトレード可能なエネルギーシグナルを一箇所に：<ul><li><strong>米国エネルギー情報局指標</strong>：WTI、ブレント、米国生産、在庫</li><li><strong>ライブテープ</strong>：原油や天然ガスなどのトレード可能なエネルギー価格</li><li><strong>目的</strong>：物理的なエネルギー・ストレスをより広いマクロおよび商品パネルから分離</li></ul>"
+      "infoTooltip": "<strong>エネルギー複合体</strong> 物理的およびトレード可能なエネルギーシグナルを一箇所に：<ul><li><strong>米国エネルギー情報局指標</strong>：WTI、ブレント、米国生産、在庫</li><li><strong>ライブテープ</strong>：原油や天然ガスなどのトレード可能なエネルギー価格</li><li><strong>目的</strong>：物理的なエネルギー・ストレスをより広いマクロおよび商品パネルから分離</li></ul>",
+      "marketTape": "市場相場",
+      "futures": "先物",
+      "dailySpot": "日次スポット価格",
+      "eiaWeeklySpot": "EIAスポット価格 · 週平均",
+      "weekEnding": "{{date}}までの週",
+      "unknownPriceDate": "観測時刻不明",
+      "unknownQuoteSource": "価格情報源不明",
+      "stalePrice": "更新期限超過"
     },
     "consumerPrices": {
       "tabs": {
@@ -2546,8 +2586,8 @@
     },
     "proBanner": {
       "badge": "PRO",
-      "headline": "Proがローンチしました",
-      "tagline": "より多くのシグナル、ノイズ削減。AI ブリーフィングの強化。あなたのための地政学&エクイティリサーチャー。",
+      "headline": "毎日のAIブリーフをメールまたはSlackで受け取る",
+      "tagline": "WM Analyst、アラートルール、Claude向けMCP付き",
       "cta": "Pro にアップグレード →",
       "dismiss": "閉じる"
     },
@@ -2672,7 +2712,7 @@
     },
     "sanctionsPressure": {
       "title": "制裁・指定",
-      "infoTooltip": "米国外資資産管理局指定国民・統合リストおよびカナダ世界問題局SEMA/JVCFOA指定。どの国が最も高い指定圧力に直面しているか、どのプログラムがそれを推進しているか、最後の更新以降に新たに追加されたものを表示。",
+      "infoTooltip": "OFAC SDN・統合リストおよびカナダのSEMA/JVCFOA制裁指定。国別の行は直接の関連付けを使用します。船籍国と航空機登録国は登録の欄で別に集計されるため、国別の資産数がゼロでも制裁対象の資産がないとは限りません。",
       "loading": "制裁データを読み込み中...",
       "unavailable": "制裁データは利用できません。",
       "summary": {
@@ -2684,7 +2724,9 @@
       "sections": {
         "countries": "制裁国",
         "entries": "最近の指定",
-        "programs": "プログラム"
+        "programs": "プログラム",
+        "flagRegistries": "船籍・航空機登録国",
+        "regulationTargets": "SEMA規則の対象国"
       },
       "empty": {
         "countries": "国の帰属情報がありません。",
@@ -2706,7 +2748,8 @@
         "unattributed": "未帰属",
         "program": "プログラム",
         "undated": "日付なし"
-      }
+      },
+      "targetExplanation": "規則の対象国は、国籍や住所を示す証拠ではありません。国別リスクスコアやブリーフの集計から除外されます。"
     },
     "radiationWatch": {
       "title": "放射能監視",
@@ -3073,6 +3116,55 @@
           "placeholder": "オプション"
         }
       }
+    },
+    "githubStarPrompt": {
+      "title": "World Monitor を気に入っていただけましたか？",
+      "body": "GitHub でスターをつけると、他のユーザーが見つけやすくなります。",
+      "star": "GitHub でスターをつける",
+      "dismiss": "非表示にして二度と表示しない"
+    },
+    "reservoirLevels": {
+      "note": "NASAの衛星ライダーICESat-2による水面水位。NASAは各パスを測定の約2か月後に公開するため、日単位ではなく週や季節単位の変化を追跡します。水位のみで、貯水量ではありません。",
+      "source": "出典:",
+      "processedWith": "処理:",
+      "empty": "まだ測定値はありません",
+      "filterEmpty": "このフィルターに一致する水域はありません",
+      "unavailable": "水位データは現在利用できません",
+      "filterLabel": "水域を絞り込む",
+      "filter": {
+        "all": "すべて",
+        "attention": "要注意",
+        "transboundary": "国際河川・湖沼"
+      },
+      "status": {
+        "record_low": "過去最低",
+        "record_high": "過去最高",
+        "falling_fast": "急低下",
+        "rising_fast": "急上昇",
+        "low": "季節平年より低い",
+        "high": "季節平年より高い",
+        "normal": "平年並み",
+        "insufficient_history": "履歴不足",
+        "no_recent_data": "最近のパスなし",
+        "lowInRange": "範囲内で低い",
+        "highInRange": "範囲内で高い"
+      },
+      "vsUsual": "{{month}}の平年比 {{value}}",
+      "in12Months": "12か月で{{value}}",
+      "noComparison": "まだ比較なし",
+      "measured": "{{date}}測定（{{age}}）",
+      "noPass": "有効なパスはまだありません",
+      "popup": {
+        "level": "水位",
+        "levelValue": "海抜{{value}}（EGM2008）",
+        "anomaly": "{{month}}の平年比",
+        "anomalyPlain": "その月の平年比",
+        "changePrev": "前回のパス以降",
+        "change90": "90日間",
+        "change365": "12か月間",
+        "measured": "測定日",
+        "sparkline": "36か月の水位"
+      }
     }
   },
   "popups": {
@@ -3164,7 +3256,44 @@
       "airborne": "飛行中"
     },
     "cyberThreat": {
-      "title": "サイバー脅威"
+      "title": "サイバー脅威",
+      "evidence": "脅威フィード証拠",
+      "firstSeen": "初回検出",
+      "explanations": {
+        "c2_server": "フィードがマルウェアに指示を送信するために使用されるコマンド・アンド・コントロール・サーバーを報告しています。",
+        "malware_host": "フィードがマルウェアをホストするために使用されるアドレスを報告しています。",
+        "phishing": "フィードがフィッシングに関連する指標を報告しています。",
+        "malicious_url": "フィードが悪意のある活動に関連するURLを報告しています。"
+      },
+      "downloadTag": "malware_download：ソースがマルウェアのダウンロード場所を報告しています。",
+      "familyNote": "マルウェア・ファミリー・ラベルは脅威フィードから取得したものです。個人または組織を特定するものではありません。",
+      "approximateLocation": "マップされた位置はIP由来のおおよそのコンテキストであり、検証済みの物理的なホスト位置ではありません。",
+      "network": {
+        "title": "ネットワーク情報",
+        "privacy": "展開してRIPEstatからパッシブ・ネットワーク・データをリクエストできます。指標IPはそのプロバイダーと共有されます。",
+        "disclaimer": "ネットワーク登録とルーティングは攻撃者を特定したり、プロバイダーに活動の責任を負わせたりしません。",
+        "loading": "ネットワーク情報を読み込み中…",
+        "unknown": "利用不可",
+        "disabled": "ネットワーク検索は有効になっていません。",
+        "invalid": "ネットワーク検索にはパブリックIPアドレスが必要です。",
+        "unavailable": "ネットワーク検索に失敗しました。ポップアップを閉じて再度開いて、後でもう一度お試しください。",
+        "rateLimited": "ネットワーク検索は一時的に制限されています。後でもう一度お試しください。",
+        "noData": "プロバイダーはこのIPのネットワーク情報を返しませんでした。",
+        "partial": "一部のネットワーク情報を取得できませんでした。",
+        "ip": "IP",
+        "asn": "オリジンASN",
+        "operator": "報告ASN保有者/ネットワーク事業者",
+        "prefix": "報告ルーティング・プレフィックス",
+        "hostname": "逆引きDNSホスト名（rDNS）",
+        "lookupAt": "ネットワーク検索時刻",
+        "routingAt": "ルーティング・データ時刻",
+        "broaderPrefix": "プロバイダーはより広いルーティング・プレフィックスと一致しました。これは正確なIPアロケーション・レコードではありません。",
+        "rdnsNote": "rDNSはDNSラベルであり、所有権の証明ではありません。登録組織と正確な位置はこの検索では提供されません。",
+        "copy": "コピー",
+        "copied": "コピーしました。",
+        "copyFailed": "コピーに失敗しました。テキストを選択してコピーしてください。"
+      },
+      "firstSeenNote": "これは、フィードまたはWorld Monitorの観測データから得られる最も古い指標日付です。リストされたソースの日付と異なる場合があります。"
     },
     "nuclear": {
       "types": {
@@ -3334,6 +3463,28 @@
       "readReport": "全文レポートを読む"
     },
     "datacenter": {
+      "details": {
+        "more": "詳細情報",
+        "owner": "クラスター所有者 / 提供者（データセット）",
+        "power": "データセットの電力値",
+        "powerCaveat": "電力容量は報告値または推定値です。現在の電力消費量の測定値ではありません。",
+        "powerBasis": "電力値の根拠",
+        "reported": "報告値",
+        "estimated": "推定値",
+        "notAvailable": "情報なし",
+        "location": "位置の精度",
+        "locationUnknown": "未検証の地図上の地点です。施設の正確な住所として使用しないでください。",
+        "site": "施設（情報源で検証済み）",
+        "city": "市のみ",
+        "region": "地域のみ",
+        "country": "国のみ",
+        "dataset": "Epoch AI GPUクラスターデータセット",
+        "evidence": "裏付けとなる情報源",
+        "sourceDate": "情報源の公開日",
+        "metadataReviewedAt": "メタデータ確認日",
+        "firstOperationalDate": "初稼働日（データセット）",
+        "freshness": "保存されたデータセットのスナップショットです。現在の状態や仕様は変更されている可能性があります。"
+      },
       "status": {
         "existing": "稼働中",
         "planned": "計画中",
@@ -3484,7 +3635,8 @@
       "vesselsCount": "{{count}}隻",
       "vessels": "艦艇",
       "trackedVessels": "追跡中の艦艇",
-      "showLess": "表示を減らす"
+      "showLess": "表示を減らす",
+      "backToGroup": "グループに戻る"
     },
     "naturalEvent": {
       "closed": "終了",
@@ -4332,6 +4484,7 @@
   "auth": {
     "signIn": "サインイン",
     "createAccount": "アカウントを作成",
+    "freeReason": "無料: レイアウト保存、国のフォロー、アラート",
     "settings": "設定",
     "passkeyOffer": {}
   },
@@ -4376,7 +4529,17 @@
     "renameHint": "{{name}} — ダブルクリックして名前を変更",
     "deleteTab": "タブを削除",
     "deleteTabAria": "タブ {{name}} を削除",
-    "tabNameAria": "タブ名"
+    "tabNameAria": "タブ名",
+    "addTabTitleSaved": "新しいタブ（保存したパネルから開始）",
+    "newTabOptions": "新しいタブのオプション",
+    "newTabStartsDefault": "新しいタブはデフォルトパネルから開始します。",
+    "newTabStartsSaved": "新しいタブは保存したパネルから開始します。",
+    "newTabOptionsHint": "既に作成したタブは変わりません。",
+    "useThisTabPanels": "このタブのパネルを使用",
+    "useDefaultPanels": "デフォルトパネルを使用",
+    "newTabPanelsNotSaved": "保存できませんでした。このブラウザはサイトストレージをブロックしています。",
+    "team": "チーム",
+    "teamDashboards": "チームダッシュボード"
   },
   "theaterPresets": {
     "label": "カバレッジプリセット",
@@ -4469,6 +4632,21 @@
         "related": {
           "0": "中国活動ナウキャスト",
           "1": "国別ブリーフ"
+        }
+      },
+      "reservoirLevels": {
+        "category": "気候",
+        "purpose": "戦略的な貯水池と湖を、水面水位が同じ時期の平年値と比べてどうか、またどれだけ速く変化しているかで示します。",
+        "source": "NSIDC経由のNASA ICESat-2 ATL13内水面高度。SlideRule Earthで処理し、seed-reservoir-levelsサービスが衛星パスごとに集約しています。",
+        "freshness": "毎日更新。NASAは各パスを測定の50〜70日後に公開し、各貯水池は数日から約1か月ごとに再観測されます。",
+        "confidence": "パスは少なくとも5つの水面区間が0.25 m以内で一致した場合のみ採用されます。季節比較には同じ時期の過去3年以上のパスが必要です。",
+        "limitations": {
+          "0": "水位のみで、貯水量ではありません。同じ低下でも貯水池ごとに失われる貯水量は異なります。",
+          "1": "150日間パスがない水域は「最近のパスなし」と表示されますが、最後の値、変化、日付は引き続き表示されます。"
+        },
+        "related": {
+          "0": "戦略的水位パネル",
+          "1": "気候異常"
         }
       },
       "conflicts": {
@@ -4645,7 +4823,7 @@
         "category": "自然災害",
         "purpose": "状況を把握するため、地震、重大な災害警報、進行中の地球観測イベントを示します。",
         "source": "USGSの地震、GDACSの警報、NASA EONETのイベントです。自然イベントのサービスにまとめています。",
-        "freshness": "自然イベントは3時間ごとにシードします。USGSの地震は、およそ5分のソース周期として文書化されています。",
+        "freshness": "自然イベントは30分ごとにシードします。USGSの地震は、およそ5分のソース周期として文書化されています。",
         "confidence": "検知された公の災害シグナルについては強いです。信頼度は、災害の種類と上流の報告の遅れで変わります。",
         "limitations": {
           "0": "地図を読みやすくするため、深刻度の低いGDACS警報は除きます。",
@@ -4739,5 +4917,123 @@
     "happy": {
       "map": "グッドニュースマップ"
     }
+  },
+  "pwaInstall": {
+    "title": "アプリをインストール",
+    "share": "Safariで共有（上向き矢印のある四角）をタップします。先にその他のメニューを開く必要がある場合があります。",
+    "add": "ホーム画面に追加を選びます。",
+    "confirm": "追加をタップし、ホーム画面からWorld Monitorを開きます。",
+    "close": "閉じる",
+    "alertsHint": "このiPhoneまたはiPadで通知を受け取るには、World Monitorをホーム画面にインストールしてください。",
+    "how": "インストール方法"
+  },
+  "teamDashboards": {
+    "desc": "チームが共有しているダッシュボード。クリックして新しいタブとして追加できます。",
+    "empty": "チームはまだダッシュボードを共有していません。このタブを共有して、チームメンバー全員にパネル、サイズ、マップを提供できます。",
+    "open": "{{name}}を新しいタブとして開く",
+    "stopSharing": "{{name}}の共有を停止",
+    "confirmStop": "{{name}}をチームとの共有を停止しますか？既に開いているタブはそのままです。",
+    "shareTab": "このタブをチームと共有",
+    "shareChanges": "このタブの変更をチームと共有",
+    "behind": "チームがこのダッシュボードを開いた後に変更しました。",
+    "getLatest": "最新版を取得",
+    "opened": "{{name}}をチームから開きました。",
+    "shared": "{{name}}をチームと共有しました。",
+    "updated": "このタブはチームの最新版になりました。",
+    "stopped": "{{name}}の共有を停止しました。",
+    "failed": "チームのダッシュボードに接続できません。もう一度試してください。",
+    "limit": "チームは既に{{limit}}個のダッシュボードを共有しています。まず1つの共有を停止してください。",
+    "focusNotEntitled": "このプランでは、フォーカスしたダッシュボードの共有はできません。このタブのフォーカスを解除してパネルを共有してください。",
+    "focusUnreadable": "{{name}}にはこのバージョンで表示できないフォーカスが設定されています。再度読み込んでから開き直してください。"
+  },
+  "focus": {
+    "barLabel": "フォーカス",
+    "summary": "{{countries}}にフォーカス中",
+    "neighboursOff": "隣国は含まれていません",
+    "chosenLabel": "選択済み",
+    "neighboursLabel": "隣国",
+    "neighbourItem": "隣国: {{name}}",
+    "range": "{{start}} 〜 {{end}}",
+    "windowEnded": "ウィンドウは{{date}}に終了しました",
+    "windowStarts": "{{date}}に開始",
+    "windowUntil": "{{date}}まで",
+    "windowFrom": "{{date}}から",
+    "edit": "編集",
+    "clear": "クリア",
+    "clearAria": "フォーカスをクリアして世界全体を表示する",
+    "clearFocus": "フォーカスをクリア",
+    "notFiltered": "フィルタリングなし",
+    "notFilteredGlobal": "グローバルデータ: 国別フィルタリングなし",
+    "notFilteredYet": "まだ国別フィルタリングなし",
+    "gateSignedOutDesc": "サインインして、担当する国にダッシュボードタブをフォーカスします。",
+    "gateUpgradeDesc": "タブを選択した国にフォーカスする機能はPro Business、API Business、Enterpriseに含まれています。",
+    "gateUpgradeCta": "アップグレード",
+    "tabButton": "フォーカス",
+    "tabButtonTitle": "このタブを選択した国にフォーカスする",
+    "tabButtonTitleActive": "このタブのフォーカスを編集する",
+    "newTitle": "このタブをフォーカスする",
+    "editTitle": "フォーカスを編集",
+    "intro": "国別にフィルタリングできるパネルはこれらの国のみを表示します。その他は「フィルタリングなし」と表示されます。",
+    "countriesLabel": "国",
+    "count": "{{n}}/{{max}}",
+    "searchPlaceholder": "国を検索",
+    "resultsLabel": "マッチした国",
+    "limitReached": "{{max}}個の国を選択しました。これはフォーカスが保有できる最大数です。",
+    "removeCountry": "{{name}}を削除",
+    "includeNeighbours": "隣国を含める",
+    "neighboursHint": "リスクは国境を越えます。隣国はそのようにマークされており、{{max}}にはカウントされません。",
+    "startLabel": "開始日（オプション）",
+    "endLabel": "終了日（オプション）",
+    "datesHint": "出張やタスク用。ウィンドウの終了時は、フォーカスは保持され、バーにその旨が表示されます。",
+    "errorNoCountries": "少なくとも1つの国を選択してください。",
+    "errorTooMany": "フォーカスは最大{{max}}個の国を保有できます。",
+    "errorDates": "終了日が開始日より前です。",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "saved": "このタブは{{countries}}にフォーカスされています。",
+    "cleared": "フォーカスがクリアされました。このタブは世界全体を表示します。",
+    "notSaved": "保存できませんでした。このブラウザはサイトストレージをブロックしています。",
+    "plusNeighbours_other": "+ {{count}}個の隣国",
+    "filter": {
+      "showing": "{{countries}}を表示中",
+      "showingNeighbours": "{{countries}}と隣国を表示中",
+      "showAll": "すべて表示",
+      "focusOff": "このパネルのフォーカスはオフ：すべてを表示中",
+      "applyFocus": "フォーカスを適用",
+      "applyFocusAria": "このパネルをフォーカスで絞り込む",
+      "show": "表示",
+      "hide": "非表示",
+      "noCountryTag": "国なし",
+      "emptyHint": "その他すべては上記で集計されています。",
+      "emptyNews": "これらの国の現在のニュース速報はありません",
+      "emptyAdvisories": "これらの国の渡航勧告はありません",
+      "emptyConflict": "これらの国のUCDP紛争イベントはありません",
+      "emptyConflictPartial": "これらの国の紛争イベントは最新のイベント中にはありません。全リストは読み込まれていません。",
+      "loadingConflict": "これらの国のすべての紛争イベントを読み込み中…",
+      "emptyAirports": "監視中の空港でこれらの国に該当するものはありません",
+      "emptyFlights": "このボード上でこれらの国との往来便はありません",
+      "emptyAviationNews": "過去24時間でこれらの国の航空ニュースはありません",
+      "tabNotFiltered": "このタブは国でフィルタリングされていません",
+      "hidden_other": "{{count}}件がフォーカスで非表示",
+      "showAllAria_other": "このパネル内のすべてを表示。フォーカス外の{{count}}件を含む",
+      "unattributed_other": "国が不明な{{count}}件",
+      "showUnattributedAria_other": "国が不明な{{count}}件を表示",
+      "hideUnattributedAria_other": "国が不明な{{count}}件を非表示",
+      "partialConflict": "最新150件の紛争イベントのみを表示しています。全リストは読み込まれませんでした。",
+      "partialConflictLoading": "フル リストの読み込み中に、最新150件の紛争イベントを表示しています。",
+      "emptyInstability": "これらの国の不安定性スコアはありません",
+      "emptyOutbreaks": "これらの国の疾病流行はありません",
+      "emptyOutages": "これらの国のインターネット障害はありません",
+      "emptyRadiation": "これらの国の放射線測定値はありません",
+      "emptyFuelShortages": "これらの国の燃料不足はありません",
+      "emptyEnergyDisruptions": "これらの国のエネルギー供給障害はありません",
+      "emptyDisplacement": "これらの国の難民データはありません",
+      "emptyCorrelation": "これらの国のシグナルはありません"
+    },
+    "draftAssessment": "ドラフト評価",
+    "draftAssessmentAria": "このフォーカスの渡航リスク評価をドラフトするようAIアシスタントにリクエストするテキストをコピーします",
+    "draftCopied": "リクエストをコピーしました。AIアシスタントに貼り付けてください。",
+    "draftCopiedPartial": "最初の{{count}}か国についてリクエストをコピーしました。アセスメントは最大{{max}}か国までカバーできます。",
+    "draftCopyFailed": "リクエストをコピーできませんでした。"
   }
 }

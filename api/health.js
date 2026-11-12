@@ -407,6 +407,13 @@ const BOOTSTRAP_KEYS = {
 // sweep so the canadaAlerts probe grades the data clients actually receive.
 const STANDALONE_KEYS = {
   ukmtoIncidents: 'maritime:ukmto-incidents:v1',
+  // ICESat-2 strategic reservoir levels (scripts/seed-reservoir-levels.mjs). Served by
+  // /api/climate/v1/list-reservoir-levels with no dashboard consumer yet.
+  reservoirLevels: 'climate:reservoir-levels:v1',
+  // Public chokepoint status open dataset index (/data/v1/chokepoints/), published
+  // daily by .github/workflows/open-data-chokepoints.yml. Read only by
+  // api/open-data-chokepoints.js, never by the dashboard.
+  openDataChokepoints: 'open-data:chokepoints:v1:index',
   sanctionsChanges: 'sanctions:changes:v1',
   // NVD CVE reference store for the CISA KEV subset (#6229). Seeded daily by
   // scripts/seed-cve-reference.mjs; no dashboard consumer yet, so it is
@@ -935,6 +942,15 @@ const SEED_META = {
   co2Monitoring:    { key: 'seed-meta:climate:co2-monitoring',  maxStaleMin: 4320 }, // daily cron at 06:00 UTC; 72h tolerates two missed runs
   oceanIce:         { key: 'seed-meta:climate:ocean-ice',       maxStaleMin: 2880 }, // daily cron at 08:00 UTC; 48h = 2× interval, tolerates one missed run
   climateNews:      { key: 'seed-meta:climate:news-intelligence', maxStaleMin: 90 }, // relay loop every 30min; 90 = 3× interval
+  // Daily climate bundle member; 4320 = 3x the daily interval. Observation age (50-150 days
+  // behind real time) is a property of ICESat-2 data latency and is never staleness here.
+  // New probe: ROLLOUT_PENDING for up to a day after deploy, until the seeder writes its
+  // durable activation marker after its first successful publication.
+  // minRecordCount = watchlist size (scripts/data/strategic-reservoirs.json, pinned by
+  // tests/reservoir-levels-health.test.mjs). recordCount drops a reservoir that lost its
+  // level or whose CMR discovery failed DISCOVERY_ALERT_RUNS runs in a row.
+  reservoirLevels:  { key: 'seed-meta:climate:reservoir-levels', maxStaleMin: 4320, minRecordCount: 50, firstPublicationMaxWaitMin: 1440, activationKey: 'seed-activated:climate:reservoir-levels',
+    cutover: { mode: 'activation-marker', fromKey: null, issue: 10490, activationKey: 'seed-activated:climate:reservoir-levels' } },
   unrestEvents:     { key: 'seed-meta:unrest:events',           maxStaleMin: 120 }, // 45min cron; 120 = 2h grace (was 75 = 30min buffer, too tight)
   cyberThreats:     { key: 'seed-meta:cyber:threats',           maxStaleMin: 240 }, // 2h interval; 240min = 2x interval
   cveReference: {
@@ -948,13 +964,30 @@ const SEED_META = {
   stablecoinMarkets:{ key: 'seed-meta:market:stablecoins',      maxStaleMin: 60 },
   naturalEvents:    {
     key: 'seed-meta:natural:events',
-    maxStaleMin: 540, // 3h Railway climate bundle; 3x cadence preserves a full missed run.
-    sourceFailure: {
-      warnAfterConsecutive: 2,
-      maxPendingMin: 210,
-      successAtField: 'lastSourceSuccessAt',
-      failureCodePattern: /^NHC_(POINT_REQUEST_FAILED|POINT_RESPONSE_INVALID)$/,
-    },
+    // Sole producer: the seed-natural-events Railway service, every 30 min.
+    // 120 = 4x cadence: two missed runs plus start jitter stay fresh; the third alarms.
+    maxStaleMin: 120,
+    sourceFailure: [
+      {
+        warnAfterConsecutive: 2,
+        // The next */30 run settles a single miss; 60 holds past it with jitter.
+        maxPendingMin: 60,
+        successAtField: 'lastSourceSuccessAt',
+        failureCodePattern: /^NHC_(POINT_REQUEST_FAILED|POINT_RESPONSE_INVALID)$/,
+      },
+      // WORLDMONITOR-1AG: a single GDACS type or EONET miss whose validated
+      // records are retained (9h / 18h) is pending, not an incident; the second
+      // consecutive miss alarms. Requires a per-source failure clock on every
+      // failed source, so an unretained source, an NHC failure in the same run,
+      // or every source failing at once alarms on the first miss.
+      {
+        warnAfterConsecutive: 2,
+        maxPendingMin: 60, // the next */30 run settles a single miss, as for NHC above
+        successAtField: 'lastSourceSuccessAt',
+        sources: ['gdacs:EQ', 'gdacs:TC', 'gdacs:FL', 'gdacs:VO', 'gdacs:DR', 'gdacs:WF', 'eonet'],
+        failureCodePattern: /^(GDACS_TYPE_COVERAGE_INCOMPLETE|EONET_SOURCE_FAILED)$/,
+      },
+    ],
   },
   hkoWarnings:      { key: 'seed-meta:weather:hko-warnings',    maxStaleMin: 540 }, // successful HKO responses publish a snapshot even when no tropical-cyclone warning is active.
   // #6987: moved off seed-meta:aviation:faa, which carries the FAA-ONLY alert
@@ -1032,6 +1065,12 @@ const SEED_META = {
   // #4920: daily GH Actions cadence; 2880 = 2x — one fully missed day alarms
   newsFeedHealth:   { key: 'seed-meta:news:feed-health',        maxStaleMin: 2880 },
   newsRecallBenchmark: { key: 'seed-meta:news:recall-benchmark', maxStaleMin: 2880 },
+  // Daily GH Actions publisher at 06:23 UTC; 2880 = 2x, so one fully missed day alarms.
+  openDataChokepoints: {
+    key: 'seed-meta:open-data:chokepoints', maxStaleMin: 2880,
+    activationKey: 'seed-activated:open-data:chokepoints',
+    cutover: { mode: 'activation-marker', fromKey: null, issue: 10284, activationKey: 'seed-activated:open-data:chokepoints' },
+  },
   marketQuotes:     { key: 'seed-meta:market:stocks',         maxStaleMin: 30 },
   // #6235: the country-index RPC is seeded for every serviceable country in the
   // enum. The seeding pass is deliberately best-effort (one country's provider
@@ -1756,7 +1795,7 @@ const SEED_META = {
   radiationWatch:      { key: 'seed-meta:radiation:observations',             maxStaleMin: 30 },
   groceryBasket:       { key: 'seed-meta:economic:grocery-basket',            maxStaleMin: 10080 }, // weekly seed; 10080 = 7 days
   bigmac:              { key: 'seed-meta:economic:bigmac',                    maxStaleMin: 10080 }, // weekly seed; 10080 = 7 days
-  fuelPrices:          { key: 'seed-meta:economic:fuel-prices',               maxStaleMin: 10080 }, // weekly seed; 10080 = 7 days
+  fuelPrices:          { key: 'seed-meta:economic:fuel-prices',               maxStaleMin: 11520 }, // weekly cron (Tue 06:00 UTC); 8d = one run plus a day of grace, still under the 10d CACHE_TTL. Exactly 7d expired as each run started (WORLDMONITOR-1DG)
   faoFoodPriceIndex:   { key: 'seed-meta:economic:fao-ffpi',                  maxStaleMin: 86400 }, // monthly seed; 86400 = 60 days (2x interval)
   thermalEscalation:   { key: 'seed-meta:thermal:escalation',                 maxStaleMin: 360 }, // cron every 2h; 360 = 3x interval (was 240 = 2x)
   thermalEscalationBootstrap: { key: 'seed-meta:thermal:escalation-bootstrap', maxStaleMin: 360 }, // Same cron as above. Monitored separately because the bootstrap tier now hydrates from the compact projection, and a transform/write failure there must not hide behind a healthy canonical key (#5300).
@@ -2672,6 +2711,19 @@ if (!IRAN_EVENTS_ENABLED) {
   delete SEED_META.strikePressure;
 }
 
+// Sources whose content is a scheduled government release (food-price sheets
+// from ministries, statistics offices and FAO/FEWS NET). These publishers run
+// days or weeks late without anything being broken on our side, so a
+// STALE_CONTENT incident waits GOVERNMENT_RELEASE_INCIDENT_GRACE_MIN past the
+// content limit before it goes to Sentry (WORLDMONITOR-1DQ). Health status and
+// the panel's stale label still change at the limit itself.
+const GOVERNMENT_RELEASE_KEYS = new Set(
+  Object.entries(SEED_META)
+    .filter(([, meta]) => meta.key.startsWith('seed-meta:economic:food-prices-'))
+    .map(([name]) => name),
+);
+const GOVERNMENT_RELEASE_INCIDENT_GRACE_MIN = 30 * 24 * 60;
+
 // Standalone keys that are populated on-demand by RPC handlers (not seeds).
 // Empty = WARN not CRIT since they only exist after first request.
 //
@@ -2733,6 +2785,9 @@ const ON_DEMAND_KEYS = new Set([
   'regionalEnergyAnptl',
   'regionalEnergyCreg',
   'regionalEnergyUrsea',
+  // New ICESat-2 probe: absent before the first daily climate bundle run. firstPublicationMaxWaitMin
+  // bounds the grace to one day; seed-activated:climate:reservoir-levels revokes it.
+  'reservoirLevels',
 
   'globalTendersColombiaSecop',
   'globalTendersKenyaPpip',
@@ -2751,6 +2806,7 @@ const ON_DEMAND_KEYS = new Set([
   'globalTendersDominicanRepublicDgcp',
   'globalTendersMalaysiaMyprocurement',
   'ukmtoIncidents',
+  'openDataChokepoints',
   // Deployment-order bridge: Vercel can ship this reader before Railway's
   // hourly bundle publishes the first summary. The seeder writes a durable
   // activation marker after its first successful publish; after that, a
@@ -2956,6 +3012,7 @@ const ACTIVATION_MARKERS = {
   regionalEnergyAnptl: SEED_META.regionalEnergyAnptl.activationKey,
   regionalEnergyCreg: SEED_META.regionalEnergyCreg.activationKey,
   regionalEnergyUrsea: SEED_META.regionalEnergyUrsea.activationKey,
+  reservoirLevels: SEED_META.reservoirLevels.activationKey,
 
   globalTendersColombiaSecop: SEED_META.globalTendersColombiaSecop.activationKey,
   globalTendersKenyaPpip: SEED_META.globalTendersKenyaPpip.activationKey,
@@ -2974,6 +3031,7 @@ const ACTIVATION_MARKERS = {
   globalTendersDominicanRepublicDgcp: SEED_META.globalTendersDominicanRepublicDgcp.activationKey,
   globalTendersMalaysiaMyprocurement: SEED_META.globalTendersMalaysiaMyprocurement.activationKey,
   ukmtoIncidents: 'seed-activated:maritime:ukmto-incidents',
+  openDataChokepoints: SEED_META.openDataChokepoints.activationKey,
   chinaCoverage: 'seed-activated:health:china-coverage',
   // Written by the PizzINT archive's Lua (scripts/shared/pizzint-history.cjs).
   pizzintHistory: SEED_META.pizzintHistory.activationKey,
@@ -3749,11 +3807,24 @@ function projectSourceFailure(meta, policy, now, maxStaleMin) {
   if (Array.isArray(policy)) policy = policy.find(candidate => candidate.failureCodePattern.test(meta?.errorCode));
   if (!policy || meta?.sourceState !== 'degraded') return null;
   let retainedUntil = Infinity;
+  let sourceHealth;
   if (policy.sources) {
     const failed = meta.failedSources;
     const states = Array.isArray(failed) && failed.length > 0 && failed.length < policy.sources.length
       && new Set(failed).size === failed.length && failed.every((source) => policy.sources.includes(source))
       ? failed.map((source) => meta.sourceHealth?.[source]) : [];
+    if (states.length > 0) {
+      sourceHealth = Object.fromEntries(failed.map((source, index) => {
+        const state = states[index];
+        const evidence = {};
+        for (const field of ['lastSuccessAt', 'firstFailureAt', 'retainedUntil', 'retainedRecordCount']) {
+          const value = state?.[field];
+          evidence[field] = Number.isSafeInteger(value) && value >= (field === 'retainedRecordCount' ? 0 : 1)
+            ? value : null;
+        }
+        return [source, evidence];
+      }));
+    }
     const valid = states.length > 0 && states.every((state) =>
       Number.isSafeInteger(state?.consecutiveFailures) && state.consecutiveFailures >= 1
       && [state.lastSuccessAt, state.firstFailureAt, state.retainedUntil].every((value) => Number.isSafeInteger(value) && value > 0)
@@ -3804,6 +3875,7 @@ function projectSourceFailure(meta, policy, now, maxStaleMin) {
     lastSourceFailureCode,
     pending,
     pendingUntil,
+    sourceHealth,
   };
 }
 
@@ -4516,6 +4588,7 @@ function classifyKey(name, redisKey, opts, ctx) {
   // sitting unread in seed-meta.
   if ((fault === 'SEED_ERROR' || sourceFailure) && errorCode) entry.errorCode = errorCode;
   if (sourceFailure) {
+    if (sourceFailure.sourceHealth) entry.sourceHealth = sourceFailure.sourceHealth;
     if (sourceFailure.consecutiveSourceFailures !== null) {
       entry.consecutiveSourceFailures = sourceFailure.consecutiveSourceFailures;
     }
@@ -5754,14 +5827,18 @@ function computeOverallStatus(counts, totalChecks) {
 }
 
 // Failure-log / ?history=1 problem set. Distinct from the compact `problems` map
-// because EMPTY_ON_DEMAND and active stale-content grace are not active faults.
-// Both remain visible in diagnostics without polluting the incident signature.
+// because EMPTY_ON_DEMAND, active stale-content grace and an in-window rollout
+// are not active faults. All remain visible in diagnostics without polluting
+// the incident signature. ROLLOUT_PENDING keeps its warn bucket for
+// availability (#6059); only its incident is deferred, because a producer that
+// never publishes reads EMPTY once `rolloutPendingUntil` passes and alerts then.
 function collectFailureLogProblems(checks, now = Date.now()) {
   const entries = Object.entries(checks)
     .filter(([, c]) => (
       isProblemStatus(c.status)
       && healthStatusBucket(c, now) !== 'ok'
       && c.status !== 'EMPTY_ON_DEMAND'
+      && !(c.status === 'ROLLOUT_PENDING' && !isExpiredDeadline(c.rolloutPendingUntil, now))
     ));
   return {
     problemKeys: entries.map(([k, c]) => `${k}:${c.status}${c.seedAgeMin != null ? `(${c.seedAgeMin}min)` : ''}`),
@@ -5862,6 +5939,30 @@ function pendingIncidentKeys(alertedRaw, sigKeys) {
   return sigKeys.filter((key) => !alerted.has(key));
 }
 
+/**
+ * Whether a `<source>:<status>` incident should go to Sentry now. A late
+ * government release is held back until its content is more than
+ * GOVERNMENT_RELEASE_INCIDENT_GRACE_MIN past its limit. Without a readable
+ * content age, or with a future-dated one, nothing is held back: both point
+ * at our parser or bad upstream data, not a late publisher.
+ */
+function isReportableIncident(key, checks) {
+  const separator = key.lastIndexOf(':');
+  const name = key.slice(0, separator);
+  if (key.slice(separator + 1) !== 'STALE_CONTENT' || !GOVERNMENT_RELEASE_KEYS.has(name)) return true;
+  const { contentAgeMin, maxContentAgeMin } = checks[name] ?? {};
+  if (!Number.isFinite(contentAgeMin) || !Number.isFinite(maxContentAgeMin)) return true;
+  // A future-dated item (negative age) is bad data, not a late publisher.
+  if (contentAgeMin < 0) return true;
+  return contentAgeMin > maxContentAgeMin + GOVERNMENT_RELEASE_INCIDENT_GRACE_MIN;
+}
+
+// A held-back incident is never recorded as alerted, so each sweep re-checks
+// it and it reports on the first sweep after its grace runs out.
+function reportableIncidentKeys(keys, checks) {
+  return keys.filter((key) => isReportableIncident(key, checks));
+}
+
 // The next record: still-active incidents already accepted, plus the ones
 // accepted this sweep. Recovered and undelivered incidents are left out.
 function nextAlertedIncidents(alertedRaw, sigKeys, delivered) {
@@ -5870,6 +5971,42 @@ function nextAlertedIncidents(alertedRaw, sigKeys, delivered) {
   return [...new Set([...kept, ...delivered])].sort();
 }
 
+// Fields that say why a non-freshness status fired. COVERAGE_PARTIAL has
+// several causes and CHINA_DEGRADED names its failing entries only in
+// `problems`; without these an incident carries no cause (WORLDMONITOR-1D6).
+const SOURCE_INCIDENT_DIAGNOSTIC_FIELDS = [
+  'minRecordCount', 'rankableRecordCount', 'minRankableRecordCount',
+  'poolCounts', 'minPoolCounts', 'coverage', 'decisionGroups', 'failedDatasets',
+  'dominantFailureMode', 'lastSourceFailureCode', 'consecutiveSourceFailures',
+  'sourceHealth',
+  'chinaStatus', 'seedStatus', 'counts', 'problems', 'degradedStreak', 'degradedProblemKey', 'reason',
+  // Set by the composers after classification: chokepoint transits missing
+  // their measurable inputs, the CII input audit, the read-model gate, and the
+  // vulnerability floors a COVERAGE_PARTIAL compares against.
+  'missingMeasurable', 'ciiInputs', 'readModelReady', 'requiredVulnerabilityCoverage',
+];
+// Per-field cap on the serialized value: a coverage block can list every
+// country, and Sentry rejects oversized events whole.
+const SOURCE_INCIDENT_FIELD_MAX_CHARS = 4_000;
+
+/**
+ * A check field as it goes into a Sentry incident: unchanged when small, else
+ * its first SOURCE_INCIDENT_FIELD_MAX_CHARS characters (JSON for objects) and
+ * a truncation mark. Strings are capped too: `degradedProblemKey` is a
+ * serialized copy of the China problems.
+ */
+function boundedIncidentValue(value) {
+  if (value === null || (typeof value !== 'object' && typeof value !== 'string')) return value;
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  return text.length <= SOURCE_INCIDENT_FIELD_MAX_CHARS
+    ? value
+    : `${text.slice(0, SOURCE_INCIDENT_FIELD_MAX_CHARS)}…[truncated]`;
+}
+
+/**
+ * Report one `<source>:<status>` incident to Sentry with the check fields that
+ * say how stale it is and why it fired. Resolves true when Sentry accepted it.
+ */
 async function reportSourceIncident(key, checks, ctx, capture = captureSilentError) {
   const separator = key.lastIndexOf(':');
   const name = key.slice(0, separator);
@@ -5878,6 +6015,9 @@ async function reportSourceIncident(key, checks, ctx, capture = captureSilentErr
   const extra = {};
   for (const field of ['records', 'seedAgeMin', 'maxStaleMin', 'contentAgeMin', 'maxContentAgeMin', 'errorCode']) {
     if (check[field] !== undefined) extra[field] = check[field];
+  }
+  for (const field of SOURCE_INCIDENT_DIAGNOSTIC_FIELDS) {
+    if (check[field] !== undefined && check[field] !== null) extra[field] = boundedIncidentValue(check[field]);
   }
   return await capture(new Error(`Health source incident: ${name} ${status}`), {
     level: 'warning',
@@ -6616,7 +6756,7 @@ export async function handleHealth(req, ctx, options = {}) {
       if (Array.isArray(result) && result[1] && !result[1].error
         && parseAlertedIncidents(result[1].result) !== null) {
         const alertedRaw = result[1].result ?? null;
-        const pending = pendingIncidentKeys(alertedRaw, diagnostics.sigKeys);
+        const pending = reportableIncidentKeys(pendingIncidentKeys(alertedRaw, diagnostics.sigKeys), checks);
         const outcomes = await Promise.all(pending.map((key) => (
           reportSourceIncident(key, checks, ctx, options.captureIncident).catch(() => false)
         )));
@@ -6748,6 +6888,7 @@ export default async function handler(req, ctx) {
 // the classifier without standing up the full bootstrap-keys + Redis pipeline.
 // 2026-05-04 health-readiness plan, Sprint 1 test plan (Codex round 2 P1).
 export const __testing__ = {
+  reportSourceIncident,
   composeContractsFinderHealth,
   composeChokepointTransitsCoverage,
   composeRiskScoresInputHealth,
@@ -6756,6 +6897,10 @@ export const __testing__ = {
   healthResponseBody,
   collectFailureLogProblems,
   pendingIncidentKeys,
+  isReportableIncident,
+  reportableIncidentKeys,
+  GOVERNMENT_RELEASE_KEYS,
+  GOVERNMENT_RELEASE_INCIDENT_GRACE_MIN,
   nextAlertedIncidents,
   HEALTH_INCIDENT_ALERTS_KEY,
   dataStatusFromSummary,

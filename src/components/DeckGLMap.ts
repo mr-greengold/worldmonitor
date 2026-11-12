@@ -1,3 +1,5 @@
+import { bindMapControlDisclosure } from './map-control-disclosure';
+import { MapDistanceControl } from './map-distance-control';
 import { createTimeoutSignal } from '@/services/timeout-signal';
 /**
  * DeckGLMap - WebGL-accelerated map visualization for desktop
@@ -10,6 +12,7 @@ import { GeoJsonLayer, ScatterplotLayer, PathLayer, IconLayer, TextLayer, Polygo
 import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { StyleSpecification } from 'maplibre-gl';
+import type { FocusFitBounds } from '@/utils/focus-map';
 import { FALLBACK_DARK_STYLE, FALLBACK_LIGHT_STYLE, getMapProvider, getMapTheme, isLightMapTheme } from '@/config/basemap';
 import { getStyleForProvider } from '@/config/basemap-styles';
 import Supercluster from 'supercluster';
@@ -83,7 +86,10 @@ import { getCachedFuelShortageRegistry } from '@/shared/fuel-shortage-registry-s
 // getCountryCentroid is imported lower in the file alongside other
 // country-geometry helpers; don't re-import it here.
 import { tokenizeForMatch, matchKeyword, matchesAnyKeyword, findMatchingKeywords } from '@/utils/keyword-match';
-import { initI18n, t } from '@/services/i18n';
+import { getLocale, initI18n, t } from '@/services/i18n';
+import type { ReservoirLevel } from '@/services/climate';
+import { getCSSColor } from '@/utils/theme-colors';
+import { isHollowStatus, reservoirHeadline, reservoirTone, reservoirToneRgb, statusLabel as reservoirStatusLabel } from './reservoir-levels-view';
 import { statusLabel as popupStatusLabel, storageFacilityTypeLabel } from './map-popup-i18n';
 import { debounce, rafSchedule, getCurrentTheme } from '@/utils/index';
 import { createIdleAwareFrameProvider } from '@/utils/idle-aware-frame-provider';
@@ -91,6 +97,7 @@ import { isInputPending, scheduleYield } from '@/utils/after-paint';
 import { showLayerWarning } from '@/utils/layer-warning';
 import { ukmtoIncidentLabel, type UkmtoMapIncident } from '../../shared/ukmto-incidents';
 import { localizeMapLabels } from '@/utils/map-locale';
+import { improveBasemapLabels } from '@/config/basemap-labels';
 import {
   createCountryHoverQueryController,
   resolveCountryForPointerInteraction,
@@ -280,6 +287,34 @@ const VIEW_PRESETS: Record<DeckMapView, { longitude: number; latitude: number; z
 };
 
 const VIEWPORT_MOVEMENT_EVENT_KEY = 'worldMonitorViewportGeneration';
+
+// Dashboard focus outline (#10453). The colour is the focus bar's accent
+// (--green in main.css) for the basemap's brightness.
+const FOCUS_CHOSEN_FILL_LAYER = 'country-focus-chosen-fill';
+const FOCUS_CHOSEN_BORDER_LAYER = 'country-focus-chosen-border';
+const FOCUS_NEIGHBOUR_BORDER_LAYER = 'country-focus-neighbour-border';
+const FOCUS_OUTLINE_COLOR = { dark: '#44ff88', light: '#16a34a' } as const;
+const FOCUS_OUTLINE_STYLE = {
+  chosen: { width: 2, opacity: 0.95, fillOpacity: 0.06 },
+  neighbour: { width: 1, opacity: 0.45 },
+} as const;
+function focusCodeFilter(codes: readonly string[]): maplibregl.FilterSpecification {
+  return ['in', ['get', 'ISO3166-1-Alpha-2'], ['literal', [...codes]]] as maplibregl.FilterSpecification;
+}
+
+function focusFitPadding(container: HTMLElement): number {
+  const size = Math.min(container.clientWidth || 0, container.clientHeight || 0);
+  // Keep a frame on a phone-sized map without leaving MapLibre too little
+  // room to fit at all.
+  return size > 0 && size < 400 ? 20 : 40;
+}
+
+function lngLatOf(center: maplibregl.LngLatLike): { lng: number; lat: number } | null {
+  if (Array.isArray(center)) return { lng: center[0], lat: center[1] };
+  const c = center as { lng?: number; lon?: number; lat: number };
+  const lng = c.lng ?? c.lon;
+  return typeof lng === 'number' && Number.isFinite(lng) && Number.isFinite(c.lat) ? { lng, lat: c.lat } : null;
+}
 const DECK_IDLE_FRAME_INTERVAL_MS = 250;
 const DECK_ACTIVE_FRAME_WINDOW_MS = 300;
 // 'render' covers every map frame, including repaints deck itself requests.
@@ -618,6 +653,7 @@ export class DeckGLMap {
   private static readonly MAX_CLUSTER_LEAVES = 200;
 
   private container: HTMLElement;
+  private controlDisclosureCleanups: (() => void)[] = [];
   private deckOverlay: MapLibreOverlay | null = null;
   // deck.gl's loop polls for layer changes on every display frame. Between
   // map activity it polls on a slow timer instead, which removes most idle
@@ -652,6 +688,7 @@ export class DeckGLMap {
   private iranEvents: IranEvent[] = [];
   private aisDisruptions: AisDisruptionEvent[] = [];
   private ukmtoIncidents: UkmtoMapIncident[] = [];
+  private reservoirLevels: ReservoirLevel[] = [];
   private aisDensity: AisDensityZone[] = [];
   private liveTankers: Array<{ mmsi: string; lat: number; lon: number; speed: number; shipType: number; name: string }> = [];
   private liveTankersAbort: AbortController | null = null;
@@ -759,6 +796,8 @@ export class DeckGLMap {
   private countryGeoJsonLoaded = false;
   private countryHoverSetup = false;
   private highlightedCountryCode: string | null = null;
+  /** Dashboard focus (#10453): chosen countries outlined solid, neighbours lighter. */
+  private focusOutline: { chosen: string[]; neighbours: string[] } | null = null;
   private hoveredCountryIso2: string | null = null;
   private hoveredCountryName: string | null = null;
 
@@ -878,6 +917,7 @@ export class DeckGLMap {
     windowMs: 60_000,
   });
   private destroyed = false;
+  private distanceControl: MapDistanceControl | null = null;
   private usedFallbackStyle = false;
   private readonly chrome: boolean;
   private readonly mapLibreWorkerUrl: string | undefined;
@@ -1288,6 +1328,7 @@ export class DeckGLMap {
       this.maplibreMap.on('load', () => {
         this.attachMapLibreInteractionHandlers();
         localizeMapLabels(this.maplibreMap);
+        improveBasemapLabels(this.maplibreMap, isLightMapTheme(initialMapTheme));
         this.initDeck();
         this.loadCountryBoundaries();
         this.fetchServerBases();
@@ -1297,6 +1338,7 @@ export class DeckGLMap {
 
     this.maplibreMap.on('load', () => {
       localizeMapLabels(this.maplibreMap);
+      improveBasemapLabels(this.maplibreMap, isLightMapTheme(initialMapTheme));
       this.initDeck();
       this.loadCountryBoundaries();
       this.fetchServerBases();
@@ -1371,6 +1413,14 @@ export class DeckGLMap {
 
   private initDeck(): void {
     if (!this.maplibreMap) return;
+
+    this.distanceControl?.destroy();
+    this.distanceControl = this.chrome
+      ? new MapDistanceControl(this.maplibreMap, this.container, () => {
+        this.popup.hide();
+        this.rafUpdateLayers();
+      })
+      : null;
 
     installDeckInterleavedRaceFilter();
 
@@ -2260,6 +2310,10 @@ export class DeckGLMap {
       }));
     }
 
+    if (mapLayers.reservoirLevels && this.reservoirLevels.length > 0) {
+      layers.push(this.createReservoirLevelsLayer());
+    }
+
     // GPS/GNSS jamming layer
     if (mapLayers.gpsJamming && this.gpsJammingHexes.length > 0) {
       layers.push(this.createGpsJammingLayer());
@@ -2536,6 +2590,7 @@ export class DeckGLMap {
     }
 
     const result = this.withCategoryGlyphs(layers.filter(Boolean) as LayersList);
+    result.push(...(this.distanceControl?.getLayers() ?? []));
     const elapsed = performance.now() - startTime;
     if (import.meta.env.DEV && elapsed > 16) {
       console.warn(`[DeckGLMap] buildLayers took ${elapsed.toFixed(2)}ms (>16ms budget), ${result.length} layers`);
@@ -3307,7 +3362,8 @@ export class DeckGLMap {
     if (this.serverBaseClusters.length === 0) return [];
     const zoom = this.maplibreMap?.getZoom() || 3;
     const alphaScale = Math.min(1, (zoom - 2.5) / 2.5);
-    const a = Math.round(180 * Math.max(0.3, alphaScale));
+    // Dense base clusters should leave the geographic reference visible beneath.
+    const a = Math.round(130 * Math.max(0.3, alphaScale));
 
     const scatterLayer = new ScatterplotLayer<ServerBaseCluster>({
       id: 'bases-cluster-layer',
@@ -3315,8 +3371,8 @@ export class DeckGLMap {
       getPosition: (d) => [d.longitude, d.latitude],
       getRadius: (d) => Math.max(8000, Math.log2(d.count) * 6000),
       getFillColor: (d) => getMilitaryBaseColor(d.dominantType, a),
-      radiusMinPixels: 10,
-      radiusMaxPixels: 40,
+      radiusMinPixels: 8,
+      radiusMaxPixels: 24,
       pickable: true,
     });
 
@@ -4216,9 +4272,9 @@ export class DeckGLMap {
       getFillColor: (d) => {
         // Vessel types: 'exercise' | 'deployment' | 'transit' | 'unknown'
         const activity = d.activityType || 'unknown';
-        if (activity === 'exercise' || activity === 'deployment') return [255, 100, 100, 200] as [number, number, number, number];
-        if (activity === 'transit') return [255, 180, 100, 180] as [number, number, number, number];
-        return [200, 150, 150, 160] as [number, number, number, number];
+        if (activity === 'exercise' || activity === 'deployment') return [255, 100, 100, 150] as [number, number, number, number];
+        if (activity === 'transit') return [255, 180, 100, 135] as [number, number, number, number];
+        return [200, 150, 150, 120] as [number, number, number, number];
       },
       radiusMinPixels: 8,
       radiusMaxPixels: 25,
@@ -4264,9 +4320,9 @@ export class DeckGLMap {
       getRadius: (d) => 15000 + (d.flightCount || 1) * 3000,
       getFillColor: (d) => {
         const activity = d.activityType || 'unknown';
-        if (activity === 'exercise' || activity === 'patrol') return [100, 150, 255, 200] as [number, number, number, number];
-        if (activity === 'transport') return [255, 200, 100, 180] as [number, number, number, number];
-        return [150, 150, 200, 160] as [number, number, number, number];
+        if (activity === 'exercise' || activity === 'patrol') return [100, 150, 255, 150] as [number, number, number, number];
+        if (activity === 'transport') return [255, 200, 100, 135] as [number, number, number, number];
+        return [150, 150, 200, 120] as [number, number, number, number];
       },
       radiusMinPixels: 8,
       radiusMaxPixels: 25,
@@ -4523,10 +4579,10 @@ export class DeckGLMap {
       radiusMinPixels: 6,
       radiusMaxPixels: 22,
       getFillColor: d => {
-        if (d.hasRiot) return [220, 40, 40, 200] as [number, number, number, number];
-        if (d.maxSeverity === 'high') return [255, 80, 60, 180] as [number, number, number, number];
-        if (d.maxSeverity === 'medium') return [255, 160, 40, 160] as [number, number, number, number];
-        return [255, 220, 80, 140] as [number, number, number, number];
+        if (d.hasRiot) return [220, 40, 40, 150] as [number, number, number, number];
+        if (d.maxSeverity === 'high') return [255, 80, 60, 135] as [number, number, number, number];
+        if (d.maxSeverity === 'medium') return [255, 160, 40, 120] as [number, number, number, number];
+        return [255, 220, 80, 105] as [number, number, number, number];
       },
       pickable: true,
       updateTriggers: { getRadius: this.lastSCZoom, getFillColor: this.lastSCZoom },
@@ -4588,9 +4644,9 @@ export class DeckGLMap {
       radiusMinPixels: 5,
       radiusMaxPixels: 18,
       getFillColor: d => {
-        if (d.primaryType === 'faang') return [0, 220, 120, 200] as [number, number, number, number];
-        if (d.primaryType === 'unicorn') return [255, 100, 200, 180] as [number, number, number, number];
-        return [80, 160, 255, 180] as [number, number, number, number];
+        if (d.primaryType === 'faang') return [0, 220, 120, 150] as [number, number, number, number];
+        if (d.primaryType === 'unicorn') return [255, 100, 200, 135] as [number, number, number, number];
+        return [80, 160, 255, 135] as [number, number, number, number];
       },
       pickable: true,
       updateTriggers: { getRadius: this.lastSCZoom },
@@ -4648,8 +4704,8 @@ export class DeckGLMap {
       radiusMinPixels: 5,
       radiusMaxPixels: 18,
       getFillColor: d => {
-        if (d.soonestDaysUntil <= 14) return [255, 220, 50, 200] as [number, number, number, number];
-        return [80, 140, 255, 180] as [number, number, number, number];
+        if (d.soonestDaysUntil <= 14) return [255, 220, 50, 150] as [number, number, number, number];
+        return [80, 140, 255, 135] as [number, number, number, number];
       },
       pickable: true,
       updateTriggers: { getRadius: this.lastSCZoom },
@@ -4690,8 +4746,8 @@ export class DeckGLMap {
       radiusMinPixels: 6,
       radiusMaxPixels: 20,
       getFillColor: d => {
-        if (d.majorityExisting) return [160, 80, 255, 180] as [number, number, number, number];
-        return [80, 160, 255, 180] as [number, number, number, number];
+        if (d.majorityExisting) return [160, 80, 255, 135] as [number, number, number, number];
+        return [80, 160, 255, 135] as [number, number, number, number];
       },
       pickable: true,
       updateTriggers: { getRadius: this.lastSCZoom },
@@ -5481,6 +5537,11 @@ export class DeckGLMap {
         return { html: `<div class="deckgl-tooltip"><strong>AIS ${text(obj.type || t('components.deckgl.tooltip.disruption'))}</strong><br/>${text(obj.severity)} ${t('popups.severity')}<br/>${text(obj.description)}</div>` };
       case 'ukmto-incidents-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(ukmtoIncidentLabel(obj))}</strong><br/>${text(obj.description)}</div>` };
+      case 'reservoir-levels-layer': {
+        const r = obj as ReservoirLevel;
+        const headline = reservoirHeadline(r, { t, locale: getLocale(), nowMs: Date.now() });
+        return { html: `<div class="deckgl-tooltip"><strong>${text(r.name)}</strong><br/>${text(reservoirStatusLabel(r, t))} · ${text(headline)}</div>` };
+      }
       case 'cross-border-deaths-layer':
       case 'cross-border-points-layer': {
         const change = obj.change !== null && obj.change !== 0
@@ -5915,6 +5976,7 @@ export class DeckGLMap {
       'gps-jamming-layer': 'gpsJamming',
       'cable-advisories-layer': 'cable-advisory',
       'repair-ships-layer': 'repair-ship',
+      'reservoir-levels-layer': 'reservoirLevel',
     };
 
     const popupType = layerToPopupType[layerId];
@@ -6191,11 +6253,6 @@ export class DeckGLMap {
       </div>
     `, "legacy direct innerHTML migration"));
 
-    const authorBadge = document.createElement('div');
-    authorBadge.className = 'map-author-badge';
-    authorBadge.textContent = '© Elie Habib · Someone™';
-    toggles.appendChild(authorBadge);
-
     this.container.appendChild(toggles);
 
     const lockedLayerControls = layerConfig
@@ -6308,7 +6365,6 @@ export class DeckGLMap {
     helpBtn?.addEventListener('click', () => this.showLayerHelp());
 
     // Collapse toggle
-    const collapseBtn = toggles.querySelector('.toggle-collapse');
     const toggleList = toggles.querySelector('.toggle-list');
 
     // Manual scroll: intercept wheel, prevent map zoom, scroll the list ourselves
@@ -6321,13 +6377,7 @@ export class DeckGLMap {
       toggles.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: false });
     }
     bindLayerSearch(toggles);
-    const searchEl = toggles.querySelector('.layer-search') as HTMLElement | null;
-
-    collapseBtn?.addEventListener('click', () => {
-      toggleList?.classList.toggle('collapsed');
-      if (searchEl) searchEl.style.display = toggleList?.classList.contains('collapsed') ? 'none' : '';
-      if (collapseBtn) setTrustedHtml(collapseBtn, trustedHtml(toggleList?.classList.contains('collapsed') ? '&#9654;' : '&#9660;', "legacy direct innerHTML migration"));
-    });
+    this.controlDisclosureCleanups.push(bindMapControlDisclosure(this.container, toggles, 'layers', t('components.deckgl.layersTitle')));
   }
 
   private async showLayerExplanation(layer: keyof MapLayers): Promise<void> {
@@ -6499,6 +6549,7 @@ export class DeckGLMap {
       helpItem(label('canadaRoads'), 'canadaRoads'),
       helpItem(label('canadaAlerts'), 'canadaAlerts'),
       helpItem(label('climateAnomalies'), 'climateAnomalies'),
+      helpItem(label('reservoirLevels'), 'reservoirLevels'),
       helpItem(label('economicCenters'), 'economicCenters'),
       helpItem(label('criticalMinerals'), 'mineralsFull'),
     ])}
@@ -6643,6 +6694,7 @@ export class DeckGLMap {
     legend.appendChild(no2Legend);
 
     this.container.appendChild(legend);
+    this.controlDisclosureCleanups.push(bindMapControlDisclosure(this.container, legend, 'legend', t('components.deckgl.legend.title')));
     this.updateLegend();
   }
 
@@ -7616,6 +7668,51 @@ export class DeckGLMap {
     this.cableAdvisories = advisories;
     this.repairShips = repairShips;
     this.render();
+  }
+
+  public setReservoirLevels(reservoirs: ReservoirLevel[]): void {
+    this.reservoirLevels = reservoirs;
+    this.render();
+  }
+
+  /** Fly to a reservoir and open its popup at the container centre, where the flight ends. */
+  public openReservoir(reservoir: ReservoirLevel): void {
+    const reveal = () => {
+      if (this.destroyed || !this.maplibreMap) return;
+      this.setCenter(reservoir.lat, reservoir.lon, 6);
+      const { x, y } = this.getContainerCenter();
+      this.popup.show({ type: 'reservoirLevel', data: reservoir, x, y });
+    };
+    if (this.maplibreMap) reveal();
+    else void this.whenReady().then(reveal).catch(() => {});
+  }
+
+  /**
+   * One dot per strategic reservoir, coloured by status from the theme's
+   * semantic tokens: red and amber for falling or low, blue for rising or
+   * high, grey for normal, and a hollow ring when there is no recent pass or
+   * too little history to judge.
+   */
+  private createReservoirLevelsLayer(): ScatterplotLayer<ReservoirLevel> {
+    const theme = getCurrentTheme();
+    const rgb = (r: ReservoirLevel) => reservoirToneRgb(reservoirTone(r.status), getCSSColor);
+    const outline: [number, number, number, number] = theme === 'light' ? [255, 255, 255, 230] : [10, 12, 16, 230];
+    return new ScatterplotLayer<ReservoirLevel>({
+      id: 'reservoir-levels-layer',
+      data: this.reservoirLevels,
+      getPosition: (r) => [r.lon, r.lat],
+      getRadius: 9000,
+      radiusMinPixels: 6,
+      radiusMaxPixels: 12,
+      filled: true,
+      stroked: true,
+      getFillColor: (r) => (isHollowStatus(r.status) ? [0, 0, 0, 0] : [...rgb(r), 235]),
+      getLineColor: (r) => (isHollowStatus(r.status) ? [...rgb(r), 255] : outline),
+      getLineWidth: (r) => (isHollowStatus(r.status) ? 2 : 1.5),
+      lineWidthUnits: 'pixels',
+      pickable: true,
+      updateTriggers: { getFillColor: theme, getLineColor: theme },
+    });
   }
 
   public setUkmtoIncidents(incidents: UkmtoMapIncident[]): void {
@@ -8714,11 +8811,14 @@ export class DeckGLMap {
           filter: ['==', ['get', 'ISO3166-1-Alpha-2'], ''],
         });
 
+        this.addFocusOutlineLayers();
+
         if (!this.countryHoverSetup) this.setupCountryHover();
         const paintProvider = getMapProvider();
         const paintMapTheme = getMapTheme(paintProvider);
         this.updateCountryLayerPaint(isLightMapTheme(paintMapTheme) ? 'light' : 'dark');
         if (this.highlightedCountryCode) this.highlightCountry(this.highlightedCountryCode);
+        this.applyFocusOutline();
         this.render();
       })
       .catch((err) => console.warn('[DeckGLMap] Failed to load country boundaries:', err));
@@ -8858,6 +8958,99 @@ export class DeckGLMap {
     this.countryPulseRaf = requestAnimationFrame(step);
   }
 
+  // --- Dashboard focus outline and fit (#10453) ---
+
+  /**
+   * Outline the focus: chosen countries with a solid border (and a faint
+   * fill), neighbours with a thinner, fainter one. Separate layers from the
+   * country-brief highlight, so opening or closing a brief never clears the
+   * focus outline. Null removes it. Markers are untouched.
+   */
+  public setFocusOutline(outline: { chosen: readonly string[]; neighbours: readonly string[] } | null): void {
+    this.focusOutline = outline
+      ? { chosen: [...outline.chosen], neighbours: [...outline.neighbours] }
+      : null;
+    this.applyFocusOutline();
+  }
+
+  private addFocusOutlineLayers(): void {
+    const map = this.maplibreMap;
+    if (!map) return;
+    const color = FOCUS_OUTLINE_COLOR[isLightMapTheme(getMapTheme(getMapProvider())) ? 'light' : 'dark'];
+    const none = focusCodeFilter([]);
+    map.addLayer({
+      id: FOCUS_CHOSEN_FILL_LAYER,
+      type: 'fill',
+      source: 'country-boundaries',
+      paint: { 'fill-color': color, 'fill-opacity': FOCUS_OUTLINE_STYLE.chosen.fillOpacity },
+      filter: none,
+    });
+    // Neighbours first, so the chosen border draws over a shared border.
+    map.addLayer({
+      id: FOCUS_NEIGHBOUR_BORDER_LAYER,
+      type: 'line',
+      source: 'country-boundaries',
+      paint: {
+        'line-color': color,
+        'line-width': FOCUS_OUTLINE_STYLE.neighbour.width,
+        'line-opacity': FOCUS_OUTLINE_STYLE.neighbour.opacity,
+      },
+      filter: none,
+    });
+    map.addLayer({
+      id: FOCUS_CHOSEN_BORDER_LAYER,
+      type: 'line',
+      source: 'country-boundaries',
+      paint: {
+        'line-color': color,
+        'line-width': FOCUS_OUTLINE_STYLE.chosen.width,
+        'line-opacity': FOCUS_OUTLINE_STYLE.chosen.opacity,
+      },
+      filter: none,
+    });
+  }
+
+  private applyFocusOutline(): void {
+    const map = this.maplibreMap;
+    if (!map || !this.countryGeoJsonLoaded) return;
+    try {
+      // Boundaries still loading: the load callback applies the outline.
+      if (!map.getLayer(FOCUS_CHOSEN_BORDER_LAYER)) return;
+      const chosen = focusCodeFilter(this.focusOutline?.chosen ?? []);
+      map.setFilter(FOCUS_CHOSEN_FILL_LAYER, chosen);
+      map.setFilter(FOCUS_CHOSEN_BORDER_LAYER, chosen);
+      map.setFilter(FOCUS_NEIGHBOUR_BORDER_LAYER, focusCodeFilter(this.focusOutline?.neighbours ?? []));
+    } catch { /* style swapped mid-call; the next boundaries load re-applies */ }
+  }
+
+  /**
+   * Frame the focus's chosen countries. `fit.east` is unwrapped past 180
+   * when the union crosses the dateline, which MapLibre fits across the
+   * Pacific. `maxZoom` is FOCUS_FIT_MAX_ZOOM from that module, passed in so
+   * this chunk does not import it statically.
+   */
+  public fitFocusBounds(fit: FocusFitBounds, maxZoom: number): void {
+    const map = this.maplibreMap;
+    if (!map) return;
+    const camera = map.cameraForBounds(
+      [[fit.west, fit.south], [fit.east, fit.north]],
+      { padding: focusFitPadding(this.container), maxZoom },
+    );
+    const center = camera?.center ? lngLatOf(camera.center) : null;
+    if (!center) return;
+    const lon = ((center.lng + 180) % 360 + 360) % 360 - 180;
+    const zoom = camera?.zoom ?? map.getZoom();
+    this.pendingCenter = { lat: center.lat, lon };
+    this.state.zoom = zoom;
+    const viewportMovementGeneration = this.markViewportMoving({ lat: center.lat, lon, zoom }, 1_100);
+    map.flyTo({
+      center: [lon, center.lat],
+      zoom,
+      duration: 800,
+    }, { [VIEWPORT_MOVEMENT_EVENT_KEY]: viewportMovementGeneration });
+    this.onStateChange?.(this.getState());
+  }
+
   private async switchBasemap(): Promise<void> {
     const map = this.maplibreMap;
     if (!map) return;
@@ -8875,6 +9068,7 @@ export class DeckGLMap {
     map.setStyle(style, { diff: false });
     map.once('style.load', () => {
       localizeMapLabels(this.maplibreMap);
+      improveBasemapLabels(this.maplibreMap, isLightMapTheme(isHappyVariant ? getCurrentTheme() : mapTheme));
       this.loadCountryBoundaries();
       if (this.radarActive) this.applyRadarLayer();
       const paintTheme = isLightMapTheme(mapTheme) ? 'light' as const : 'dark' as const;
@@ -8938,6 +9132,7 @@ export class DeckGLMap {
     this.maplibreMap.setStyle(fallback, { diff: false });
     this.maplibreMap.once('style.load', () => {
       localizeMapLabels(this.maplibreMap);
+      improveBasemapLabels(this.maplibreMap, isLightMapTheme(mapTheme));
       this.loadCountryBoundaries();
       if (this.radarActive) this.applyRadarLayer();
       const paintTheme = isLightMapTheme(mapTheme) ? 'light' as const : 'dark' as const;
@@ -8956,6 +9151,12 @@ export class DeckGLMap {
   private updateCountryLayerPaint(theme: 'dark' | 'light'): void {
     if (!this.maplibreMap || !this.countryGeoJsonLoaded) return;
     if (!this.maplibreMap.style || !this.maplibreMap.getLayer('country-hover-fill')) return;
+    if (this.maplibreMap.getLayer(FOCUS_CHOSEN_BORDER_LAYER)) {
+      const color = FOCUS_OUTLINE_COLOR[theme];
+      this.maplibreMap.setPaintProperty(FOCUS_CHOSEN_FILL_LAYER, 'fill-color', color);
+      this.maplibreMap.setPaintProperty(FOCUS_NEIGHBOUR_BORDER_LAYER, 'line-color', color);
+      this.maplibreMap.setPaintProperty(FOCUS_CHOSEN_BORDER_LAYER, 'line-color', color);
+    }
     const hoverFillOpacity   = theme === 'light' ? 0.08 : 0.05;
     const hoverBorderOpacity = theme === 'light' ? 0.35 : 0.22;
     const highlightOpacity   = theme === 'light' ? 0.18 : 0.12;
@@ -8969,6 +9170,8 @@ export class DeckGLMap {
   }
 
   public destroy(): void {
+    this.controlDisclosureCleanups.forEach(cleanup => cleanup());
+    this.controlDisclosureCleanups = [];
     this.destroyed = true;
     this.aircraftFetchSeq += 1;
     this.deckFrameProvider.dispose();
@@ -9024,6 +9227,8 @@ export class DeckGLMap {
     this.activeNuclearFacilities = null;
     this.activeDatacenters = null;
 
+    this.distanceControl?.destroy();
+    this.distanceControl = null;
     this.deckOverlay?.finalize();
     this.deckOverlay = null;
     this.detachMapLibreInteractionHandlers();

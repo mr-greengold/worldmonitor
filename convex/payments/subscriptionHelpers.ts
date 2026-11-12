@@ -13,6 +13,7 @@ import type { Doc } from "../_generated/dataModel";
 import { isAccountDeleting } from "../accountDeletion/guard";
 import { redactBillingPayload, tombstoneUserId } from "../accountDeletion/registry";
 import { getFeaturesForPlan } from "../lib/entitlements";
+import { enterpriseMembershipCandidate } from "../lib/enterpriseAccounts";
 import {
   PLAN_PRECEDENCE,
   PRODUCT_CATALOG,
@@ -28,9 +29,25 @@ import {
 import { DEV_USER_ID, isDev } from "../lib/auth";
 import { isChargedEventType, recordUnattributedEvent } from "./unattributedPayments";
 import { normalizeCheckoutAttributionSource } from "../../shared/mcp-attribution";
+import { acquisitionFromCheckoutMetadata } from "../../shared/acquisition-source";
+import type { ConversionContext } from "./subscriptionEmails";
 
 export function isBusinessPlan(planKey: string): boolean {
   return PRODUCT_CATALOG[planKey]?.tierGroup === "api_business";
+}
+
+export type PlanChange = "upgrade" | "downgrade" | "lateral";
+
+/**
+ * Direction of a plan change. PLAN_PRECEDENCE already ranks plans by tier, then
+ * capability, then commitment, for the entitlement recompute; an upgrade is a
+ * move to a higher rank. Unknown keys are "lateral".
+ */
+export function classifyPlanChange(fromPlanKey: string, toPlanKey: string): PlanChange {
+  const from = PLAN_PRECEDENCE[fromPlanKey];
+  const to = PLAN_PRECEDENCE[toPlanKey];
+  if (from === undefined || to === undefined || from === to) return "lateral";
+  return to > from ? "upgrade" : "downgrade";
 }
 
 // ---------------------------------------------------------------------------
@@ -56,6 +73,7 @@ interface DodoSubscriptionData {
   currency?: string;
   tax_inclusive?: boolean;
   discount_id?: string | null;
+  billing?: { country?: string };
 }
 
 interface DodoPaymentData {
@@ -408,7 +426,7 @@ function webhookAmount(data: Pick<DodoPaymentData, "total_amount" | "amount">): 
 // happens entirely inside the entitlement check (3s Convex fetch budget + 5s
 // Redis write timeout, ~8s worst case). Tool-level fetch timeouts (up to 25s)
 // do NOT extend that span — the marker write is not deferred to request end.
-const ENTITLEMENT_CACHE_RESYNC_DELAY_MS = 15_000;
+export const ENTITLEMENT_CACHE_RESYNC_DELAY_MS = 15_000;
 
 /**
  * Creates or updates the entitlements record for a given user.
@@ -652,7 +670,9 @@ async function pickBestAcceptedBusinessGrant(
  *   3. Also consider any accepted Business Pro grant tied to a covering
  *      `api_business` subscription; it confers Pro-tier features without
  *      creating a fake subscription row.
- *   4. Include the recorded comp source. Prefer live coverage, then compare
+ *   4. Also consider an active membership of a live Enterprise contract
+ *      account: Enterprise until the contract end.
+ *   5. Include the recorded comp source. Prefer live coverage, then compare
  *      tier > PLAN_PRECEDENCE > currentPeriodEnd. When another source
  *      outlives the winner, recheck at the winner's expiry; otherwise
  *      downgrade to free when no sources remain.
@@ -690,6 +710,9 @@ export async function recomputeEntitlementFromAllSubs(
     .map(({ planKey, currentPeriodEnd }) => ({ planKey, currentPeriodEnd }));
   const bestGrant = await pickBestAcceptedBusinessGrant(ctx, userId, at);
   if (bestGrant) candidates.push(bestGrant);
+  // Active membership of a live Enterprise contract (convex/enterpriseAccounts.ts).
+  const membership = await enterpriseMembershipCandidate(ctx, userId, at);
+  if (membership) candidates.push(membership);
 
   const comp = entitlement?.compPlanKey && entitlement.compUntil && entitlement.compUntil > at
     ? { planKey: entitlement.compPlanKey, currentPeriodEnd: entitlement.compUntil }
@@ -1408,6 +1431,7 @@ export async function handleSubscriptionActive(
       ? existing?.cancelScheduledAt
       : undefined;
 
+  let referrerUserId: string | undefined;
   if (existing) {
     await ctx.db.patch(existing._id, {
       userId,
@@ -1437,6 +1461,7 @@ export async function handleSubscriptionActive(
       onHoldAt: undefined,
       cancelScheduledAt,
     });
+    await notifyPlanUpgrade(ctx, existing, planKey, data);
   } else {
     await ctx.db.insert("subscriptions", {
       userId,
@@ -1482,6 +1507,7 @@ export async function handleSubscriptionActive(
       // for an account being erased. `registerInterest.ts` already guards the
       // identical insert on the waitlist path; this is the same rule.
       if (referrer && !(await isAccountDeleting(ctx, referrer.userId))) {
+        referrerUserId = referrer.userId;
         const refereeEmail = (data.customer?.email ?? "").trim().toLowerCase();
         if (refereeEmail) {
           const existingCredit = await ctx.db
@@ -1653,6 +1679,12 @@ export async function handleSubscriptionActive(
   } else if (existing) {
     console.log(`[subscriptionHelpers] subscription.active: existing non-lapsed subscription — skipping email (subscriptionId=${data.subscription_id})`);
   } else if (process.env.RESEND_API_KEY) {
+    const referrerRow = referrerUserId
+      ? await ctx.db
+          .query("users")
+          .withIndex("by_userId", (q) => q.eq("userId", referrerUserId))
+          .first()
+      : null;
     await ctx.scheduler.runAfter(
       0,
       internal.payments.subscriptionEmails.sendSubscriptionEmails,
@@ -1668,9 +1700,48 @@ export async function handleSubscriptionActive(
         // triggers the sign-in line in the welcome, a pointer email to the
         // checkout inbox, and the Billing Email row in the admin alert.
         checkoutEmail: checkoutEmailDiffers ? email.trim() : undefined,
+        conversion: buildConversionContext({
+          metadata: data.metadata,
+          billingCountry: data.billing?.country,
+          purchasedAt: eventTimestamp,
+          referrerEmail: referrerRow?.email,
+          accountFirstSeenAt: userRow?.firstSeenAt,
+        }),
       },
     );
   }
+}
+
+const COUNTRY_CODE = /^[A-Z]{2}$/;
+const MAX_REFERRAL_CODE_LENGTH = 64;
+
+/**
+ * The admin email's conversion record for a first activation. Dodo metadata is
+ * buyer-influenced, so each value is re-validated here. The values are only
+ * read for display: acquisition never feeds `affonso_referral` or
+ * `wm_attribution`.
+ */
+export function buildConversionContext(input: {
+  metadata: Record<string, string> | undefined;
+  billingCountry: unknown;
+  purchasedAt: number;
+  referrerEmail?: string;
+  accountFirstSeenAt?: number;
+}): ConversionContext {
+  const referral = input.metadata?.affonso_referral;
+  const referralCode = typeof referral === "string" && referral.trim()
+    ? referral.trim().slice(0, MAX_REFERRAL_CODE_LENGTH)
+    : undefined;
+  const country = typeof input.billingCountry === "string" ? input.billingCountry.trim().toUpperCase() : "";
+  return {
+    purchasedAt: input.purchasedAt,
+    acquisition: acquisitionFromCheckoutMetadata(input.metadata) ?? undefined,
+    mcpAttribution: normalizeCheckoutAttributionSource(input.metadata?.wm_attribution),
+    referralCode,
+    referrerEmail: referralCode ? input.referrerEmail?.trim() || undefined : undefined,
+    billingCountry: COUNTRY_CODE.test(country) ? country : undefined,
+    accountFirstSeenAt: input.accountFirstSeenAt,
+  };
 }
 
 async function recomputeAcceptedBusinessInvitees(
@@ -2004,6 +2075,54 @@ export async function handleSubscriptionCancelled(
 }
 
 /**
+ * What the subscription cost on its stored plan. `subscription.renewed` can
+ * land first and replace `rawPayload` with the upgraded product while
+ * `planKey` and `dodoProductId` still name the old plan, so the payload's
+ * price counts only when its product matches. Otherwise the catalog list price
+ * stands in, flagged so the email says so.
+ */
+function previousPrice(previous: Doc<"subscriptions">): {
+  oldAmount?: number;
+  oldCurrency?: string;
+  oldIsListPrice?: boolean;
+} {
+  const raw = previous.rawPayload as { product_id?: unknown; recurring_pre_tax_amount?: unknown; currency?: unknown } | null;
+  if (raw?.product_id === previous.dodoProductId && typeof raw.recurring_pre_tax_amount === "number") {
+    return {
+      oldAmount: raw.recurring_pre_tax_amount,
+      oldCurrency: typeof raw.currency === "string" ? raw.currency : undefined,
+    };
+  }
+  const listPrice = PRODUCT_CATALOG[previous.planKey]?.priceCents;
+  return typeof listPrice === "number" ? { oldAmount: listPrice, oldCurrency: "USD", oldIsListPrice: true } : {};
+}
+
+/**
+ * Tell the admin about an upgrade. Callers pass the plan stored BEFORE their
+ * patch, so whichever of `plan_changed` and an active `subscription.updated`
+ * applies the new product first announces it, and the other (or a replay)
+ * sees no change.
+ */
+async function notifyPlanUpgrade(
+  ctx: MutationCtx,
+  previous: Doc<"subscriptions">,
+  toPlanKey: string,
+  data: DodoSubscriptionData,
+): Promise<void> {
+  if (classifyPlanChange(previous.planKey, toPlanKey) !== "upgrade" || !process.env.RESEND_API_KEY) return;
+  const userEmail = data.customer?.email?.trim() || await resolveBillingRecipient(ctx, previous);
+  await ctx.scheduler.runAfter(0, internal.payments.subscriptionEmails.sendPlanUpgradeAdminEmail, {
+    userId: previous.userId,
+    userEmail: userEmail || undefined,
+    fromPlanKey: previous.planKey,
+    toPlanKey,
+    ...previousPrice(previous),
+    newAmount: data.recurring_pre_tax_amount,
+    newCurrency: data.currency,
+  });
+}
+
+/**
  * Handles `subscription.plan_changed` -- upgrade or downgrade.
  *
  * Updates subscription plan and recomputes entitlements with new features.
@@ -2049,6 +2168,7 @@ export async function handleSubscriptionPlanChanged(
     rawPayload: data,
     updatedAt: eventTimestamp,
   });
+  await notifyPlanUpgrade(ctx, existing, newPlanKey, data);
 
   // Business Pro grants are tied to the owner's dodoSubscriptionId staying on
   // the API Business tier — status/currentPeriodEnd alone don't change on a plan

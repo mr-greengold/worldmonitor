@@ -3,6 +3,7 @@ import { getClientRateLimitKey } from '../_rate-limit.js';
 // @ts-expect-error — JS module, no declaration file
 import { getOperatorKeys, timingSafeIncludes, sha256Hex } from '../_crypto.js';
 import { loadUpstashRatelimit } from '../_upstash-ratelimit.js';
+import { upstashRedisOptions } from '../_upstash-redis-options.js';
 import { checkBootstrapUserApiKeyRateLimit, validateBootstrapUserApiKey } from '../_user-api-key.js';
 import { redirectDisplayHost } from './_redirect-uri.js';
 import { clientAllowsRedirectUri, clientDisplayInfo, describeClientFailure, isClientMetadataDocumentId, resolveOAuthClient } from './_client-metadata.js';
@@ -54,7 +55,7 @@ async function getRatelimit() {
   if (!url || !token) return null;
   const { Ratelimit, Redis } = await loadUpstashRatelimit();
   _rl = new Ratelimit({
-    redis: new Redis({ retry: { retries: 2, backoff: (attempt) => Math.round(Math.min(1_000, 100 * 2 ** attempt) * (0.5 + Math.random() * 0.5)) }, signal: () => AbortSignal.timeout(3_000), url, token }),
+    redis: new Redis(upstashRedisOptions(url, token)),
     limiter: Ratelimit.slidingWindow(10, '60 s'),
     prefix: 'rl:oauth-authorize',
     analytics: false,
@@ -195,6 +196,7 @@ button:hover{background:#1d4ed8}
 button:disabled{opacity:.5;cursor:default}
 .pro-cta{display:block;width:100%;padding:.75rem;background:#2d8a6e;color:#fff;border:none;font-family:inherit;font-size:.9rem;font-weight:500;letter-spacing:.02em;text-align:center;text-decoration:none;cursor:pointer;border-radius:0}
 .pro-cta:hover{background:#246e58}
+.cta-note{font-size:.75rem;color:#8a8a8a;margin-top:.5rem;text-align:center}
 .disclosure{margin-top:1rem;text-align:center}
 .disclosure a{font-size:.75rem;color:#555;text-decoration:none;letter-spacing:.02em;cursor:pointer}
 .disclosure a:hover{color:#888;text-decoration:underline}
@@ -213,7 +215,7 @@ ${clientHostLine}${localhostWarn}
 <hr>
 <p class="scope-label">Read-only access to</p>
 <ul class="scope-list">
-<li>Intelligence data from 844 attributed providers</li>
+<li>Intelligence data from 854 attributed providers</li>
 <li>Real-time news &amp; events</li>
 <li>Live flight tracking &amp; AIS vessel positions</li>
 <li>Weather alerts, earthquakes &amp; natural disasters</li>
@@ -221,7 +223,8 @@ ${clientHostLine}${localhostWarn}
 <li>Markets: stocks, commodities, crypto &amp; FX</li>
 </ul>
 <hr>
-<a id="pc" class="pro-cta" href="${escapeHtml(proCtaHref)}">Sign in with WorldMonitor Pro</a>
+<a id="pc" class="pro-cta" href="${escapeHtml(proCtaHref)}">Sign in to World Monitor</a>
+<p class="cta-note">A free account works. Pro raises the daily allowance.</p>
 <div class="disclosure" id="dt"><a id="tk" role="button" tabindex="0">Use API key instead</a></div>
 <form id="cf" method="POST" action="https://api.worldmonitor.app/oauth/authorize" style="display:none;margin-top:1.25rem">
 <input type="hidden" name="_nonce" id="nn" value="${escapeHtml(nonce)}">

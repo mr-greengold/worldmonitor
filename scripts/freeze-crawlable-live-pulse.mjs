@@ -136,8 +136,10 @@ export function minimumBriefCaptures(briefMatchedCount) {
 // pro-test is an isolated package that must not import from here, so the lists
 // are duplicated on purpose; tests/welcome-teasers.test.mjs imports both and
 // fails if they drift.
-const MARKET_QUOTE_SYMBOLS = ['^GSPC', '^IXIC', '^VIX'];
-const COMMODITY_QUOTE_SYMBOLS = ['CL=F', 'BZ=F', 'GC=F', 'HG=F', 'NG=F', 'EURUSD=X', 'USDJPY=X'];
+// ^VIX is a commodities.json symbol: list-commodity-quotes serves it and
+// list-market-quotes answers NOT_FOUND, which kept the market card off LIVE.
+export const MARKET_QUOTE_SYMBOLS = ['^GSPC', '^IXIC'];
+export const COMMODITY_QUOTE_SYMBOLS = ['^VIX', 'CL=F', 'BZ=F', 'GC=F', 'HG=F', 'NG=F', 'EURUSD=X', 'USDJPY=X'];
 const CRYPTO_QUOTE_IDS = ['bitcoin', 'ethereum'];
 export const QUOTE_SYMBOLS = [
   '^GSPC', '^IXIC', '^VIX', 'BTC', 'ETH',
@@ -342,7 +344,7 @@ async function resolveLatestResilienceSnapshot() {
   const candidates = entries
     .map((filename) => ({ filename, match: filename.match(RESILIENCE_SNAPSHOT_RE) }))
     .filter(({ match }) => match)
-    .sort((a, b) => b.match[1].localeCompare(a.match[1]));
+    .sort((a, b) => b.match[1].localeCompare(a.match[1], 'en-US'));
   if (candidates.length === 0) {
     throw new Error('No resilience ranking snapshot found');
   }
@@ -594,7 +596,7 @@ export function selectFrozenHeadlines(payload, limit = HEADLINE_CAPTURE_COUNT) {
     .sort((a, b) => (
       b.importanceScore - a.importanceScore
       || b.publishedAtMs - a.publishedAtMs
-      || a.row.title.localeCompare(b.row.title)
+      || a.row.title.localeCompare(b.row.title, 'en-US')
     ));
 
   // Dedupe BEFORE the cap so a second edition of one story never occupies a
@@ -643,7 +645,7 @@ function selectCountryHeadlines(digestItems, code, limit = COUNTRY_HEADLINE_LIMI
     .sort((a, b) => (
       b.importanceScore - a.importanceScore
       || b.publishedAtMs - a.publishedAtMs
-      || a.row.title.localeCompare(b.row.title)
+      || a.row.title.localeCompare(b.row.title, 'en-US')
     ))
     .slice(0, limit)
     .map((entry) => entry.row);

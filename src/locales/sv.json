@@ -108,7 +108,8 @@
     "marketBreadth": "Marknadsbredd",
     "climateNews": "Klimatnyheter",
     "fx": "Valutakurser",
-    "ukmtoIncidents": "UKMTO-incidenter"
+    "ukmtoIncidents": "UKMTO-incidenter",
+    "reservoirLevels": "Strategiska vattennivåer"
   },
   "commands": {
     "prefixes": {
@@ -497,7 +498,7 @@
         "space": "RYMDEN"
       },
       "paused": "Webbkameror pausade",
-      "play": "Spela",
+      "play": "Se live",
       "previewStatus": "Redo att spela",
       "connecting": "Ansluter…",
       "unverified": "Kan inte bekräfta att denna ström är live",
@@ -512,7 +513,8 @@
       "skipToStart": "Hoppa till början",
       "previous": "Föregående",
       "next": "Nästa",
-      "skipToEnd": "Hoppa till slutet"
+      "skipToEnd": "Hoppa till slutet",
+      "storageUnavailable": "Uppspelning är inte tillgänglig eftersom webbläsaren blockerar webbplatslagring. Tillåt webbplatsdata för denna webbplats för att börja spara ögonblicksbilder."
     },
     "deckgl": {
       "views": {
@@ -591,7 +593,8 @@
         "canadaRoads": "Kanadensiska vägar",
         "canadaAlerts": "Kanadensiska varningar",
         "notamAirspace": "NOTAM-luftrumsbegränsningar",
-        "no2Activity": "Industriell aktivitet"
+        "no2Activity": "Industriell aktivitet",
+        "reservoirLevels": "Vattennivåer"
       },
       "layersTitle": "Lager",
       "layerSearch": "Sök lager...",
@@ -715,11 +718,26 @@
           "canadaRoads": "Officiella vägincidenter, varningar, väglag, avstängningar, vägarbeten och faror i kanadensiska jurisdiktioner som stöds",
           "canadaAlerts": "Provinsiella varningar om allmän säkerhet från Alberta Emergency Alert, B.C. Evacuation Orders and Alerts och SaskAlert",
           "notamAirspace": "Tillfälliga flygbegränsningar och begränsat, farligt och förbjudet luftrum från FAA NOTAMs, gäller nu eller börjar inom 24 timmar",
-          "no2Activity": "Riktning för NO2-aktivitet från Sentinel-5P för 167 länder och 32 industrikluster: det senaste 56-dagarsfönstret mot samma datum tidigare år, efter ett dödband på 10 %. Innehåller modifierade Copernicus Sentinel-data."
+          "no2Activity": "Riktning för NO2-aktivitet från Sentinel-5P för 167 länder och 32 industrikluster: det senaste 56-dagarsfönstret mot samma datum tidigare år, efter ett dödband på 10 %. Innehåller modifierade Copernicus Sentinel-data.",
+          "reservoirLevels": "Vattenytans nivå i strategiska magasin och sjöar från NASA:s satellitlidar ICESat-2, jämfört med den vanliga nivån för månaden. NASA publicerar varje passage ungefär två månader efter mätningen."
         },
         "notes": {
           "timeAffects": "Påverkar: Jordbävningar, väder, protester, avbrott"
         }
+      },
+      "measure": {
+        "title": "Mät avstånd",
+        "units": "Avståndsenheter",
+        "pointA": "Välj punkt A. Klicka på kartan eller tryck Enter vid kartans centrum.",
+        "pointB": "Välj punkt B. Panorera kartan och tryck Enter för att använda dess centrum.",
+        "geodesic": "Geodetiskt avstånd",
+        "note": "Mellan klickade koordinater; inte en rutt eller verifierad tillgångsseparation. Escape avslutar.",
+        "cancel": "Avbryt val",
+        "cancelShort": "Avbryt",
+        "resetShort": "Återställ",
+        "exitShort": "Avsluta",
+        "reset": "Återställ mätning",
+        "exit": "Avsluta mätning"
       }
     },
     "climate": {
@@ -752,6 +770,7 @@
       "shareStory": "Dela berättelse",
       "printPdf": "Skriv ut / PDF",
       "exportData": "Exportera data",
+      "moreActions": "Fler åtgärder",
       "shareLink": "Dela länk"
     },
     "relatedAssets": {
@@ -905,6 +924,10 @@
       "infoTooltip": "<strong>Teknikevenemang</strong> Kommande och senaste teknikevenemang: konferenser, produktlanseringar, regulatoriska utfrågningar och resultatsamtal. Samlade från officiella evenemangskalendrar och branschkällor."
     },
     "techReadiness": {
+      "ranked": "Rankade",
+      "unranked": "Orankade",
+      "coverageRequirement": "Minsta täckning för rankning",
+      "coverageLabel": "Tillgängliga indikatorer",
       "internetUsers": "Internetanvändare",
       "mobileSubscriptions": "Mobilabonnemang",
       "rdSpending": "Forskning- och utvecklingskostnader",
@@ -1122,10 +1145,17 @@
       "recentMissing": "Ingen data denna gång från {{countries}}; deras filer misslyckades att läsas in, vilket inte betyder noll förskjutning."
     },
     "populationExposure": {
-      "totalAffected": "Totalt påverkad",
-      "affectedCount": "{{count}} påverkas",
-      "radiusKm": "{{km}}km radie",
-      "infoTooltip": "<strong>Befolkningsexponeringsuppskattningar</strong> Uppskattad population inom händelsens påverkansradie. Baserat på WorldPop-landstäthetsdata.<ul><li>Konflikt: 50 km radie</li><li>Jordbävning: 100 km radie</li><li>Översvämning: 100 km radie</li><li>Voldbrand: 5__4 km radie"
+      "estimateWithin": "Cirka {{count}} personer inom en radie på {{km}} km",
+      "method": "Uppskattningarna bygger på landets genomsnittliga befolkningstäthet.",
+      "empty": "Inga händelseplatser uppfyller kraven",
+      "infoTooltip": "Händelser med uppgifter om landets befolkningstäthet visas. Platser för UCDP-händelser utan precisionsuppgifter markeras som väntande på uppdatering. De uppskattade områdena kan överlappa. Oroligheter kräver en exakt plats; UCDP-händelser markerade som oprecisa utesluts. En plats från två källor (oroligheter och UCDP) visas på två rader.",
+      "eventCount_one": "{{count}} händelse",
+      "eventCount_other": "{{count}} händelser",
+      "locationPending": "Platsens precision väntar på uppdatering",
+      "unrestCoverage": "Täckning av oroligheter",
+      "ucdpPending": "UCDP-täckning väntar på uppdatering",
+      "coverageShown": "Visade händelser: {{shown}} av {{total}}",
+      "coverageLeftOut": "Visas inte: {{imprecise}} utan exakt plats, {{noEstimate}} i länder utan täthetsdata, {{otherPlaces}} efter de första 10 platserna per källa"
     },
     "countryTimeline": {
       "now": "nu",
@@ -1312,8 +1342,8 @@
       "badgeAnimDesc": "Animera uppdateringsemblem i panelrubriker",
       "headlineMemoryLabel": "Rubrikminne",
       "headlineMemoryDesc": "Kom ihåg sedda rubriker för att markera nya",
-      "streamAlwaysOnLabel": "Spela upp liveströmmar automatiskt på instrumentpanelen",
-      "streamAlwaysOnDesc": "Startar Live News och Live Webcams automatiskt när de är synliga. Lämna avstängt för att ladda video först efter att du klickar på Spela.",
+      "streamAlwaysOnLabel": "Spela live-webbkameror automatiskt",
+      "streamAlwaysOnDesc": "Startar direktwebkameravideoerna så snart de visas på skärmen. Lämna detta avstängt för att endast ladda dem när du startar dem själv.",
       "globeRenderScaleOptions": {
         "1": "Eko (1x)",
         "2": "4K (2x)",
@@ -1362,7 +1392,9 @@
       "briefStoryDetails": "Detaljer om nyheten ({{count}})",
       "streamIdleStopLabel": "Stoppa livevideo när inaktiv",
       "streamIdleStopDesc": "Stoppar Live News och Live Webcams efter denna tid utan aktivitet och visar ett meddelande i panelen.",
-      "streamIdleStopNever": "Aldrig"
+      "streamIdleStopNever": "Aldrig",
+      "liveNewsAutoplayLabel": "Automatisk uppspelning av direktnyheter",
+      "liveNewsAutoplayDesc": "Startar direktnyhetsvideon, avstängd, så snart den visas på skärmen. Stäng av detta för att endast ladda videon när du startar den själv."
     },
     "techHubs": {
       "infoTooltip": "<strong>Teknisk hubbaktivitet</strong><br>Visar tekniska nav med mest nyhetsaktivitet.<br><br><em>Aktivitetsnivåer:</em><br>• <span style=\"color: {{highColor}}\">Hög</span> — Nyheter från 50+ PH_• 50+ stil: {{elevatedColor}}\">Höjd</span> — Poäng 20-49<br>• <span style=\"color: {{lowColor}}\">Låg</span> — Poäng under 20<br><br>Klicka på ett nav för att zooma till dess plats."
@@ -1552,7 +1584,8 @@
       "channelUrlHint": "Klistra in en kanal-URL (youtube.com/channel/UC…) eller en live-video-URL",
       "youtubeChannel": "YouTube-kanal",
       "insecureStream": "{{name}} använder en osäker (http) ström som webbläsare blockerar. Lägg till den igen med en säker (https) ström-URL",
-      "httpsStreamHint": "Webbläsare blockerar osäkra (http) strömmar. Klistra in en säker (https) ström-URL"
+      "httpsStreamHint": "Webbläsare blockerar osäkra (http) strömmar. Klistra in en säker (https) ström-URL",
+      "tapToPlay": "Tryck för att spela"
     },
     "securityAdvisories": {
       "loading": "Hämtar resevarningar...",
@@ -1973,7 +2006,15 @@
       "noData": "Energidata är tillfälligt otillgänglig - försöker igen",
       "liveTape": "Direktfeed",
       "liveTapeSource": "Marknadsnoteringar",
-      "infoTooltip": "<strong>Energikomplex</strong> Fysiska och handelbara energisignaler på ett ställe:<ul><li><strong>US Energy Information Administration-mätare</strong>: WTI, Brent, amerikansk produktion och behållningar</li><li><strong>Livetape</strong>: Handelbara energipriser som råolja och naturgas</li><li><strong>Syfte</strong>: Separera fysisk energistress från bredare makro- och råvarupaneler</li></ul>"
+      "infoTooltip": "<strong>Energikomplex</strong> Fysiska och handelbara energisignaler på ett ställe:<ul><li><strong>US Energy Information Administration-mätare</strong>: WTI, Brent, amerikansk produktion och behållningar</li><li><strong>Livetape</strong>: Handelbara energipriser som råolja och naturgas</li><li><strong>Syfte</strong>: Separera fysisk energistress från bredare makro- och råvarupaneler</li></ul>",
+      "marketTape": "Marknadsnoteringar",
+      "futures": "Terminskontrakt",
+      "dailySpot": "Dagligt spotpris",
+      "eiaWeeklySpot": "EIA:s spotpris · veckomedel",
+      "weekEnding": "Vecka som slutar {{date}}",
+      "unknownPriceDate": "Observationstid saknas",
+      "unknownQuoteSource": "Kurskälla saknas",
+      "stalePrice": "Inaktuellt"
     },
     "consumerPrices": {
       "tabs": {
@@ -2172,8 +2213,8 @@
     },
     "proBanner": {
       "badge": "PRO",
-      "headline": "Pro är lanserad",
-      "tagline": "Mer signal, mindre brus. Fler AI-uppdateringar. En geopolitisk och aktieanalytiker bara för dig.",
+      "headline": "Dagliga AI-briefer via mejl eller Slack",
+      "tagline": "plus WM Analyst, varningsregler och MCP för Claude",
       "cta": "Uppgradera till Pro →",
       "dismiss": "Stäng"
     },
@@ -2298,7 +2339,7 @@
     },
     "sanctionsPressure": {
       "title": "Sanktioner och beteckningar",
-      "infoTooltip": "Office of Foreign Assets Control särskilt utnämnda medborgare och konsoliderade listor plus Global Affairs Canada SEMA/JVCFOA-utseenden. Visar vilka länder som står inför högst utseendestryck, vilka program som driver det och vad som nyligen lagts till sedan senaste uppdateringen.",
+      "infoTooltip": "OFAC:s SDN- och konsoliderade listor samt Kanadas SEMA/JVCFOA-sanktioner. Landsrader använder direkta kopplingar. Fartygsflaggor och flygplansregistreringar räknas separat under register; noll tillgångar för ett land betyder inte att sanktionerade tillgångar saknas.",
       "loading": "Läser in sanktionsdata...",
       "unavailable": "Sanktionsdata är inte tillgänglig.",
       "summary": {
@@ -2310,7 +2351,9 @@
       "sections": {
         "countries": "Sanktionerade länder",
         "entries": "Senaste beteckningar",
-        "programs": "Program"
+        "programs": "Program",
+        "flagRegistries": "Flagg- och luftfartygsregister",
+        "regulationTargets": "Målländer för SEMA-förordningar"
       },
       "empty": {
         "countries": "Ingen landsattribution tillgänglig.",
@@ -2333,7 +2376,8 @@
         "unattributed": "Ej tillskrivet",
         "program": "Program",
         "undated": "utan datum"
-      }
+      },
+      "targetExplanation": "Förordningarnas målländer är inte belägg för nationalitet eller adress. De ingår inte i ländernas riskpoäng eller lägesrapporter."
     },
     "radiationWatch": {
       "title": "Strålningsbevakning",
@@ -2709,6 +2753,55 @@
           "placeholder": "Valfritt"
         }
       }
+    },
+    "githubStarPrompt": {
+      "title": "Gillar du World Monitor?",
+      "body": "En stjärna på GitHub hjälper andra att hitta den.",
+      "star": "Stjärnmärk på GitHub",
+      "dismiss": "Dölj och fråga inte igen"
+    },
+    "reservoirLevels": {
+      "note": "Vattenytans nivå från NASA:s satellitlidar ICESat-2. NASA publicerar varje passage ungefär två månader efter mätningen, så detta följer förändringar över veckor och årstider, inte dagar. Endast nivå, inte volym.",
+      "source": "Källa:",
+      "processedWith": "bearbetad med",
+      "empty": "Inga mätvärden ännu",
+      "filterEmpty": "Inga vatten matchar det här filtret",
+      "unavailable": "Data om vattennivåer är inte tillgängliga just nu",
+      "filterLabel": "Filtrera vatten",
+      "filter": {
+        "all": "Alla",
+        "attention": "Kräver uppmärksamhet",
+        "transboundary": "Gränsöverskridande"
+      },
+      "status": {
+        "record_low": "Rekordlåg",
+        "record_high": "Rekordhög",
+        "falling_fast": "Sjunker snabbt",
+        "rising_fast": "Stiger snabbt",
+        "low": "Låg för årstiden",
+        "high": "Hög för årstiden",
+        "normal": "Som vanligt",
+        "insufficient_history": "För kort historik",
+        "no_recent_data": "Ingen ny passage",
+        "lowInRange": "Låg inom sitt intervall",
+        "highInRange": "Hög inom sitt intervall"
+      },
+      "vsUsual": "{{value}} mot det vanliga i {{month}}",
+      "in12Months": "{{value}} på 12 månader",
+      "noComparison": "Ingen jämförelse ännu",
+      "measured": "mätt {{date}} ({{age}})",
+      "noPass": "Ingen användbar passage ännu",
+      "popup": {
+        "level": "Nivå",
+        "levelValue": "{{value}} över havet (EGM2008)",
+        "anomaly": "Mot det vanliga i {{month}}",
+        "anomalyPlain": "Mot det vanliga för månaden",
+        "changePrev": "Sedan förra passagen",
+        "change90": "På 90 dagar",
+        "change365": "På 12 månader",
+        "measured": "Mätt",
+        "sparkline": "Vattennivå över 36 månader"
+      }
     }
   },
   "popups": {
@@ -2791,7 +2884,44 @@
       "open": "ÖPPEN"
     },
     "cyberThreat": {
-      "title": "CYBERHOT"
+      "title": "CYBERHOT",
+      "evidence": "Bevis från hotflöde",
+      "firstSeen": "Först sedd",
+      "explanations": {
+        "c2_server": "Flödet rapporterar en kommando- och kontrollserver som används för att skicka instruktioner till skadlig kod.",
+        "malware_host": "Flödet rapporterar en adress som används för att vara värd för skadlig kod.",
+        "phishing": "Flödet rapporterar en indikator kopplad till nätfiske.",
+        "malicious_url": "Flödet rapporterar en URL kopplad till skadlig aktivitet."
+      },
+      "downloadTag": "malware_download: källan rapporterar en plats för nedladdning av skadlig kod.",
+      "familyNote": "Etiketten för skadlig kodgrupp kommer från hotflödet. Den identifierar ingen person eller organisation.",
+      "approximateLocation": "Den kartlagda platsen är ungefärlig IP-härledd kontext, inte en verifierad fysisk värdplats.",
+      "network": {
+        "title": "Nätverksinformation",
+        "privacy": "Expandera för att begära passiv nätverksdata från RIPEstat. IP-indikatorn delas med denna leverantör.",
+        "disclaimer": "Nätverksregistrering och routning identifierar inte angriparen eller gör leverantören ansvarig för aktiviteten.",
+        "loading": "Laddar nätverksinformation…",
+        "unknown": "Inte tillgängligt",
+        "disabled": "Nätverkssökning är inte aktiverad.",
+        "invalid": "Nätverkssökning kräver en offentlig IP-adress.",
+        "unavailable": "Nätverkssökning misslyckades. Stäng och öppna popupen igen för att försöka senare.",
+        "rateLimited": "Nätverkssökning är tillfälligt begränsad. Försök igen senare.",
+        "noData": "Leverantören returnerade ingen nätverksinformation för denna IP.",
+        "partial": "En del nätverksinformation kunde inte hämtas.",
+        "ip": "IP",
+        "asn": "Ursprungs-ASN",
+        "operator": "Rapporterad ASN-innehavare / nätverksoperatör",
+        "prefix": "Rapporterad routningsprefix",
+        "hostname": "Omvänd DNS-värdnamn (rDNS)",
+        "lookupAt": "Tid för nätverkssökning",
+        "routingAt": "Tid för routningsdata",
+        "broaderPrefix": "Leverantören matchade en bredare routningsprefix. Detta är inte en exakt IP-allokeringspost.",
+        "rdnsNote": "rDNS är en DNS-etikett, inte bevis på äganderätt. Registrerad organisation och exakt plats tillhandahålls inte av denna sökning.",
+        "copy": "Kopiera",
+        "copied": "Kopierad.",
+        "copyFailed": "Kopiering misslyckades. Markera texten för att kopiera den."
+      },
+      "firstSeenNote": "Detta är det tidigaste tillgängliga indikatordatumet från feeds eller World Monitor observationer; det kan skilja sig från det angivna källdatumet."
     },
     "nuclear": {
       "types": {
@@ -2962,6 +3092,28 @@
       "readReport": "Läs hela rapporten"
     },
     "datacenter": {
+      "details": {
+        "more": "Mer information",
+        "owner": "Klusterägare / leverantör (dataset)",
+        "power": "Effektvärde i datasetet",
+        "powerCaveat": "Effektkapaciteten kan vara rapporterad eller uppskattad. Detta är inte en mätning av aktuell elförbrukning.",
+        "powerBasis": "Grund för effektvärdet",
+        "reported": "Rapporterad",
+        "estimated": "Uppskattad",
+        "notAvailable": "Inte tillgängligt",
+        "location": "Platsnoggrannhet",
+        "locationUnknown": "Obekräftad kartpunkt; använd inte som anläggningens exakta adress.",
+        "site": "Anläggning (verifierad av källa)",
+        "city": "Endast stad",
+        "region": "Endast region",
+        "country": "Endast land",
+        "dataset": "Epoch AI:s dataset för GPU-kluster",
+        "evidence": "Stödjande källa",
+        "sourceDate": "Källans publiceringsdatum",
+        "metadataReviewedAt": "Metadata kontrollerade",
+        "firstOperationalDate": "Datum för första drift (dataset)",
+        "freshness": "Sparad ögonblicksbild av datasetet. Aktuell status och specifikationer kan ha ändrats."
+      },
       "status": {
         "existing": "OPERATIV",
         "planned": "PLANERAD",
@@ -3112,7 +3264,8 @@
       "vesselsCount": "{{count}} FARTYG",
       "vessels": "FARTYG",
       "trackedVessels": "BÅRDA FARTYG",
-      "showLess": "Visa mindre"
+      "showLess": "Visa mindre",
+      "backToGroup": "Tillbaka till gruppen"
     },
     "naturalEvent": {
       "closed": "STÄNGD",
@@ -4353,6 +4506,7 @@
   "auth": {
     "signIn": "Logga in",
     "createAccount": "Skapa konto",
+    "freeReason": "Gratis: spara layout, följ länder, aviseringar",
     "settings": "Inställningar",
     "passkeyOffer": {}
   },
@@ -4397,7 +4551,17 @@
     "renameHint": "{{name}} — dubbelklicka för att byta namn",
     "deleteTab": "Ta bort flik",
     "deleteTabAria": "Ta bort flik {{name}}",
-    "tabNameAria": "Fliknamn"
+    "tabNameAria": "Fliknamn",
+    "addTabTitleSaved": "Ny flik (startar med de paneler du sparade)",
+    "newTabOptions": "Alternativ för ny flik",
+    "newTabStartsDefault": "Nya flikar startar med standardpanelerna.",
+    "newTabStartsSaved": "Nya flikar startar med de paneler du sparade.",
+    "newTabOptionsHint": "Flikar du redan har ändras inte.",
+    "useThisTabPanels": "Använd denna fliks paneler",
+    "useDefaultPanels": "Använd standardpanelerna",
+    "newTabPanelsNotSaved": "Kunde inte spara. Den här webbläsaren blockerar webbplatslagring.",
+    "team": "Team",
+    "teamDashboards": "Team-instrumentpaneler"
   },
   "theaterPresets": {
     "label": "Täckningspaket",
@@ -4490,6 +4654,21 @@
         "related": {
           "0": "Nowcast för Kinas aktivitet",
           "1": "Landsöversikt"
+        }
+      },
+      "reservoirLevels": {
+        "category": "Klimat",
+        "purpose": "Markerar strategiska magasin och sjöar efter hur vattennivån står sig mot den vanliga nivån för årstiden och hur snabbt den ändras.",
+        "source": "Höjd på inlandsvattenytor från NASA ICESat-2 ATL13 via NSIDC, bearbetad med SlideRule Earth och sammanställd per satellitpassage av tjänsten seed-reservoir-levels.",
+        "freshness": "Uppdateras dagligen. NASA publicerar varje passage 50 till 70 dagar efter mätningen, och varje magasin mäts igen med några dagars till ungefär en månads mellanrum.",
+        "confidence": "En passage räknas bara när minst 5 vattensegment stämmer överens inom 0,25 m. En säsongsjämförelse kräver passager från minst 3 tidigare år vid samma tid på året.",
+        "limitations": {
+          "0": "Endast nivå, inte volym: samma sänkning innebär olika förlust av lagrat vatten i varje magasin.",
+          "1": "Ett vatten utan passage på 150 dagar markeras som utan ny passage; dess senaste värde, förändringar och datum visas fortfarande."
+        },
+        "related": {
+          "0": "Panelen Strategiska vattennivåer",
+          "1": "Klimatavvikelser"
         }
       },
       "conflicts": {
@@ -4666,7 +4845,7 @@
         "category": "Naturkatastrofer",
         "purpose": "Visar jordbävningar, svåra katastrofvarningar och aktiva jordobservationshändelser för lägesbilden.",
         "source": "Jordbävningar från USGS, varningar från GDACS och händelser från NASA EONET, sammanslagna i tjänsten för naturliga händelser.",
-        "freshness": "Naturliga händelser matas in var 3:e timme. För USGS-jordbävningar är den dokumenterade förväntan en källtakt på ungefär 5 minuter.",
+        "freshness": "Naturliga händelser matas in var 30:e minut. För USGS-jordbävningar är den dokumenterade förväntan en källtakt på ungefär 5 minuter.",
         "confidence": "Starkt för upptäckta offentliga katastrofsignaler. Tillförlitligheten varierar med farotyp och källans rapporteringsfördröjning.",
         "limitations": {
           "0": "GDACS-varningar med låg allvarlighetsgrad filtreras bort så att kartan ska gå att läsa.",
@@ -4760,5 +4939,129 @@
     "happy": {
       "map": "Karta över goda nyheter"
     }
+  },
+  "pwaInstall": {
+    "title": "Installera app",
+    "share": "Tryck på Dela i Safari (fyrkanten med en uppåtpil). Du kan behöva öppna menyn Mer först.",
+    "add": "Välj Lägg till på hemskärmen.",
+    "confirm": "Tryck på Lägg till och öppna World Monitor från hemskärmen.",
+    "close": "Stäng",
+    "alertsHint": "Installera World Monitor på hemskärmen för att få aviseringar på denna iPhone eller iPad.",
+    "how": "Så installerar du"
+  },
+  "teamDashboards": {
+    "desc": "Instrumentpaneler som ditt team delar. Öppna en för att lägga till den som en ny flik.",
+    "empty": "Ditt team har inte delat någon instrumentpanel än. Dela denna flik för att ge alla i ditt team dess paneler, storlekar och karta.",
+    "open": "Öppna {{name}} som en ny flik",
+    "stopSharing": "Sluta dela {{name}}",
+    "confirmStop": "Sluta dela {{name}} med ditt team? Flikar som människor redan har öppnat från den förblir som de är.",
+    "shareTab": "Dela denna flik med ditt team",
+    "shareChanges": "Dela denna fliks ändringar med ditt team",
+    "behind": "Ditt team ändrade denna instrumentpanel efter att du öppnade den.",
+    "getLatest": "Hämta den senaste versionen",
+    "opened": "Öppnade {{name}} från ditt team.",
+    "shared": "Delade {{name}} med ditt team.",
+    "updated": "Denna flik har nu din teams senaste version.",
+    "stopped": "Slutade dela {{name}}.",
+    "failed": "Kunde inte nå din teams instrumentpaneler. Försök igen.",
+    "limit": "Ditt team delar redan {{limit}} instrumentpaneler här. Sluta dela en först.",
+    "focusNotEntitled": "Din plan inkluderar inte delning av en fokuserad dashboard. Rensa fokus på den här fliken för att kunna dela dess paneler.",
+    "focusUnreadable": "{{name}} har ett fokus som den här versionen inte kan visa. Ladda om för att uppdatera och öppna det sedan igen."
+  },
+  "focus": {
+    "barLabel": "Fokus",
+    "summary": "Fokuserat på {{countries}}",
+    "neighboursOff": "Grannar inte inkluderade",
+    "chosenLabel": "Valda",
+    "neighboursLabel": "Grannar",
+    "neighbourItem": "Granne: {{name}}",
+    "range": "{{start}} till {{end}}",
+    "windowEnded": "Fönster avslutades {{date}}",
+    "windowStarts": "Börjar {{date}}",
+    "windowUntil": "Till {{date}}",
+    "windowFrom": "Från {{date}}",
+    "edit": "Redigera",
+    "clear": "Rensa",
+    "clearAria": "Rensa fokus och visa världen",
+    "clearFocus": "Rensa fokus",
+    "notFiltered": "Inte filtrerad",
+    "notFilteredGlobal": "Global data: inte filtrerad efter land",
+    "notFilteredYet": "Inte filtrerad efter land än",
+    "gateSignedOutDesc": "Logga in för att fokusera en flik på de länder du täcker.",
+    "gateUpgradeDesc": "Att fokusera en flik på valda länder ingår i Pro Business, API Business och Enterprise.",
+    "gateUpgradeCta": "Uppgradera",
+    "tabButton": "Fokus",
+    "tabButtonTitle": "Fokusera den här fliken på valda länder",
+    "tabButtonTitleActive": "Redigera den här fliken fokus",
+    "newTitle": "Fokusera den här fliken",
+    "editTitle": "Redigera fokus",
+    "intro": "Paneler som kan filtrera efter land visar endast dessa länder. De andra säger \"Inte filtrerad\".",
+    "countriesLabel": "Länder",
+    "count": "{{n}} av {{max}}",
+    "searchPlaceholder": "Sök länder",
+    "resultsLabel": "Matchande länder",
+    "limitReached": "Du har valt {{max}} länder, det maximala en fokus kan innehålla.",
+    "removeCountry": "Ta bort {{name}}",
+    "includeNeighbours": "Inkludera närliggande länder",
+    "neighboursHint": "Risk går över gränser. Grannar är markerade som sådana och räknas inte mot {{max}}.",
+    "startLabel": "Från (valfritt)",
+    "endLabel": "Till (valfritt)",
+    "datesHint": "För en resa eller en uppgift. När fönstret slutar, kvarstår fokus och stapeln visar det.",
+    "errorNoCountries": "Välj minst ett land.",
+    "errorTooMany": "Ett fokus kan innehålla upp till {{max}} länder.",
+    "errorDates": "Slutdatumet är före startdatumet.",
+    "save": "Spara",
+    "cancel": "Avbryt",
+    "saved": "Den här fliken är fokuserad på {{countries}}.",
+    "cleared": "Fokus rensad. Den här fliken visar världen.",
+    "notSaved": "Kunde inte spara. Den här webbläsaren blockerar webbplatslagring.",
+    "plusNeighbours_one": "+ {{count}} granne",
+    "plusNeighbours_other": "+ {{count}} grannar",
+    "filter": {
+      "showing": "Visar {{countries}}",
+      "showingNeighbours": "Visar {{countries}} + grannar",
+      "showAll": "Visa allt",
+      "focusOff": "Fokus av i denna panel: visar allt",
+      "applyFocus": "Använd fokus",
+      "applyFocusAria": "Filtrera denna panel efter fokus igen",
+      "show": "Visa",
+      "hide": "Dölj",
+      "noCountryTag": "Inget land",
+      "emptyHint": "Allt övrigt räknas ovan.",
+      "emptyNews": "Inget för dessa länder i aktuella nyheter",
+      "emptyAdvisories": "Inga resevarningar för dessa länder",
+      "emptyConflict": "Inga UCDP-konflikthändelser för dessa länder",
+      "emptyConflictPartial": "Inga konflikthändelser för dessa länder bland de senaste händelserna. Den fullständiga listan laddades inte.",
+      "loadingConflict": "Laddar alla konflikthändelser för dessa länder…",
+      "emptyAirports": "Ingen av dina övervakade flygplatser ligger i dessa länder",
+      "emptyFlights": "Inga flyg till eller från dessa länder på denna tavla",
+      "emptyAviationNews": "Inga flygnyheterna för dessa länder under de senaste 24 timmarna",
+      "tabNotFiltered": "Denna flik är inte filtrerad efter land",
+      "hidden_one": "{{count}} dold av fokus",
+      "hidden_other": "{{count}} dolda av fokus",
+      "showAllAria_one": "Visa allt i denna panel, inklusive {{count}} objekt utanför fokus",
+      "showAllAria_other": "Visa allt i denna panel, inklusive {{count}} objekt utanför fokus",
+      "unattributed_one": "{{count}} objekt utan land",
+      "unattributed_other": "{{count}} objekt utan land",
+      "showUnattributedAria_one": "Visa {{count}} objekt utan land",
+      "showUnattributedAria_other": "Visa {{count}} objekt utan land",
+      "hideUnattributedAria_one": "Dölj {{count}} objekt utan land",
+      "hideUnattributedAria_other": "Dölj {{count}} objekt utan land",
+      "partialConflict": "Visar konflikthändelser från de senaste 150 endast. Den fullständiga listan laddades inte.",
+      "partialConflictLoading": "Visar konflikthändelser från de senaste 150 medan den fullständiga listan läses in.",
+      "emptyInstability": "Inga instabilitetsvärden för dessa länder",
+      "emptyOutbreaks": "Inga sjukdomsutbrott för dessa länder",
+      "emptyOutages": "Inga internetavbrott för dessa länder",
+      "emptyRadiation": "Inga strålningsmätningar för dessa länder",
+      "emptyFuelShortages": "Inga bränslebrist för dessa länder",
+      "emptyEnergyDisruptions": "Inga energistörningar för dessa länder",
+      "emptyDisplacement": "Ingen förflyttningsdata för dessa länder",
+      "emptyCorrelation": "Inga signaler för dessa länder"
+    },
+    "draftAssessment": "Utkast till bedömning",
+    "draftAssessmentAria": "Kopiera en förfrågan som ber din AI-assistent att utarbeta en reseriskartikel för detta fokus",
+    "draftCopied": "Förfrågan kopierad. Klistra in den i din AI-assistent.",
+    "draftCopiedPartial": "Begäran kopierad för de första {{count}} länderna. En bedömning omfattar högst {{max}} länder.",
+    "draftCopyFailed": "Kunde inte kopiera förfrågan."
   }
 }

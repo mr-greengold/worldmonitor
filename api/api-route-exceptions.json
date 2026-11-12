@@ -10,10 +10,24 @@
       "removal_issue": null
     },
     {
+      "path": "api/mcp/registry/travel-risk-tool.ts",
+      "category": "external-protocol",
+      "reason": "MCP travel-risk-assessment tool definition. It reads cached seed keys server-side for a plan-gated caller and exports no HTTP route.",
+      "owner": "@SebastienMelki",
+      "removal_issue": null
+    },
+    {
       "path": "api/mcp/registry/country-history-tool.ts",
       "category": "external-protocol",
       "reason": "MCP country-history tool definition. It forwards to the generated intelligence RPC with the verified caller's credential and exports no HTTP route.",
       "owner": "@SebastienMelki",
+      "removal_issue": null
+    },
+    {
+      "path": "api/open-data-chokepoints.js",
+      "category": "non-json",
+      "reason": "Serves the CC BY 4.0 chokepoint status open dataset at /data/v1/chokepoints/ as byte-exact dated JSON and CSV files from the Redis archive the daily open-data workflow publishes. The file contract is a published static-file layout, not an RPC envelope.",
+      "owner": "@koala73",
       "removal_issue": null
     },
     {
@@ -1000,6 +1014,13 @@
       "path": "api/customer-portal.ts",
       "category": "deferred",
       "reason": "Issues a Dodo customer-portal redirect URL. Paired with create-checkout.ts; migrate together.",
+      "owner": "@SebastienMelki",
+      "removal_issue": "TBD"
+    },
+    {
+      "path": "api/pro-business-upgrade.ts",
+      "category": "deferred",
+      "reason": "Previews or applies the in-place Pro to Pro Business Dodo plan change for /pro. Paired with create-checkout.ts and customer-portal.ts; migrate together.",
       "owner": "@SebastienMelki",
       "removal_issue": "TBD"
     },

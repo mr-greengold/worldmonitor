@@ -108,7 +108,8 @@
     "marketBreadth": "Marktbreedte",
     "climateNews": "Klimaatnieuws",
     "fx": "Wisselkoersen",
-    "ukmtoIncidents": "UKMTO-incidenten"
+    "ukmtoIncidents": "UKMTO-incidenten",
+    "reservoirLevels": "Strategische waterstanden"
   },
   "commands": {
     "prefixes": {
@@ -497,7 +498,7 @@
         "space": "RUIMTE"
       },
       "paused": "Webcams gepauzeerd",
-      "play": "Afspelen",
+      "play": "Bekijk live",
       "previewStatus": "Klaar om af te spelen",
       "connecting": "Verbinding wordt tot stand gebracht…",
       "unverified": "Kan niet bevestigen dat deze stream live is",
@@ -512,7 +513,8 @@
       "skipToStart": "Naar het begin",
       "previous": "Vorige",
       "next": "Volgende",
-      "skipToEnd": "Naar het einde"
+      "skipToEnd": "Naar het einde",
+      "storageUnavailable": "Afspelen is niet beschikbaar omdat deze browser siteopslag blokkeert. Sta sitegegevens voor deze site toe om snapshots op te slaan."
     },
     "deckgl": {
       "views": {
@@ -591,7 +593,8 @@
         "canadaRoads": "Canadese wegen",
         "canadaAlerts": "Canadese waarschuwingen",
         "notamAirspace": "NOTAM-luchtruimbeperkingen",
-        "no2Activity": "Industriële activiteit"
+        "no2Activity": "Industriële activiteit",
+        "reservoirLevels": "Waterstanden"
       },
       "layersTitle": "Lagen",
       "layerSearch": "Lagen zoeken...",
@@ -715,11 +718,26 @@
           "canadaRoads": "Officiële verkeersincidenten, waarschuwingen, wegcondities, afsluitingen, werkzaamheden en gevaren in ondersteunde Canadese rechtsgebieden",
           "canadaAlerts": "Provinciale openbare-veiligheidswaarschuwingen van Alberta Emergency Alert, B.C. Evacuation Orders and Alerts en SaskAlert",
           "notamAirspace": "Tijdelijke vliegbeperkingen en beperkt, gevaar- en verboden luchtruim van FAA NOTAMs, nu van kracht of binnen 24 uur van start",
-          "no2Activity": "Richting van de NO2-activiteit uit Sentinel-5P voor 167 landen en 32 industriële clusters: het laatste venster van 56 dagen tegenover dezelfde data in voorgaande jaren, na een dode band van 10%. Bevat gewijzigde Copernicus Sentinel-gegevens."
+          "no2Activity": "Richting van de NO2-activiteit uit Sentinel-5P voor 167 landen en 32 industriële clusters: het laatste venster van 56 dagen tegenover dezelfde data in voorgaande jaren, na een dode band van 10%. Bevat gewijzigde Copernicus Sentinel-gegevens.",
+          "reservoirLevels": "Waterniveau van strategische stuwmeren en meren volgens de satellietlidar ICESat-2 van NASA, vergeleken met het gebruikelijke niveau voor de maand. NASA publiceert elke overkomst ongeveer twee maanden na de meting."
         },
         "notes": {
           "timeAffects": "Beïnvloedt: aardbevingen, weer, protesten, stroomstoringen"
         }
+      },
+      "measure": {
+        "title": "Afstand meten",
+        "units": "Afstandseenheden",
+        "pointA": "Selecteer punt A. Klik op de kaart of druk op Enter bij het kaartcentrum.",
+        "pointB": "Selecteer punt B. Verschuif de kaart en druk op Enter om het centrum te gebruiken.",
+        "geodesic": "Geodetische afstand",
+        "note": "Tussen geklikt coördinaten; geen route of geverifieerde activaseparatie. Escape sluit af.",
+        "cancel": "Selectie annuleren",
+        "cancelShort": "Annuleren",
+        "resetShort": "Opnieuw instellen",
+        "exitShort": "Afsluiten",
+        "reset": "Meting opnieuw instellen",
+        "exit": "Meting afsluiten"
       }
     },
     "climate": {
@@ -752,6 +770,7 @@
       "shareStory": "Deel verhaal",
       "printPdf": "Afdrukken / PDF",
       "exportData": "Gegevens exporteren",
+      "moreActions": "Meer acties",
       "shareLink": "Link delen"
     },
     "relatedAssets": {
@@ -905,6 +924,10 @@
       "infoTooltip": "<strong>Tech-evenementen</strong> Aankomende en recente technologie-evenementen: conferenties, productlanceringen, regelgevende hoorzittingen en winstgesprekken. Samengesteld uit officiële evenementenkalenders en industriebronnen."
     },
     "techReadiness": {
+      "ranked": "Met rang",
+      "unranked": "Geen rang",
+      "coverageRequirement": "Minimale dekking voor rangschikking",
+      "coverageLabel": "Beschikbare indicatoren",
       "internetUsers": "Internetgebruikers",
       "mobileSubscriptions": "Mobiele abonnementen",
       "rdSpending": "Onderzoeks- en ontwikkelingsbegroting",
@@ -1122,10 +1145,17 @@
       "recentMissing": "Geen gegevens dit keer van {{countries}}; hun bestanden konden niet worden geladen, wat niet nul verplaatsing betekent."
     },
     "populationExposure": {
-      "totalAffected": "Totaal getroffen",
-      "affectedCount": "{{count}} getroffen",
-      "radiusKm": "straal van {{km}}km",
-      "infoTooltip": "<strong>Blootstellingsschattingen van de bevolking</strong> Geschatte populatie binnen de impactradius van de gebeurtenis. Gebaseerd op gegevens over de landdichtheid van WorldPop.<ul><li>Conflict: straal van 50 km</li><li>Aardbeving: straal van 100 km</li><li>Overstroming: straal van 100 km</li><li>Natuurbrand: straal van 30 km</li></ul>"
+      "estimateWithin": "Ongeveer {{count}} mensen binnen een straal van {{km}} km",
+      "method": "De schattingen zijn gebaseerd op de gemiddelde bevolkingsdichtheid van het land.",
+      "empty": "Geen geschikte gebeurtenislocaties",
+      "infoTooltip": "Gebeurtenissen met gegevens over de bevolkingsdichtheid van het land worden getoond. Locaties van UCDP-gebeurtenissen zonder nauwkeurigheidsinformatie worden gemarkeerd als wachtend op een update. De geschatte gebieden kunnen overlappen. Onrust vereist een precieze locatie; UCDP-gebeurtenissen met een onnauwkeurige locatie worden uitgesloten. Eén plaats uit twee bronnen (onrust en UCDP) verschijnt in twee rijen.",
+      "eventCount_one": "{{count}} gebeurtenis",
+      "eventCount_other": "{{count}} gebeurtenissen",
+      "locationPending": "Locatienauwkeurigheid wacht op update",
+      "unrestCoverage": "Dekking van onrust",
+      "ucdpPending": "UCDP-dekking wacht op update",
+      "coverageShown": "Getoonde gebeurtenissen: {{shown}} van {{total}}",
+      "coverageLeftOut": "Niet getoond: {{imprecise}} zonder precieze locatie, {{noEstimate}} in landen zonder dichtheidsgegevens, {{otherPlaces}} na de eerste 10 plaatsen per bron"
     },
     "countryTimeline": {
       "now": "nu",
@@ -1312,8 +1342,8 @@
       "badgeAnimDesc": "Update-badges in paneelkoppen animeren",
       "headlineMemoryLabel": "Koptekstgeheugen",
       "headlineMemoryDesc": "Gezien koppen onthouden om nieuwe te markeren",
-      "streamAlwaysOnLabel": "Livestreams automatisch afspelen op het dashboard",
-      "streamAlwaysOnDesc": "Start Live News en Live Webcams automatisch wanneer ze zichtbaar zijn. Laat uit om video pas te laden nadat je op Afspelen klikt.",
+      "streamAlwaysOnLabel": "Live webcams automatisch afspelen",
+      "streamAlwaysOnDesc": "Start de live webcamvideo's automatisch zodra deze op het scherm verschijnen. Laat dit uit om ze alleen te laden wanneer je deze zelf start.",
       "globeRenderScaleOptions": {
         "1": "Eco (1x)",
         "2": "4K (2x)",
@@ -1362,7 +1392,9 @@
       "briefStoryDetails": "Details van het bericht ({{count}})",
       "streamIdleStopLabel": "Livevideostream stoppen bij inactiviteit",
       "streamIdleStopDesc": "Stopt Live News en Live Webcams na deze periode zonder activiteit en toont een melding in het paneel.",
-      "streamIdleStopNever": "Nooit"
+      "streamIdleStopNever": "Nooit",
+      "liveNewsAutoplayLabel": "Automatisch afspelen van live nieuws",
+      "liveNewsAutoplayDesc": "Start de live nieuwsvideo automatisch, zonder geluid, zodra deze op het scherm verschijnt. Zet dit uit om de video alleen te laden wanneer je deze zelf start."
     },
     "techHubs": {
       "infoTooltip": "<strong>Tech Hub-activiteit</strong><br>Toont tech-hubs met de meeste nieuwsactiviteit.<br><br><em>Activiteitsniveaus:</em><br>• <span style=\"color: {{highColor}}\">Hoog</span> — Breaking news of 50+ score<br>• <span style=\"color: {{elevatedColor}}\">Verhoogd</span> — Score 20-49<br>• <span style=\"color: {{lowColor}}\">Laag</span> — Score lager dan 20<br><br>Klik op een hub om naar de locatie ervan te zoomen."
@@ -1552,7 +1584,8 @@
       "channelOrVideoUrl": "YouTube-kanaal of video-URL",
       "channelUrlHint": "Plak een kanaal-URL (youtube.com/channel/UC…) of een live-video-URL",
       "youtubeChannel": "YouTube-kanaal",
-      "httpsStreamHint": "Browsers blokkeren onveilige (http) streams. Plak een veilige (https) stream-URL"
+      "httpsStreamHint": "Browsers blokkeren onveilige (http) streams. Plak een veilige (https) stream-URL",
+      "tapToPlay": "Tik om af te spelen"
     },
     "securityAdvisories": {
       "loading": "Reisadviezen laden...",
@@ -1973,7 +2006,15 @@
       "noData": "Energiegegevens tijdelijk niet beschikbaar - wordt opnieuw geprobeerd",
       "liveTape": "Live koersen",
       "liveTapeSource": "Marktkoersen",
-      "infoTooltip": "<strong>Energy Complex</strong> Fysieke en verhandelbare energiesignalen op één plaats:<ul><li><strong>Statistieken US Energy Information Administration</strong>: WTI, Brent, Amerikaanse productie en voorraden</li><li><strong>Live tape</strong>: Verhandelbare energieprijzen zoals ruwe olie en aardgas</li><li><strong>Doel</strong>: Fysieke energiespanning scheiden van bredere macro- en commoditypanels</li></ul>"
+      "infoTooltip": "<strong>Energy Complex</strong> Fysieke en verhandelbare energiesignalen op één plaats:<ul><li><strong>Statistieken US Energy Information Administration</strong>: WTI, Brent, Amerikaanse productie en voorraden</li><li><strong>Live tape</strong>: Verhandelbare energieprijzen zoals ruwe olie en aardgas</li><li><strong>Doel</strong>: Fysieke energiespanning scheiden van bredere macro- en commoditypanels</li></ul>",
+      "marketTape": "Marktkoersen",
+      "futures": "Termijncontracten",
+      "dailySpot": "Dagelijkse spotprijs",
+      "eiaWeeklySpot": "EIA-spotprijs · weekgemiddelde",
+      "weekEnding": "Week eindigend op {{date}}",
+      "unknownPriceDate": "Waarnemingstijd niet beschikbaar",
+      "unknownQuoteSource": "Koersbron niet beschikbaar",
+      "stalePrice": "Verouderd"
     },
     "consumerPrices": {
       "tabs": {
@@ -2172,8 +2213,8 @@
     },
     "proBanner": {
       "badge": "PRO",
-      "headline": "Pro is gelanceerd",
-      "tagline": "Meer signaal, minder ruis. Meer AI-briefings. Een geopolitieke & aandelenonderzoeker speciaal voor jou.",
+      "headline": "Dagelijkse AI-briefings per e-mail of Slack",
+      "tagline": "plus WM Analyst, waarschuwingsregels en MCP voor Claude",
       "cta": "Upgrade naar Pro →",
       "dismiss": "Verwijderen"
     },
@@ -2298,7 +2339,7 @@
     },
     "sanctionsPressure": {
       "title": "Sancties & Aanwijzingen",
-      "infoTooltip": "Office of Foreign Assets Control Specially Designated Nationals and Consolidated Lists plus Global Affairs Canada SEMA/JVCFOA-toevoegingen. Toont welke landen het meeste druk ervaren voor toevoegingen, welke programma's dit aansturen en wat sinds de laatste update is toegevoegd.",
+      "infoTooltip": "OFAC SDN- en geconsolideerde lijsten plus Canadese SEMA/JVCFOA-sancties. Landrijen gebruiken directe koppelingen. Scheepsvlaggen en vliegtuigregistraties worden apart geteld onder registers; nul activa bij een land betekent niet dat er geen gesanctioneerde activa zijn.",
       "loading": "Sanctiegegevens laden...",
       "unavailable": "Sanctiegegevens niet beschikbaar.",
       "summary": {
@@ -2310,7 +2351,9 @@
       "sections": {
         "countries": "Gesanctioneerde landen",
         "entries": "Recente aanwijzingen",
-        "programs": "Programma's"
+        "programs": "Programma's",
+        "flagRegistries": "Vlaggen- en luchtvaartuigregisters",
+        "regulationTargets": "Doellanden van SEMA-regelgeving"
       },
       "empty": {
         "countries": "Geen landenattributie beschikbaar.",
@@ -2333,7 +2376,8 @@
         "unattributed": "Niet toegewezen",
         "program": "Programma",
         "undated": "zonder datum"
-      }
+      },
+      "targetExplanation": "Doellanden van regelgeving zijn geen bewijs van nationaliteit of adres. Ze worden uitgesloten van landenrisicoscores en samenvattingen."
     },
     "radiationWatch": {
       "title": "Stralingsbewaking",
@@ -2709,6 +2753,55 @@
           "placeholder": "Optioneel"
         }
       }
+    },
+    "githubStarPrompt": {
+      "title": "Geniet je van World Monitor?",
+      "body": "Een ster op GitHub helpt anderen het te vinden.",
+      "star": "Ster geven op GitHub",
+      "dismiss": "Sluiten en niet meer vragen"
+    },
+    "reservoirLevels": {
+      "note": "Waterniveau volgens de satellietlidar ICESat-2 van NASA. NASA publiceert elke overkomst ongeveer twee maanden na de meting, dus dit volgt veranderingen over weken en seizoenen, niet over dagen. Alleen niveau, geen volume.",
+      "source": "Bron:",
+      "processedWith": "verwerkt met",
+      "empty": "Nog geen metingen",
+      "filterEmpty": "Geen waterlichamen voldoen aan dit filter",
+      "unavailable": "Waterstandgegevens zijn nu niet beschikbaar",
+      "filterLabel": "Waterlichamen filteren",
+      "filter": {
+        "all": "Alle",
+        "attention": "Vraagt aandacht",
+        "transboundary": "Grensoverschrijdend"
+      },
+      "status": {
+        "record_low": "Recordlaag",
+        "record_high": "Recordhoog",
+        "falling_fast": "Daalt snel",
+        "rising_fast": "Stijgt snel",
+        "low": "Laag voor het seizoen",
+        "high": "Hoog voor het seizoen",
+        "normal": "Gebruikelijk",
+        "insufficient_history": "Te korte reeks",
+        "no_recent_data": "Geen recente overkomst",
+        "lowInRange": "Laag in zijn bereik",
+        "highInRange": "Hoog in zijn bereik"
+      },
+      "vsUsual": "{{value}} t.o.v. gebruikelijk in {{month}}",
+      "in12Months": "{{value}} in 12 maanden",
+      "noComparison": "Nog geen vergelijking",
+      "measured": "gemeten op {{date}} ({{age}})",
+      "noPass": "Nog geen bruikbare overkomst",
+      "popup": {
+        "level": "Niveau",
+        "levelValue": "{{value}} boven zeeniveau (EGM2008)",
+        "anomaly": "T.o.v. gebruikelijk in {{month}}",
+        "anomalyPlain": "T.o.v. gebruikelijk voor de maand",
+        "changePrev": "Sinds vorige overkomst",
+        "change90": "In 90 dagen",
+        "change365": "In 12 maanden",
+        "measured": "Gemeten",
+        "sparkline": "Waterstand over 36 maanden"
+      }
     }
   },
   "popups": {
@@ -2791,7 +2884,44 @@
       "open": "OPEN"
     },
     "cyberThreat": {
-      "title": "CYBERDREIGING"
+      "title": "CYBERDREIGING",
+      "evidence": "Bewijsmateriaal uit dreigingsfeed",
+      "firstSeen": "Eerst waargenomen",
+      "explanations": {
+        "c2_server": "De feed rapporteert een command-and-control-server die wordt gebruikt om instructies naar malware te sturen.",
+        "malware_host": "De feed rapporteert een adres dat wordt gebruikt om malware te hosten.",
+        "phishing": "De feed rapporteert een indicator die is gekoppeld aan phishing.",
+        "malicious_url": "De feed rapporteert een URL die is gekoppeld aan schadelijke activiteit."
+      },
+      "downloadTag": "malware_download: de bron rapporteert een downloadlocatie voor malware.",
+      "familyNote": "Het label voor de malwarefamilie komt uit de dreigingsfeed. Het identificeert geen persoon of organisatie.",
+      "approximateLocation": "De weergegeven locatie is geschatte IP-afgeleid contextgegevens, geen geverifieerde fysieke hostlocatie.",
+      "network": {
+        "title": "Netwerkgegevens",
+        "privacy": "Vouw uit om passieve netwerkgegevens van RIPEstat op te vragen. Het indicator-IP wordt met die provider gedeeld.",
+        "disclaimer": "Netwerkregistratie en routering identificeren de aanvaller niet en maken de provider niet verantwoordelijk voor de activiteit.",
+        "loading": "Netwerkgegevens laden…",
+        "unknown": "Niet beschikbaar",
+        "disabled": "Netwerkopzoeking is niet ingeschakeld.",
+        "invalid": "Netwerkopzoeking vereist een openbaar IP-adres.",
+        "unavailable": "Netwerkopzoeking mislukt. Sluit het popup en open het later opnieuw om het opnieuw te proberen.",
+        "rateLimited": "Netwerkopzoeking is tijdelijk beperkt. Probeer het later opnieuw.",
+        "noData": "De provider heeft geen netwerkgegevens voor dit IP geretourneerd.",
+        "partial": "Enkele netwerkgegevens konden niet worden opgehaald.",
+        "ip": "IP",
+        "asn": "Herkomst-ASN",
+        "operator": "Gerapporteerde ASN-houder / netwerkoperator",
+        "prefix": "Gerapporteerd routeringsprefix",
+        "hostname": "Reverse-DNS-hostnaam (rDNS)",
+        "lookupAt": "Opzoektijd netwerk",
+        "routingAt": "Routeringsgegevenstijd",
+        "broaderPrefix": "De provider kwam overeen met een breder routeringsprefix. Dit is geen exact IP-toewijzingsrecord.",
+        "rdnsNote": "rDNS is een DNS-label, geen bewijs van eigendom. Geregistreerde organisatie en precieze locatie worden niet verstrekt door deze opzoeking.",
+        "copy": "Kopiëren",
+        "copied": "Gekopieerd.",
+        "copyFailed": "Kopiëren mislukt. Selecteer de tekst om deze te kopiëren."
+      },
+      "firstSeenNote": "Dit is de vroegst beschikbare indicatordatum uit feeds of World Monitor-waarnemingen; deze kan afwijken van de datum van de vermelde bron."
     },
     "nuclear": {
       "types": {
@@ -2962,6 +3092,28 @@
       "readReport": "Lees het volledige rapport"
     },
     "datacenter": {
+      "details": {
+        "more": "Meer details",
+        "owner": "Clustereigenaar / aanbieder (dataset)",
+        "power": "Vermogenswaarde in dataset",
+        "powerCaveat": "De vermogenscapaciteit kan gemeld of geschat zijn. Dit is geen meting van het huidige elektriciteitsverbruik.",
+        "powerBasis": "Basis van vermogenswaarde",
+        "reported": "Gemeld",
+        "estimated": "Geschat",
+        "notAvailable": "Niet beschikbaar",
+        "location": "Locatienauwkeurigheid",
+        "locationUnknown": "Onbevestigd kaartpunt; niet gebruiken als exact adres van de faciliteit.",
+        "site": "Locatie (door bron bevestigd)",
+        "city": "Alleen stad",
+        "region": "Alleen regio",
+        "country": "Alleen land",
+        "dataset": "Epoch AI GPU-clusterdataset",
+        "evidence": "Ondersteunende bron",
+        "sourceDate": "Publicatiedatum van de bron",
+        "metadataReviewedAt": "Metagegevens gecontroleerd",
+        "firstOperationalDate": "Datum eerste ingebruikname (dataset)",
+        "freshness": "Opgeslagen momentopname van de dataset. De huidige status en specificaties kunnen gewijzigd zijn."
+      },
       "status": {
         "existing": "OPERATIONEEL",
         "planned": "GEPLAND",
@@ -3112,7 +3264,8 @@
       "vesselsCount": "{{count}} VAARTUIGEN",
       "vessels": "VAARTUIGEN",
       "trackedVessels": "BIJGEVOERDE VAARTUIGEN",
-      "showLess": "Minder weergeven"
+      "showLess": "Minder weergeven",
+      "backToGroup": "Terug naar de groep"
     },
     "naturalEvent": {
       "closed": "GESLOTEN",
@@ -4353,6 +4506,7 @@
   "auth": {
     "signIn": "Aanmelden",
     "createAccount": "Account aanmaken",
+    "freeReason": "Gratis: layout opslaan, landen volgen, meldingen",
     "settings": "Instellingen",
     "passkeyOffer": {}
   },
@@ -4397,7 +4551,17 @@
     "renameHint": "{{name}} — dubbelklik om te hernoemen",
     "deleteTab": "Tabblad verwijderen",
     "deleteTabAria": "Tabblad {{name}} verwijderen",
-    "tabNameAria": "Tabbladnaam"
+    "tabNameAria": "Tabbladnaam",
+    "addTabTitleSaved": "Nieuw tabblad (begint met de panelen die je hebt opgeslagen)",
+    "newTabOptions": "Opties voor nieuw tabblad",
+    "newTabStartsDefault": "Nieuwe tabbladen beginnen met de standaardpanelen.",
+    "newTabStartsSaved": "Nieuwe tabbladen beginnen met de panelen die je hebt opgeslagen.",
+    "newTabOptionsHint": "Tabbladen die je al hebt, veranderen niet.",
+    "useThisTabPanels": "Gebruik de panelen van dit tabblad",
+    "useDefaultPanels": "Gebruik de standaardpanelen",
+    "newTabPanelsNotSaved": "Kon niet opslaan. Deze browser blokkeert sitegegevens.",
+    "team": "Team",
+    "teamDashboards": "Teamdashboards"
   },
   "theaterPresets": {
     "label": "Dekkingspresets",
@@ -4490,6 +4654,21 @@
         "related": {
           "0": "Nowcast activiteit China",
           "1": "Landenbrief"
+        }
+      },
+      "reservoirLevels": {
+        "category": "Klimaat",
+        "purpose": "Markeert strategische stuwmeren en meren naar hoe hun waterniveau zich verhoudt tot het gebruikelijke niveau in die tijd van het jaar en hoe snel het verandert.",
+        "source": "Hoogte van het binnenwateroppervlak uit NASA ICESat-2 ATL13 via NSIDC, verwerkt met SlideRule Earth en per satellietoverkomst samengevoegd door de dienst seed-reservoir-levels.",
+        "freshness": "Dagelijks bijgewerkt. NASA publiceert elke overkomst 50 tot 70 dagen na de meting, en elk stuwmeer wordt om de paar dagen tot ongeveer eens per maand opnieuw gemeten.",
+        "confidence": "Een overkomst telt alleen als minstens 5 watersegmenten binnen 0,25 m overeenkomen. Een seizoensvergelijking vraagt overkomsten uit minstens 3 eerdere jaren in dezelfde tijd van het jaar.",
+        "limitations": {
+          "0": "Alleen niveau, geen volume: dezelfde daling betekent in elk stuwmeer een ander voorraadverlies.",
+          "1": "Een waterlichaam zonder overkomst in 150 dagen wordt gemarkeerd als zonder recente overkomst; de laatste meting, de veranderingen en de datum blijven zichtbaar."
+        },
+        "related": {
+          "0": "Paneel Strategische waterstanden",
+          "1": "Klimaatafwijkingen"
         }
       },
       "conflicts": {
@@ -4666,7 +4845,7 @@
         "category": "Natuurrampen",
         "purpose": "Toont aardbevingen, zware rampwaarschuwingen en actieve aardobservatiegebeurtenissen, voor situatiebewustzijn.",
         "source": "Aardbevingen van USGS, waarschuwingen van GDACS en gebeurtenissen van NASA EONET, samengevoegd in de dienst voor natuurlijke gebeurtenissen.",
-        "freshness": "Natuurlijke gebeurtenissen worden elke 3 uur geladen. Het verwachte bronritme voor aardbevingen van USGS is gedocumenteerd op ongeveer 5 minuten.",
+        "freshness": "Natuurlijke gebeurtenissen worden elke 30 minuten geladen. Het verwachte bronritme voor aardbevingen van USGS is gedocumenteerd op ongeveer 5 minuten.",
         "confidence": "Sterk voor gedetecteerde openbare rampsignalen. De betrouwbaarheid verschilt per gevaartype en door de meldingsvertraging bij de bron.",
         "limitations": {
           "0": "GDACS-waarschuwingen van lage ernst worden weggefilterd zodat de kaart leesbaar blijft.",
@@ -4760,5 +4939,129 @@
     "happy": {
       "map": "Goed nieuws-kaart"
     }
+  },
+  "pwaInstall": {
+    "title": "App installeren",
+    "share": "Tik in Safari op Delen (het vierkant met een pijl omhoog). Mogelijk moet je eerst het menu Meer openen.",
+    "add": "Kies Zet op beginscherm.",
+    "confirm": "Tik op Voeg toe en open World Monitor vanaf je beginscherm.",
+    "close": "Sluiten",
+    "alertsHint": "Installeer World Monitor op je beginscherm om meldingen te ontvangen op deze iPhone of iPad.",
+    "how": "Installatie-instructies"
+  },
+  "teamDashboards": {
+    "desc": "Dashboards die je team deelt. Open er een om het als nieuw tabblad toe te voegen.",
+    "empty": "Je team heeft nog geen dashboard gedeeld. Deel dit tabblad om iedereen in je team de panelen, groottes en kaart ervan te geven.",
+    "open": "Open {{name}} als nieuw tabblad",
+    "stopSharing": "Stoppen met delen van {{name}}",
+    "confirmStop": "Stoppen met het delen van {{name}} met je team? Tabbladen die mensen er al van hebben geopend, blijven zoals ze zijn.",
+    "shareTab": "Deel dit tabblad met je team",
+    "shareChanges": "Deel de wijzigingen van dit tabblad met je team",
+    "behind": "Je team heeft dit dashboard gewijzigd nadat je het opende.",
+    "getLatest": "Haal de nieuwste versie op",
+    "opened": "{{name}} van je team geopend.",
+    "shared": "{{name}} gedeeld met je team.",
+    "updated": "Dit tabblad heeft nu de nieuwste versie van je team.",
+    "stopped": "Gestopt met delen van {{name}}.",
+    "failed": "Kan de dashboards van je team niet bereiken. Probeer het opnieuw.",
+    "limit": "Je team deelt hier al {{limit}} dashboards. Stop eerst met het delen van een ervan.",
+    "focusNotEntitled": "Uw plan ondersteunt het delen van een gefocust dashboard niet. Verwijder de focus van dit tabblad om de panelen te delen.",
+    "focusUnreadable": "{{name}} heeft een focus die deze versie niet kan weergeven. Laad opnieuw om bij te werken en open het daarna opnieuw."
+  },
+  "focus": {
+    "barLabel": "Focus",
+    "summary": "Gericht op {{countries}}",
+    "neighboursOff": "Buren niet inbegrepen",
+    "chosenLabel": "Gekozen",
+    "neighboursLabel": "Buren",
+    "neighbourItem": "Buur: {{name}}",
+    "range": "{{start}} tot {{end}}",
+    "windowEnded": "Venster beëindigd {{date}}",
+    "windowStarts": "Start {{date}}",
+    "windowUntil": "Tot {{date}}",
+    "windowFrom": "Vanaf {{date}}",
+    "edit": "Bewerken",
+    "clear": "Wissen",
+    "clearAria": "Verwijder de focus en toon de hele wereld",
+    "clearFocus": "Focus wissen",
+    "notFiltered": "Niet gefilterd",
+    "notFilteredGlobal": "Wereldgegevens: niet gefilterd op land",
+    "notFilteredYet": "Nog niet gefilterd op land",
+    "gateSignedOutDesc": "Meld u aan om een dashboardtabblad gericht op de landen waarvoor u verslaggeving doet.",
+    "gateUpgradeDesc": "Het richten van een tabblad op geselecteerde landen is beschikbaar voor Pro Business, API Business en Enterprise.",
+    "gateUpgradeCta": "Upgrade",
+    "tabButton": "Focus",
+    "tabButtonTitle": "Richt dit tabblad op geselecteerde landen",
+    "tabButtonTitleActive": "Bewerk de focus van dit tabblad",
+    "newTitle": "Dit tabblad richten",
+    "editTitle": "Focus bewerken",
+    "intro": "Panelen die op land kunnen filteren tonen alleen deze landen. De overige zeggen 'Niet gefilterd'.",
+    "countriesLabel": "Landen",
+    "count": "{{n}} van {{max}}",
+    "searchPlaceholder": "Landen zoeken",
+    "resultsLabel": "Overeenkomende landen",
+    "limitReached": "U hebt {{max}} landen gekozen, het maximum voor een focus.",
+    "removeCountry": "Verwijder {{name}}",
+    "includeNeighbours": "Buurlanden opnemen",
+    "neighboursHint": "Risico's stoppen niet bij grenzen. Buren zijn aangemerkt en tellen niet mee naar de {{max}}.",
+    "startLabel": "Vanaf (optioneel)",
+    "endLabel": "Tot (optioneel)",
+    "datesHint": "Voor een reis of taak. Als het venster eindigt, blijft de focus en geeft de balk dit aan.",
+    "errorNoCountries": "Kies minstens één land.",
+    "errorTooMany": "Een focus kan maximaal {{max}} landen bevatten.",
+    "errorDates": "De einddatum ligt vóór de startdatum.",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "saved": "Dit tabblad is gericht op {{countries}}.",
+    "cleared": "Focus gewist. Dit tabblad toont de hele wereld.",
+    "notSaved": "Kon niet opslaan. Deze browser blokkeert siteopslag.",
+    "plusNeighbours_one": "+ {{count}} buur",
+    "plusNeighbours_other": "+ {{count}} buren",
+    "filter": {
+      "showing": "{{countries}} weergegeven",
+      "showingNeighbours": "{{countries}} + buurlanden weergegeven",
+      "showAll": "Alles weergeven",
+      "focusOff": "Focus uit in dit paneel: alles weergegeven",
+      "applyFocus": "Focus toepassen",
+      "applyFocusAria": "Filter dit paneel opnieuw op de focus",
+      "show": "Weergeven",
+      "hide": "Verbergen",
+      "noCountryTag": "Geen land",
+      "emptyHint": "Alles overige is hierboven meegeteld.",
+      "emptyNews": "Niets voor deze landen in de huidige koppen",
+      "emptyAdvisories": "Geen reiswaarschuwingen voor deze landen",
+      "emptyConflict": "Geen UCDP-conflictgebeurtenissen voor deze landen",
+      "emptyConflictPartial": "Geen conflictgebeurtenissen voor deze landen onder de nieuwste gebeurtenissen. De volledige lijst is niet geladen.",
+      "loadingConflict": "Alle conflictgebeurtenissen voor deze landen laden…",
+      "emptyAirports": "Geen van uw gemonitorde luchthavens bevindt zich in deze landen",
+      "emptyFlights": "Geen vluchten naar of van deze landen op dit bord",
+      "emptyAviationNews": "Geen aviatienieuws voor deze landen in de afgelopen 24 uur",
+      "tabNotFiltered": "Dit tabblad is niet op land gefilterd",
+      "hidden_one": "{{count}} verborgen door focus",
+      "hidden_other": "{{count}} verborgen door focus",
+      "showAllAria_one": "Alles in dit paneel weergeven, inclusief {{count}} item buiten de focus",
+      "showAllAria_other": "Alles in dit paneel weergeven, inclusief {{count}} items buiten de focus",
+      "unattributed_one": "{{count}} item zonder land",
+      "unattributed_other": "{{count}} items zonder land",
+      "showUnattributedAria_one": "Het {{count}} item zonder land weergeven",
+      "showUnattributedAria_other": "De {{count}} items zonder land weergeven",
+      "hideUnattributedAria_one": "Het {{count}} item zonder land verbergen",
+      "hideUnattributedAria_other": "De {{count}} items zonder land verbergen",
+      "partialConflict": "Alleen conflictgebeurtenissen van de laatste 150 weergegeven. De volledige lijst is niet geladen.",
+      "partialConflictLoading": "Conflictgebeurtenissen uit de laatste 150 worden weergegeven terwijl de volledige lijst wordt geladen.",
+      "emptyInstability": "Geen instabiliteitsscore voor deze landen",
+      "emptyOutbreaks": "Geen ziekteuitbraken voor deze landen",
+      "emptyOutages": "Geen internetonderbrekingen voor deze landen",
+      "emptyRadiation": "Geen stralingmetingen voor deze landen",
+      "emptyFuelShortages": "Geen brandstoftekorten voor deze landen",
+      "emptyEnergyDisruptions": "Geen energieonderbrekingen voor deze landen",
+      "emptyDisplacement": "Geen vluchtelingengegevens voor deze landen",
+      "emptyCorrelation": "Geen signalen voor deze landen"
+    },
+    "draftAssessment": "Conceptbeoordeling",
+    "draftAssessmentAria": "Kopieer een verzoek om uw AI-assistent een risicobeoordelingsrapport voor reizen voor deze focus op te stellen",
+    "draftCopied": "Verzoek gekopieerd. Plak het in uw AI-assistent.",
+    "draftCopiedPartial": "Verzoek gekopieerd voor de eerste {{count}} landen. Een beoordeling omvat maximaal {{max}} landen.",
+    "draftCopyFailed": "Kon het verzoek niet kopiëren."
   }
 }

@@ -496,7 +496,8 @@
     "marketBreadth": "Szerokość Rynku",
     "climateNews": "Wiadomości Klimatyczne",
     "fx": "Kursy walutowe",
-    "ukmtoIncidents": "Incydenty UKMTO"
+    "ukmtoIncidents": "Incydenty UKMTO",
+    "reservoirLevels": "Strategiczne poziomy wód"
   },
   "commands": {
     "prefixes": {
@@ -887,7 +888,7 @@
         "space": "KOSMOS"
       },
       "paused": "Kamery wstrzymane",
-      "play": "Odtwórz",
+      "play": "Oglądaj na żywo",
       "previewStatus": "Gotowe do odtworzenia",
       "connecting": "Łączenie…",
       "unverified": "Nie można potwierdzić, że ten strumień jest na żywo",
@@ -1105,7 +1106,8 @@
         "canadaRoads": "Drogi w Kanadzie",
         "canadaAlerts": "Alerty z Kanady",
         "notamAirspace": "Ograniczenia przestrzeni powietrznej NOTAM",
-        "no2Activity": "Aktywność przemysłowa"
+        "no2Activity": "Aktywność przemysłowa",
+        "reservoirLevels": "Poziomy wód"
       },
       "layersTitle": "Warstwy",
       "layerSearch": "Szukaj warstw...",
@@ -1229,11 +1231,26 @@
           "canadaRoads": "Oficjalne zdarzenia drogowe, alerty, warunki, zamknięcia, roboty i zagrożenia w obsługiwanych jurysdykcjach kanadyjskich",
           "canadaAlerts": "Prowincjonalne alerty bezpieczeństwa publicznego z Alberta Emergency Alert, B.C. Evacuation Orders and Alerts i SaskAlert",
           "notamAirspace": "Tymczasowe ograniczenia lotów oraz strefy ograniczone, niebezpieczne i zakazane z NOTAM-ów FAA, obowiązujące obecnie lub rozpoczynające się w ciągu 24 godzin",
-          "no2Activity": "Kierunek aktywności NO2 z Sentinel-5P dla 167 krajów i 32 klastrów przemysłowych: ostatnie 56-dniowe okno względem tych samych dat w poprzednich latach, po 10% strefie martwej. Zawiera zmodyfikowane dane Copernicus Sentinel."
+          "no2Activity": "Kierunek aktywności NO2 z Sentinel-5P dla 167 krajów i 32 klastrów przemysłowych: ostatnie 56-dniowe okno względem tych samych dat w poprzednich latach, po 10% strefie martwej. Zawiera zmodyfikowane dane Copernicus Sentinel.",
+          "reservoirLevels": "Poziom lustra wody w strategicznych zbiornikach i jeziorach z satelitarnego lidaru NASA ICESat-2 w porównaniu ze zwykłym poziomem dla danego miesiąca. NASA publikuje każdy przelot około dwóch miesięcy po pomiarze."
         },
         "notes": {
           "timeAffects": "Wpływ na: Trzęsienia ziemi, Pogoda, Protesty, Przestoje"
         }
+      },
+      "measure": {
+        "title": "Zmierz odległość",
+        "units": "Jednostki odległości",
+        "pointA": "Wybierz punkt A. Kliknij na mapę lub naciśnij Enter w centrum mapy.",
+        "pointB": "Wybierz punkt B. Przesunięcie mapy i naciśnij Enter, aby użyć jej centrum.",
+        "geodesic": "Odległość geodezyjnego",
+        "note": "Pomiędzy klikniętymi współrzędnymi; nie jest trasą ani zweryfikowanym rozdzieleniem zasobów. Escape kończy.",
+        "cancel": "Anuluj wybór",
+        "cancelShort": "Anuluj",
+        "resetShort": "Resetuj",
+        "exitShort": "Wyjdź",
+        "reset": "Resetuj pomiar",
+        "exit": "Wyjdź z pomiaru"
       }
     },
     "climate": {
@@ -1266,6 +1283,7 @@
       "shareStory": "Podziel się historią",
       "printPdf": "Drukuj / PDF",
       "exportData": "Eksportuj dane",
+      "moreActions": "Więcej działań",
       "shareLink": "Udostępnij link"
     },
     "relatedAssets": {
@@ -1332,7 +1350,8 @@
       "skipToStart": "Przejdź na początek",
       "previous": "Wstecz",
       "next": "Dalej",
-      "skipToEnd": "Przejdź na koniec"
+      "skipToEnd": "Przejdź na koniec",
+      "storageUnavailable": "Odtwarzanie jest niedostępne, ponieważ przeglądarka blokuje przechowywanie danych witryny. Zezwól na dane witryny dla tej strony, aby rozpocząć zapisywanie migawek."
     },
     "stablecoins": {
       "pegHealth": "Stabilność powiązania",
@@ -1429,6 +1448,10 @@
       "infoTooltip": "<strong>Wydarzenia technologiczne</strong> Nadchodzące i ostatnie wydarzenia technologiczne: konferencje, premiery produktów, przesłuchania regulacyjne i telekonferencje wynikowe. Agregowane z oficjalnych kalendarzy wydarzeń i źródeł branżowych."
     },
     "techReadiness": {
+      "ranked": "Sklasyfikowane",
+      "unranked": "Bez klasyfikacji",
+      "coverageRequirement": "Minimalne pokrycie do klasyfikacji",
+      "coverageLabel": "Dostępne wskaźniki",
       "internetUsers": "Użytkownicy Internetu",
       "mobileSubscriptions": "Subskrypcje mobilne",
       "rdSpending": "Wydatki na badania i rozwój",
@@ -1568,10 +1591,19 @@
       "recentMissing": "Brak danych tym razem z {{countries}}; ich pliki nie załadowały się, co nie oznacza zerowego przemieszczenia."
     },
     "populationExposure": {
-      "totalAffected": "Całkowita liczba dotkniętych",
-      "affectedCount": "Dotyczy {{count}}",
-      "radiusKm": "Promień {{km}}km",
-      "infoTooltip": "<strong>Szacowane narażenie populacji</strong> Szacunkowa populacja w promieniu wpływu zdarzenia. Na podstawie danych o gęstości krajów WorldPop.<ul><li>Konflikt: w promieniu 50 km</li><li>Trzęsienie ziemi: w promieniu 100 km</li><li>Powódź: w promieniu 100 km</li><li>Pożar: w promieniu 30 km</li></ul>"
+      "estimateWithin": "Około {{count}} osób w promieniu {{km}} km",
+      "method": "Szacunki opierają się na średniej gęstości zaludnienia kraju.",
+      "empty": "Brak lokalizacji zdarzeń spełniających kryteria",
+      "infoTooltip": "Wyświetlane są zdarzenia z danymi o gęstości zaludnienia kraju. Lokalizacje zdarzeń UCDP bez informacji o dokładności są oznaczane jako oczekujące na aktualizację. Szacowane obszary mogą się nakładać. Niepokoje wymagają dokładnej lokalizacji; zdarzenia UCDP oznaczone jako niedokładne są pomijane. Jedno miejsce z dwóch źródeł (niepokoje i UCDP) pojawia się w dwóch wierszach.",
+      "eventCount_one": "{{count}} zdarzenie",
+      "eventCount_few": "{{count}} zdarzenia",
+      "eventCount_many": "{{count}} zdarzeń",
+      "eventCount_other": "{{count}} zdarzeń",
+      "locationPending": "Dokładność lokalizacji oczekuje na aktualizację",
+      "unrestCoverage": "Zakres danych o niepokojach",
+      "ucdpPending": "Zakres danych UCDP oczekuje na aktualizację",
+      "coverageShown": "Pokazane zdarzenia: {{shown}} z {{total}}",
+      "coverageLeftOut": "Niepokazane: {{imprecise}} bez dokładnej lokalizacji, {{noEstimate}} w krajach bez danych o gęstości, {{otherPlaces}} poza pierwszymi 10 miejscami z każdego źródła"
     },
     "countryTimeline": {
       "now": "Teraz",
@@ -1758,8 +1790,8 @@
       "badgeAnimDesc": "Animuj odznaki aktualizacji w nagłówkach paneli",
       "headlineMemoryLabel": "Pamięć nagłówków",
       "headlineMemoryDesc": "Zapamiętuj widziane nagłówki, aby wyróżnić nowe",
-      "streamAlwaysOnLabel": "Automatycznie odtwarzaj transmisje na żywo na pulpicie",
-      "streamAlwaysOnDesc": "Automatycznie uruchamia Live News i Live Webcams, gdy są widoczne. Pozostaw wyłączone, aby wideo ładowało się dopiero po kliknięciu Odtwórz.",
+      "streamAlwaysOnLabel": "Automatyczne odtwarzanie transmisji na żywo z kamer",
+      "streamAlwaysOnDesc": "Rozpoczyna transmisje z kamer internetowych zaraz po ich pojawienia się na ekranie. Pozostaw tę opcję wyłączoną, aby załadować je tylko po ręcznym uruchomieniu.",
       "globeRenderScaleOptions": {
         "1": "Eko (1x)",
         "2": "4K (2x)",
@@ -1810,7 +1842,9 @@
       "briefStoryDetails": "Szczegóły wiadomości ({{count}})",
       "streamIdleStopLabel": "Zatrzymaj transmisję live gdy nieaktywna",
       "streamIdleStopDesc": "Zatrzymuje Live News i Live Webcams po tym czasie bez aktywności i wyświetla powiadomienie w panelu.",
-      "streamIdleStopNever": "Nigdy"
+      "streamIdleStopNever": "Nigdy",
+      "liveNewsAutoplayLabel": "Automatyczne odtwarzanie aktualności na żywo",
+      "liveNewsAutoplayDesc": "Rozpoczyna odtwarzanie wideo aktualności na żywo, bez dźwięku, zaraz po jego pojawienia się na ekranie. Wyłącz tę opcję, aby wideo załadowało się tylko po jego ręcznym uruchomieniu."
     },
     "etfFlows": {
       "previousColumns": "Poprzednie kolumny",
@@ -1944,7 +1978,8 @@
       "channelUrlHint": "Wklej adres URL kanału (youtube.com/channel/UC…) lub adres URL transmisji na żywo",
       "youtubeChannel": "Kanał YouTube",
       "insecureStream": "{{name}} używa niesecure'owego (http) strumienia, który przeglądarki blokują. Dodaj go ponownie z bezpiecznym (https) adresem URL strumienia",
-      "httpsStreamHint": "Przeglądarki blokują niezabezpieczone (http) strumienie. Wklej bezpieczny (https) adres URL strumienia"
+      "httpsStreamHint": "Przeglądarki blokują niezabezpieczone (http) strumienie. Wklej bezpieczny (https) adres URL strumienia",
+      "tapToPlay": "Dotknij, aby odtworzyć"
     },
     "securityAdvisories": {
       "loading": "Ładowanie ostrzeżeń podróżnych...",
@@ -2375,7 +2410,15 @@
       "noData": "Dane energetyczne czasowo niedostępne - ponowienie próby",
       "liveTape": "Notowania na żywo",
       "liveTapeSource": "Notowania rynkowe",
-      "infoTooltip": "<strong>Kompleks energetyczny</strong> Fizyczne i zbywalne sygnały energetyczne w jednym miejscu:<ul><li><strong>Metryki US Energy Information Administration</strong>: WTI, Brent, produkcja USA i zapasy</li><li><strong>Livetape</strong>: Zbywalne ceny energii takie jak ropa i gaz ziemny</li><li><strong>Cel</strong>: Oddzielenie fizycznego stresu energetycznego od szerszych paneli makro i towarowych</li></ul>"
+      "infoTooltip": "<strong>Kompleks energetyczny</strong> Fizyczne i zbywalne sygnały energetyczne w jednym miejscu:<ul><li><strong>Metryki US Energy Information Administration</strong>: WTI, Brent, produkcja USA i zapasy</li><li><strong>Livetape</strong>: Zbywalne ceny energii takie jak ropa i gaz ziemny</li><li><strong>Cel</strong>: Oddzielenie fizycznego stresu energetycznego od szerszych paneli makro i towarowych</li></ul>",
+      "marketTape": "Notowania rynkowe",
+      "futures": "Kontrakty terminowe",
+      "dailySpot": "Dzienna cena spot",
+      "eiaWeeklySpot": "Cena spot EIA · średnia tygodniowa",
+      "weekEnding": "Tydzień kończący się {{date}}",
+      "unknownPriceDate": "Czas obserwacji niedostępny",
+      "unknownQuoteSource": "Źródło notowania niedostępne",
+      "stalePrice": "Nieaktualne"
     },
     "consumerPrices": {
       "tabs": {
@@ -2576,8 +2619,8 @@
     },
     "proBanner": {
       "badge": "PRO",
-      "headline": "Pro został uruchomiony",
-      "tagline": "Więcej sygnału, mniej szumu. Więcej briefów AI. Geopolityk i analityk akcji tylko dla Ciebie.",
+      "headline": "Codzienne raporty AI e-mailem lub na Slacku",
+      "tagline": "plus WM Analyst, reguły alertów i MCP dla Claude",
       "cta": "Przejdź na Pro →",
       "dismiss": "Odrzuć"
     },
@@ -2702,7 +2745,7 @@
     },
     "sanctionsPressure": {
       "title": "Sankcje i desygnacje",
-      "infoTooltip": "Office of Foreign Assets Control Specially Designated Nationals and Consolidated Lists oraz designacje Global Affairs Canada SEMA/JVCFOA. Pokazuje, które kraje stoją w obliczu największej presji desygnacyjnej, jakie programy ją napędzają i co zostało niedawno dodane od ostatniej aktualizacji.",
+      "infoTooltip": "Listy OFAC SDN i skonsolidowane oraz kanadyjskie sankcje SEMA/JVCFOA. Wiersze krajów wykorzystują bezpośrednie powiązania. Bandery statków i rejestracje samolotów są liczone osobno w rejestrach; zerowa liczba aktywów dla kraju nie oznacza braku aktywów objętych sankcjami.",
       "loading": "Ładowanie danych sankcji...",
       "unavailable": "Dane sankcji niedostępne.",
       "summary": {
@@ -2714,7 +2757,9 @@
       "sections": {
         "countries": "Kraje objęte sankcjami",
         "entries": "Niedawne desygnacje",
-        "programs": "Programy"
+        "programs": "Programy",
+        "flagRegistries": "Rejestry bander statków i statków powietrznych",
+        "regulationTargets": "Państwa objęte przepisami SEMA"
       },
       "empty": {
         "countries": "Brak przypisania kraju.",
@@ -2739,7 +2784,8 @@
         "undated": "bez daty"
       },
       "designations_few": "{{count}} desygnacje",
-      "designations_many": "{{count}} desygnacji"
+      "designations_many": "{{count}} desygnacji",
+      "targetExplanation": "Państwa objęte przepisami nie stanowią dowodu obywatelstwa ani adresu. Są wyłączone z ocen ryzyka krajów i raportów skrótowych."
     },
     "radiationWatch": {
       "title": "Monitoring promieniowania",
@@ -3133,6 +3179,55 @@
           "placeholder": "Opcjonalnie"
         }
       }
+    },
+    "githubStarPrompt": {
+      "title": "Podoba Ci się World Monitor?",
+      "body": "Gwiazdka na GitHub-ie pomaga innym osobom je znaleźć.",
+      "star": "Gwiazdka na GitHub-ie",
+      "dismiss": "Ukryj i nie pytaj ponownie"
+    },
+    "reservoirLevels": {
+      "note": "Poziom lustra wody z satelitarnego lidaru NASA ICESat-2. NASA publikuje każdy przelot około dwóch miesięcy po pomiarze, więc dane pokazują zmiany w skali tygodni i pór roku, a nie dni. Tylko poziom, nie objętość.",
+      "source": "Źródło:",
+      "processedWith": "przetworzone w",
+      "empty": "Brak odczytów",
+      "filterEmpty": "Żaden akwen nie pasuje do tego filtra",
+      "unavailable": "Dane o poziomie wód są teraz niedostępne",
+      "filterLabel": "Filtruj akweny",
+      "filter": {
+        "all": "Wszystkie",
+        "attention": "Wymaga uwagi",
+        "transboundary": "Transgraniczne"
+      },
+      "status": {
+        "record_low": "Rekordowo nisko",
+        "record_high": "Rekordowo wysoko",
+        "falling_fast": "Szybki spadek",
+        "rising_fast": "Szybki wzrost",
+        "low": "Nisko jak na porę roku",
+        "high": "Wysoko jak na porę roku",
+        "normal": "Typowy",
+        "insufficient_history": "Za krótka historia",
+        "no_recent_data": "Brak niedawnego przelotu",
+        "lowInRange": "Nisko w swoim zakresie",
+        "highInRange": "Wysoko w swoim zakresie"
+      },
+      "vsUsual": "{{value}} względem normy ({{month}})",
+      "in12Months": "{{value}} w 12 miesięcy",
+      "noComparison": "Brak porównania",
+      "measured": "pomiar {{date}} ({{age}})",
+      "noPass": "Brak użytecznego przelotu",
+      "popup": {
+        "level": "Poziom",
+        "levelValue": "{{value}} n.p.m. (EGM2008)",
+        "anomaly": "Względem normy ({{month}})",
+        "anomalyPlain": "Względem normy dla miesiąca",
+        "changePrev": "Od poprzedniego przelotu",
+        "change90": "W 90 dni",
+        "change365": "W 12 miesięcy",
+        "measured": "Pomiar",
+        "sparkline": "Poziom wody w ciągu 36 miesięcy"
+      }
     }
   },
   "popups": {
@@ -3215,7 +3310,44 @@
       "open": "OTWARTE"
     },
     "cyberThreat": {
-      "title": "CYBERZAGROŻENIE"
+      "title": "CYBERZAGROŻENIE",
+      "evidence": "Dowody z kanału zagrożeń",
+      "firstSeen": "Pierwsza obserwacja",
+      "explanations": {
+        "c2_server": "Kanał zagrożeń zgłasza serwer command-and-control używany do wysyłania instrukcji złośliwemu oprogramowaniu.",
+        "malware_host": "Kanał zagrożeń zgłasza adres hosting złośliwego oprogramowania.",
+        "phishing": "Kanał zagrożeń zgłasza wskaźnik związany z phishingiem.",
+        "malicious_url": "Kanał zagrożeń zgłasza adres URL związany ze złośliwą aktywnością."
+      },
+      "downloadTag": "malware_download: źródło zgłasza lokalizację pobierania złośliwego oprogramowania.",
+      "familyNote": "Etykieta rodziny złośliwego oprogramowania pochodzi z kanału zagrożeń. Nie identyfikuje osoby ani organizacji.",
+      "approximateLocation": "Zmapowana lokalizacja to przybliżony kontekst pochodzenia adresu IP, a nie zweryfikowana fizyczna lokalizacja hosta.",
+      "network": {
+        "title": "Informacje sieciowe",
+        "privacy": "Rozwiń, aby zażądać pasywnych danych sieciowych z RIPEstat. Adres IP wskaźnika jest udostępniany temu dostawcy.",
+        "disclaimer": "Dane rejestracyjne sieci i routing nie identyfikują atakującego ani nie oznaczają, że dostawca odpowiada za tę działalność.",
+        "loading": "Ładowanie informacji sieciowych…",
+        "unknown": "Niedostępne",
+        "disabled": "Wyszukiwanie sieciowe nie jest włączone.",
+        "invalid": "Wyszukiwanie sieciowe wymaga publicznego adresu IP.",
+        "unavailable": "Wyszukiwanie sieciowe nie powiodło się. Zamknij i ponownie otwórz okno popup, aby spróbować ponownie później.",
+        "rateLimited": "Wyszukiwanie sieciowe jest tymczasowo ograniczone. Spróbuj ponownie później.",
+        "noData": "Dostawca nie zwrócił informacji sieciowych dla tego adresu IP.",
+        "partial": "Nie wszystkie informacje sieciowe mogły zostać pobrane.",
+        "ip": "Adres IP",
+        "asn": "ASN pochodzenia",
+        "operator": "Zgłoszony właściciel ASN / operator sieci",
+        "prefix": "Zgłoszony prefiks routingu",
+        "hostname": "Nazwa hosta odwrotnego DNS (rDNS)",
+        "lookupAt": "Czas wyszukiwania sieciowego",
+        "routingAt": "Czas danych routingu",
+        "broaderPrefix": "Dostawca dopasował szerszy prefiks routingu. To nie jest dokładny rekord alokacji adresu IP.",
+        "rdnsNote": "rDNS to etykieta DNS, a nie dowód własności. Zarejestrowana organizacja i dokładna lokalizacja nie są dostarczane przez to wyszukiwanie.",
+        "copy": "Kopiuj",
+        "copied": "Skopiowano.",
+        "copyFailed": "Kopiowanie nie powiodło się. Zaznacz tekst, aby go skopiować."
+      },
+      "firstSeenNote": "Jest to najwcześniejsza dostępna data wskaźnika z feedów lub obserwacji World Monitor; może różnić się od daty podanego źródła."
     },
     "nuclear": {
       "types": {
@@ -3386,6 +3518,28 @@
       "readReport": "Przeczytaj pełny raport"
     },
     "datacenter": {
+      "details": {
+        "more": "Więcej szczegółów",
+        "owner": "Właściciel / dostawca klastra (zbiór danych)",
+        "power": "Wartość mocy w zbiorze danych",
+        "powerCaveat": "Moc może być zgłoszona lub szacowana. Nie jest to pomiar bieżącego zużycia energii elektrycznej.",
+        "powerBasis": "Podstawa wartości mocy",
+        "reported": "Zgłoszona",
+        "estimated": "Szacowana",
+        "notAvailable": "Brak danych",
+        "location": "Dokładność lokalizacji",
+        "locationUnknown": "Niezweryfikowany punkt na mapie; nie używaj jako dokładnego adresu obiektu.",
+        "site": "Obiekt (zweryfikowany źródłem)",
+        "city": "Tylko miasto",
+        "region": "Tylko region",
+        "country": "Tylko kraj",
+        "dataset": "Zbiór danych klastrów GPU Epoch AI",
+        "evidence": "Źródło potwierdzające",
+        "sourceDate": "Data publikacji źródła",
+        "metadataReviewedAt": "Data sprawdzenia metadanych",
+        "firstOperationalDate": "Data pierwszego uruchomienia (zbiór danych)",
+        "freshness": "Zapisany stan zbioru danych. Obecny status i specyfikacje mogły się zmienić."
+      },
       "status": {
         "existing": "OPERACYJNY",
         "planned": "PLANOWANY",
@@ -3536,7 +3690,8 @@
       "vesselsCount": "{{count}} STATKI",
       "vessels": "STATKI",
       "trackedVessels": "STATKI GĄSOWE",
-      "showLess": "Pokaż mniej"
+      "showLess": "Pokaż mniej",
+      "backToGroup": "Powrót do grupy"
     },
     "naturalEvent": {
       "closed": "ZAMKNIĘTE",
@@ -4395,6 +4550,7 @@
   "auth": {
     "signIn": "Zaloguj się",
     "createAccount": "Utwórz konto",
+    "freeReason": "Za darmo: zapisz układ, obserwuj kraje, alerty",
     "settings": "Ustawienia",
     "passkeyOffer": {}
   },
@@ -4439,7 +4595,17 @@
     "renameHint": "{{name}} — dwukrotnie kliknij, aby zmienić nazwę",
     "deleteTab": "Usuń kartę",
     "deleteTabAria": "Usuń kartę {{name}}",
-    "tabNameAria": "Nazwa karty"
+    "tabNameAria": "Nazwa karty",
+    "addTabTitleSaved": "Nowa karta (rozpoczyna się z panelami, które zapisałeś)",
+    "newTabOptions": "Opcje nowej karty",
+    "newTabStartsDefault": "Nowe karty rozpoczynają się z panelami domyślnymi.",
+    "newTabStartsSaved": "Nowe karty rozpoczynają się z panelami, które zapisałeś.",
+    "newTabOptionsHint": "Karty, które już masz, się nie zmieniają.",
+    "useThisTabPanels": "Użyj paneli z tej karty",
+    "useDefaultPanels": "Użyj paneli domyślnych",
+    "newTabPanelsNotSaved": "Nie udało się zapisać. Przeglądarka blokuje przechowywanie danych witryny.",
+    "team": "Zespół",
+    "teamDashboards": "Dashboardy zespołu"
   },
   "theaterPresets": {
     "label": "Presety zasięgu",
@@ -4532,6 +4698,21 @@
         "related": {
           "0": "Nowcast aktywności Chin",
           "1": "Brief kraju"
+        }
+      },
+      "reservoirLevels": {
+        "category": "Klimat",
+        "purpose": "Oznacza strategiczne zbiorniki i jeziora według tego, jak ich poziom wody wypada na tle zwykłego poziomu o tej porze roku i jak szybko się zmienia.",
+        "source": "Wysokość lustra wód śródlądowych z NASA ICESat-2 ATL13 za pośrednictwem NSIDC, przetworzona w SlideRule Earth i zbiorczo liczona dla każdego przelotu satelity przez usługę seed-reservoir-levels.",
+        "freshness": "Aktualizacja codzienna. NASA publikuje każdy przelot 50–70 dni po pomiarze, a każdy zbiornik jest mierzony ponownie co kilka dni do mniej więcej raz w miesiącu.",
+        "confidence": "Przelot liczy się tylko wtedy, gdy co najmniej 5 odcinków wody zgadza się z dokładnością do 0,25 m. Porównanie sezonowe wymaga przelotów z co najmniej 3 wcześniejszych lat o tej samej porze roku.",
+        "limitations": {
+          "0": "Tylko poziom, nie objętość: ten sam spadek oznacza w każdym zbiorniku inną utratę zapasu.",
+          "1": "Akwen bez przelotu od 150 dni jest oznaczany jako bez niedawnego przelotu; jego ostatni odczyt, zmiany i data są nadal pokazywane."
+        },
+        "related": {
+          "0": "Panel Strategiczne poziomy wód",
+          "1": "Anomalie klimatyczne"
         }
       },
       "conflicts": {
@@ -4708,7 +4889,7 @@
         "category": "Katastrofy naturalne",
         "purpose": "Pokazuje trzęsienia ziemi, poważne alerty katastrof i aktywne zdarzenia obserwacji Ziemi, żeby dać obraz sytuacji.",
         "source": "Trzęsienia ziemi USGS, alerty GDACS i zdarzenia NASA EONET, scalone w usłudze zdarzeń naturalnych.",
-        "freshness": "Zdarzenia naturalne są zasilane co 3 godziny. Dla trzęsień ziemi USGS opisane oczekiwanie to rytm źródła mniej więcej co 5 minut.",
+        "freshness": "Zdarzenia naturalne są zasilane co 30 minut. Dla trzęsień ziemi USGS opisane oczekiwanie to rytm źródła mniej więcej co 5 minut.",
         "confidence": "Mocne dla wykrytych publicznych sygnałów katastrof. Pewność zależy od typu zagrożenia i opóźnienia meldunków u źródła.",
         "limitations": {
           "0": "Alerty GDACS o niskiej istotności są odfiltrowane, żeby mapa została czytelna.",
@@ -4802,5 +4983,141 @@
     "happy": {
       "map": "Mapa Dobrych Wiadomości"
     }
+  },
+  "pwaInstall": {
+    "title": "Zainstaluj aplikację",
+    "share": "W Safari stuknij Udostępnij (kwadrat ze strzałką w górę). Może być konieczne wcześniejsze otwarcie menu Więcej.",
+    "add": "Wybierz Do ekranu początkowego.",
+    "confirm": "Stuknij Dodaj, a następnie otwórz World Monitor z ekranu początkowego.",
+    "close": "Zamknij",
+    "alertsHint": "Zainstaluj World Monitor na ekranie początkowym, aby otrzymywać alerty na tym iPhonie lub iPadzie.",
+    "how": "Jak zainstalować"
+  },
+  "teamDashboards": {
+    "desc": "Dashboardy udostępniane przez Twój zespół. Otwórz jeden, aby dodać go jako nową kartę.",
+    "empty": "Twój zespół nie udostępnił jeszcze żadnego dashboardu. Udostępnij tę kartę, aby wszyscy członkowie zespołu uzyskali dostęp do jej paneli, rozmiarów i mapy.",
+    "open": "Otwórz {{name}} jako nową kartę",
+    "stopSharing": "Przestań udostępniać {{name}}",
+    "confirmStop": "Przestać udostępniać {{name}} ze swoim zespołem? Karty, które ludzie już otworzyli, pozostają bez zmian.",
+    "shareTab": "Udostępnij tę kartę ze swoim zespołem",
+    "shareChanges": "Udostępnij zmiany tej karty ze swoim zespołem",
+    "behind": "Twój zespół zmienił ten dashboard po jego otwarciu.",
+    "getLatest": "Pobierz najnowszą wersję",
+    "opened": "Otwarto {{name}} z Twojego zespołu.",
+    "shared": "Udostępniono {{name}} ze swoim zespołem.",
+    "updated": "Ta karta ma teraz najnowszą wersję Twojego zespołu.",
+    "stopped": "Przestano udostępniać {{name}}.",
+    "failed": "Nie można połączyć się z dashboardami Twojego zespołu. Spróbuj ponownie.",
+    "limit": "Twój zespół już udostępnia {{limit}} dashboardów tutaj. Najpierw przestań udostępniać jeden.",
+    "focusNotEntitled": "Twój plan nie obejmuje udostępniania spersonalizowanej tablicy. Wyczyść fokus tej karty, aby udostępnić jej panele.",
+    "focusUnreadable": "{{name}} ma fokus, którego ta wersja nie może wyświetlić. Załaduj ponownie, aby zaktualizować, a następnie otwórz go ponownie."
+  },
+  "focus": {
+    "barLabel": "Fokus",
+    "summary": "Skoncentrowano na {{countries}}",
+    "neighboursOff": "Sąsiednie kraje nie są uwzględnione",
+    "chosenLabel": "Wybrane",
+    "neighboursLabel": "Sąsiednie kraje",
+    "neighbourItem": "Sąsiedni kraj: {{name}}",
+    "range": "{{start}} do {{end}}",
+    "windowEnded": "Okno czasowe zakończyło się {{date}}",
+    "windowStarts": "Rozpoczyna się {{date}}",
+    "windowUntil": "Do {{date}}",
+    "windowFrom": "Od {{date}}",
+    "edit": "Edytuj",
+    "clear": "Wyczyść",
+    "clearAria": "Wyczyść fokus i pokaż cały świat",
+    "clearFocus": "Wyczyść fokus",
+    "notFiltered": "Nie filtrowane",
+    "notFilteredGlobal": "Dane globalne: nie filtrowane według kraju",
+    "notFilteredYet": "Nie filtrowane jeszcze według kraju",
+    "gateSignedOutDesc": "Zaloguj się, aby skoncentrować kartę tablicy na krajach, które monitorujesz.",
+    "gateUpgradeDesc": "Skoncentrowanie karty na wybranych krajach dostępne jest w planach Pro Business, API Business i Enterprise.",
+    "gateUpgradeCta": "Uaktualnij",
+    "tabButton": "Fokus",
+    "tabButtonTitle": "Skoncentruj tę kartę na wybranych krajach",
+    "tabButtonTitleActive": "Edytuj fokus tej karty",
+    "newTitle": "Skoncentruj tę kartę",
+    "editTitle": "Edytuj fokus",
+    "intro": "Panele, które mogą filtrować według kraju, pokazują tylko te kraje. Pozostałe mówią „Nie filtrowane\".",
+    "countriesLabel": "Kraje",
+    "count": "{{n}} z {{max}}",
+    "searchPlaceholder": "Szukaj krajów",
+    "resultsLabel": "Pasujące kraje",
+    "limitReached": "Wybrałeś {{max}} krajów, maksymalnie, ile fokus może zawierać.",
+    "removeCountry": "Usuń {{name}}",
+    "includeNeighbours": "Uwzględnij sąsiednie kraje",
+    "neighboursHint": "Ryzyko przekracza granice. Sąsiednie kraje są oznaczone jako takie i nie są wliczane do {{max}}.",
+    "startLabel": "Od (opcjonalnie)",
+    "endLabel": "Do (opcjonalnie)",
+    "datesHint": "Dla podróży lub zadania. Po zakończeniu okna czasowego fokus pozostaje, a pasek o tym informuje.",
+    "errorNoCountries": "Wybierz co najmniej jeden kraj.",
+    "errorTooMany": "Fokus może zawierać do {{max}} krajów.",
+    "errorDates": "Data końcowa jest przed datą początkową.",
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "saved": "Ta karta jest skoncentrowana na {{countries}}.",
+    "cleared": "Fokus wyczyszczony. Ta karta pokazuje cały świat.",
+    "notSaved": "Nie udało się zapisać. Przeglądarka blokuje przechowywanie danych witryny.",
+    "plusNeighbours_one": "+ {{count}} sąsiedni kraj",
+    "plusNeighbours_few": "+ {{count}} sąsiednie kraje",
+    "plusNeighbours_many": "+ {{count}} sąsiadów",
+    "plusNeighbours_other": "+ {{count}} sąsiadów",
+    "filter": {
+      "showing": "Wyświetlanie {{countries}}",
+      "showingNeighbours": "Wyświetlanie {{countries}} + sąsiednie kraje",
+      "showAll": "Pokaż wszystko",
+      "focusOff": "Fokus wyłączony w tym panelu: wyświetlanie wszystkiego",
+      "applyFocus": "Zastosuj fokus",
+      "applyFocusAria": "Filtruj ten panel ponownie do fokusu",
+      "show": "Pokaż",
+      "hide": "Ukryj",
+      "noCountryTag": "Bez kraju",
+      "emptyHint": "Wszystko inne jest policzone powyżej.",
+      "emptyNews": "Brak wiadomości dla tych krajów w aktualnych nagłówkach",
+      "emptyAdvisories": "Brak ostrzeżeń podróżnych dla tych krajów",
+      "emptyConflict": "Brak zdarzeń konfliktów UCDP dla tych krajów",
+      "emptyConflictPartial": "Brak zdarzeń konfliktów dla tych krajów wśród ostatnich zdarzeń. Pełna lista nie została załadowana.",
+      "loadingConflict": "Ładowanie wszystkich zdarzeń konfliktów dla tych krajów…",
+      "emptyAirports": "Żaden z Twoich monitorowanych portów lotniczych nie znajduje się w tych krajach",
+      "emptyFlights": "Brak lotów do lub z tych krajów na tej tablicy",
+      "emptyAviationNews": "Brak wiadomości lotniczych dla tych krajów w ciągu ostatnich 24 godzin",
+      "tabNotFiltered": "Ta karta nie jest filtrowana według kraju",
+      "hidden_one": "{{count}} ukryty przez fokus",
+      "hidden_few": "{{count}} ukryte przez fokus",
+      "hidden_many": "{{count}} ukrytych przez fokus",
+      "hidden_other": "{{count}} ukrytych przez fokus",
+      "showAllAria_one": "Pokaż wszystko w tym panelu, w tym {{count}} element spoza fokusu",
+      "showAllAria_few": "Pokaż wszystko w tym panelu, w tym {{count}} elementy spoza fokusu",
+      "showAllAria_many": "Pokaż wszystko w tym panelu, w tym {{count}} elementów spoza fokusu",
+      "showAllAria_other": "Pokaż wszystko w tym panelu, w tym {{count}} elementów spoza fokusu",
+      "unattributed_one": "{{count}} element bez kraju",
+      "unattributed_few": "{{count}} elementy bez kraju",
+      "unattributed_many": "{{count}} elementów bez kraju",
+      "unattributed_other": "{{count}} elementów bez kraju",
+      "showUnattributedAria_one": "Pokaż {{count}} element bez kraju",
+      "showUnattributedAria_few": "Pokaż {{count}} elementy bez kraju",
+      "showUnattributedAria_many": "Pokaż {{count}} elementów bez kraju",
+      "showUnattributedAria_other": "Pokaż {{count}} elementów bez kraju",
+      "hideUnattributedAria_one": "Ukryj {{count}} element bez kraju",
+      "hideUnattributedAria_few": "Ukryj {{count}} elementy bez kraju",
+      "hideUnattributedAria_many": "Ukryj {{count}} elementów bez kraju",
+      "hideUnattributedAria_other": "Ukryj {{count}} elementów bez kraju",
+      "partialConflict": "Wyświetlanie zdarzeń konfliktowych tylko z ostatnich 150. Pełna lista nie została załadowana.",
+      "partialConflictLoading": "Wyświetlanie zdarzeń konfliktowych z ostatnich 150 podczas ładowania pełnej listy.",
+      "emptyInstability": "Brak wyników dotyczących niestabilności dla tych krajów",
+      "emptyOutbreaks": "Brak ognisk chorób dla tych krajów",
+      "emptyOutages": "Brak przerw w dostępie do internetu dla tych krajów",
+      "emptyRadiation": "Brak pomiarów radiacji dla tych krajów",
+      "emptyFuelShortages": "Brak niedoborów paliwa dla tych krajów",
+      "emptyEnergyDisruptions": "Brak zakłóceń w dostawach energii dla tych krajów",
+      "emptyDisplacement": "Brak danych o przesiedleniach dla tych krajów",
+      "emptyCorrelation": "Brak sygnałów dla tych krajów"
+    },
+    "draftAssessment": "Szkic oceny",
+    "draftAssessmentAria": "Skopiuj prośbę do asystenta AI, aby przygotował ocenę ryzyka podróży dla tego obszaru",
+    "draftCopied": "Prośba skopiowana. Wklej ją do swojego asystenta AI.",
+    "draftCopiedPartial": "Żądanie skopiowano dla pierwszych {{count}} krajów. Ocena obejmuje co najwyżej {{max}} krajów.",
+    "draftCopyFailed": "Nie udało się skopiować prośby."
   }
 }

@@ -141,15 +141,33 @@ function validGdacsFeatures(features, eventtype) {
   });
 }
 
+// Each snapshot carries its own failure clock so health can tell a single
+// retained miss from a run of them (Sentry WORLDMONITOR-1AG). Success and
+// retention clocks are never renewed by a failure; a snapshot written before
+// the clock existed counts as zero prior misses.
 function selectSourceSnapshot(result, previous, now, validateRecords, retainMs = SOURCE_RETAIN_MS) {
   if (result.status === 'fulfilled') {
-    return { version: 1, fetchedAt: now, retainedUntil: now + retainMs, records: result.value };
+    return {
+      version: 1, fetchedAt: now, retainedUntil: now + retainMs, records: result.value,
+      consecutiveFailures: 0, firstFailureAt: null, lastAttemptAt: now,
+    };
   }
-  return previous?.version === 1
+  const usable = previous?.version === 1
     && Number.isSafeInteger(previous.fetchedAt) && previous.fetchedAt > 0 && previous.fetchedAt <= now
     && Number.isSafeInteger(previous.retainedUntil) && now < previous.retainedUntil
     && previous.retainedUntil <= previous.fetchedAt + retainMs
-    && validateRecords(previous.records) ? previous : null;
+    && validateRecords(previous.records);
+  if (!usable) return null;
+  const priorFailures = Number.isSafeInteger(previous.consecutiveFailures) && previous.consecutiveFailures > 0
+    && Number.isSafeInteger(previous.firstFailureAt)
+    && previous.firstFailureAt >= previous.fetchedAt && previous.firstFailureAt <= now
+    ? previous.consecutiveFailures : 0;
+  return {
+    ...previous,
+    consecutiveFailures: Math.min(priorFailures + 1, 100),
+    firstFailureAt: priorFailures > 0 ? previous.firstFailureAt : now,
+    lastAttemptAt: now,
+  };
 }
 
 function sourceFailureDetails(error) {
@@ -641,6 +659,20 @@ async function nhcQuery(layerId, expectedGeometryTypes, fetchFn = globalThis.fet
           nonRetryable: !bodyTransportFailure,
         },
       );
+    }
+    // ArcGIS reports a failed query as HTTP 200 with an `error` body. NOAA's
+    // "Unable to complete operation." (and any 5xx) is the server failing this
+    // one request and clears on retry (Sentry WORLDMONITOR-1AG). Any other
+    // error body, such as invalid parameters or a removed layer, stays a
+    // non-retryable invalid response so a lasting break is reported at once.
+    if (payload && typeof payload === 'object' && !('type' in payload)
+      && payload.error && typeof payload.error === 'object') {
+      const code = Number.isInteger(payload.error.code) ? payload.error.code : 'unknown';
+      const transient = (Number.isInteger(code) && code >= 500)
+        || /^unable to complete operation\.?$/i.test(String(payload.error.message ?? '').trim());
+      throw new NhcQueryError(`NHC layer ${layerId}: ArcGIS error ${code}`, transient
+        ? { code: 'NHC_POINT_REQUEST_FAILED' }
+        : { code: 'NHC_POINT_RESPONSE_INVALID', nonRetryable: true });
     }
     return parseNhcGeoJson(payload, layerId, expectedGeometryTypes);
   }, 1, 500);
@@ -1162,6 +1194,9 @@ export function naturalEventsAfterPublish(data, context = {}) {
       retainedUntil: snapshot?.retainedUntil ?? null,
       lastAttemptAt: nhc?.lastAttemptAt,
       recordCount: snapshot?.records.length ?? 0,
+      ...(snapshot && failedSources.includes(source)
+        ? { consecutiveFailures: snapshot.consecutiveFailures ?? null, firstFailureAt: snapshot.firstFailureAt ?? null }
+        : {}),
     },
   ]));
   const patch = { sourceState: failedSources.length ? 'degraded' : 'ok', sourceHealth, failedSources };
@@ -1203,10 +1238,14 @@ export function naturalEventsAfterPublish(data, context = {}) {
     nhcErrorCode: nhc.errorCode,
   });
   // NHC's pending policy must not hide an independent EONET/GDACS failure.
+  // The failed sources' own attempt clock anchors health's pending window.
+  const sourceAttemptAt = Math.max(...failedSources
+    .map(source => data?._sourceSnapshots?.[source]?.lastAttemptAt)
+    .filter(Number.isSafeInteger));
   if (gdacsFailed.length || data?._eonetFailed) Object.assign(patch, {
     errorCode: gdacsFailed.length ? 'GDACS_TYPE_COVERAGE_INCOMPLETE' : 'EONET_SOURCE_FAILED',
     skipReason: gdacsFailed.length ? 'gdacs-type-coverage-incomplete' : 'eonet-source-failed',
-    lastSourceAttemptAt: nhc?.lastAttemptAt,
+    lastSourceAttemptAt: Number.isSafeInteger(sourceAttemptAt) ? sourceAttemptAt : nhc?.lastAttemptAt,
   });
   return { completionState: 'DEGRADED', freshnessMetaPatch: patch };
 }
@@ -1249,7 +1288,7 @@ export function runNaturalEventsSeed() {
     declareRecords,
     zeroIsValid: true,
     schemaVersion: 2,
-    maxStaleMin: 540,
+    maxStaleMin: 120,
     publishTransform: naturalEventsPublishTransform,
     beforePublish: async (data) => {
       await writeExtraKey(SOURCE_SNAPSHOT_KEY, data._sourceSnapshots, CACHE_TTL);

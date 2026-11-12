@@ -415,6 +415,7 @@ canvas,
 
 .variant-option {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 4px;
   padding: 2px 6px;
@@ -435,16 +436,7 @@ canvas,
 }
 
 .variant-option .variant-label {
-  max-width: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition: max-width 0.3s ease, opacity 0.2s ease;
-}
-
-.variant-option:hover .variant-label,
-.variant-option.active .variant-label {
-  max-width: 50px;
-  opacity: 1;
+  white-space: nowrap;
 }
 
 .variant-option:hover {
@@ -480,11 +472,6 @@ canvas,
   height: 12px;
   background: var(--border);
   margin: 0 2px;
-}
-
-.variant-switcher:hover .variant-option .variant-label {
-  max-width: 50px;
-  opacity: 1;
 }
 
 .mission-preset-mount {
@@ -842,6 +829,23 @@ canvas,
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* GitHub star prompt: copy gets the full width, the action sits under it. */
+.update-toast.github-star-prompt {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    "icon body close"
+    ". action action";
+  align-items: start;
+  row-gap: 10px;
+  width: min(340px, calc(100vw - 32px));
+}
+
+.github-star-prompt .update-toast-icon { grid-area: icon; }
+.github-star-prompt .update-toast-body { grid-area: body; align-self: center; }
+.github-star-prompt .update-toast-dismiss { grid-area: close; }
+.github-star-prompt .update-toast-action { grid-area: action; justify-self: start; }
+
 .beta-badge {
   display: inline-flex;
   align-items: center;
@@ -1140,36 +1144,45 @@ canvas,
 }
 
 /* Progressive header disclosure — keep the core right-side actions (Search,
-   settings, and especially the Sign In / Create account cluster) fully on
-   screen as usable width shrinks: small laptops, split-screen, OS scaling
-   (1920px @ 150% = ~1280px CSS), and browsers with a vertical tab strip.
-   The single-row header wants ~1520px; without these tiers it silently
-   overflows and clips the rightmost item (Sign In) anywhere below ~1520px.
-   Items are dropped least-essential first; each is still reachable elsewhere
-   (footer links, the mobile hamburger menu, or the map's own controls). The
-   full mobile hamburger takes over at <=768px. !important mirrors the <=768
-   block below (needed to beat the #missionPresetMount id rule in header.css). */
-@media (max-width: 1530px) {
+   settings, and especially the Sign In cluster) fully on screen as usable
+   width shrinks: small laptops, split-screen, OS scaling (1920px @ 150% =
+   ~1280px CSS), and browsers with a vertical tab strip. With dashboard
+   labels visible, the single-row header wants ~1820px; these tiers keep the
+   rightmost account actions on screen below that width. Items are dropped
+   least-essential first; each is still reachable elsewhere (footer links,
+   the mobile hamburger menu, or the map's own controls). The full mobile
+   hamburger takes over at <=768px. !important mirrors the <=768 block below
+   (needed to beat the #missionPresetMount id rule in header.css). */
+@media (max-width: 1875px) {
   /* redundant with footer/menu: X credit + GitHub icon */
   .credit-link,
   .github-link { display: none !important; }
+  .header .region-select { width: 110px; }
 }
-@media (max-width: 1420px) {
+@media (max-width: 1730px) {
   .version,
   .fullscreen-btn { display: none !important; }
 }
-@media (max-width: 1330px) {
+@media (max-width: 1630px) {
   /* Link + Embed share .copy-link-btn */
   .copy-link-btn { display: none !important; }
 }
-@media (max-width: 1200px) {
+@media (max-width: 1500px) {
   .pizzint-indicator { display: none !important; }
 }
 @media (max-width: 1075px) {
   .mission-preset-mount { display: none !important; }
 }
-@media (max-width: 980px) {
-  .variant-switcher { display: none !important; }
+@media (min-width: 981px) and (max-width: 1375px) {
+  .header { padding-inline: 8px; }
+  .header-left { gap: 6px; }
+  .header-right { gap: 6px; }
+  .header .search-btn { margin-right: 0; }
+  .header .region-select { width: 80px; }
+  .header .status-indicator,
+  .header .logo { display: none; }
+  .header .variant-option { padding: 2px 4px; letter-spacing: 0.5px; }
+  .header .variant-divider { margin: 0; }
 }
 
 .search-btn {
@@ -1711,50 +1724,41 @@ canvas,
 }
 
 .site-footer {
+  /* #10461: the dashboard shell does not scroll, so a multi-row footer ate
+     78–124px of the first screen. Keep a single 28px meta line; site links
+     live in Settings and the mobile More menu. */
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  /* The digest coverage row (#7085) joins as a full-width flex child and
-     wraps onto its own line; the brand/nav/copy children still fit one row. */
-  flex-wrap: wrap;
-  padding: 12px 20px;
+  gap: 12px;
+  height: 28px;
+  max-height: 28px;
+  padding: 0 12px;
+  overflow: hidden;
+  flex-wrap: nowrap;
   font-size: calc(11px * var(--wm-panel-effective-scale, 1));
   color: var(--text-dim);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
 }
-.site-footer-brand {
+.site-footer-meta {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-.site-footer-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-}
-.site-footer-brand-text {
-  display: flex;
-  flex-direction: column;
-}
-.site-footer-name {
+  min-width: 0;
+  flex-shrink: 0;
   font-family: var(--font-mono, monospace);
-  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
-  font-weight: 600;
-  color: var(--text);
-  letter-spacing: 1px;
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  white-space: nowrap;
 }
-.site-footer-sub {
+.site-footer-version,
+.site-footer-copy {
   font-family: var(--font-mono, monospace);
-  font-size: calc(9px * var(--wm-panel-effective-scale, 1));
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  /* No opacity: 0.6 fade — it dropped --text-dim (#888) to an effective
+     #5a5a5a on the #141414 footer (2.67:1). At full strength #888 clears
+     4.5:1 (≈5.2:1) for WCAG AA, matching the footer nav links. */
   color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 2px;
-}
-.site-footer nav {
-  display: flex;
-  gap: 16px;
 }
 .site-footer a {
   color: var(--text-dim);
@@ -1765,27 +1769,25 @@ canvas,
 .site-footer a:hover {
   color: var(--accent);
 }
-.site-footer-copy {
-  font-family: var(--font-mono, monospace);
-  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
-  /* No opacity: 0.6 fade — it dropped --text-dim (#888) to an effective
-     #5a5a5a on the #141414 footer (2.67:1). At full strength #888 clears
-     4.5:1 (≈5.2:1) for WCAG AA, matching the footer nav links. */
-  color: var(--text-dim);
+.site-footer-download-link {
+  white-space: nowrap;
 }
 
-/* #7085: digest coverage status row, mounted into the site footer by
-   StatusPanel. Text-only state disclosure — same muted mono treatment as the
-   footer copy, which already clears WCAG AA on this surface. */
+/* #7085 + #10461: digest coverage mounts into the compact footer as an
+   inline status line. Ellipsis keeps the whole footer on one 28px row so the
+   coverage text cannot grow the shell the way the old wrapped row did. */
 .site-footer .status-panel-container {
-  flex-basis: 100%;
-  order: 10;
+  flex: 1 1 auto;
+  min-width: 0;
+  order: 0;
 }
 .digest-coverage-row {
   font-family: var(--font-mono, monospace);
   font-size: calc(10px * var(--wm-panel-effective-scale, 1));
   color: var(--text-dim);
-  padding-top: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Mobile application navigation is injected with the hydrated shell but stays
@@ -1797,9 +1799,12 @@ canvas,
 @media (max-width: 768px) {
   /* #7085: display:none on the whole footer removed the digest coverage row's
      live region from the mobile accessibility tree (PR #7267 review). Keep the
-     footer in flow but collapse it: brand/nav/copy stay hidden, and the
-     coverage row announces from off-screen instead of painting. */
+     footer in flow but collapse it: the compact meta line stays hidden, and the
+     coverage row announces from off-screen instead of painting. #10461 also
+     zeroes the 28px desktop height so the tab bar does not sit above a gap. */
   .site-footer {
+    height: 0;
+    max-height: 0;
     padding: 0;
     border-top: none;
   }
@@ -2013,25 +2018,48 @@ canvas,
 
 /* #8276: Reserve enough grid rows for the natural wide video panels.
    Let the panels fill their grid area without overlapping the next row.
-   Preserve user-resized spans and the mobile layout. */
+   Preserve user-resized spans and the mobile layout.
+   The webcam wall is a 2x2 grid and takes three rows. Live News is one 16:9
+   player: at the widths the panel actually gets (386-830px) a third row was
+   111-290px of empty panel under the video, so it takes two (404px). */
 @media (min-width: 769px) {
-  #panelsGrid > .panel[data-panel="live-news"].panel-wide:not(.panel-collapsed):not(.resized):not(.span-1):not(.span-2):not(.span-3):not(.span-4),
+  #panelsGrid > .panel[data-panel="live-news"].panel-wide:not(.panel-collapsed):not(.resized):not(.span-1):not(.span-2):not(.span-3):not(.span-4) {
+    grid-row: span 2;
+    height: 100%;
+  }
+
   #panelsGrid > .panel[data-panel="live-webcams"].panel-wide:not(.panel-collapsed):not(.resized):not(.span-1):not(.span-2):not(.span-3):not(.span-4) {
     grid-row: span 3;
     height: 100%;
   }
 }
 
-/* #8276: Keep natural video panels compact on short desktop viewports.
+/* #8276: Keep the natural webcam wall compact on short desktop viewports.
    Two 200px grid rows plus the 4px gap provide a 404px footprint.
    The breakpoint prevents the default three-row footprint from
    exceeding the webcam panel's former viewport-height limit.
    Explicit user-resized spans remain untouched. */
 @media (min-width: 769px) and (height < 672px) {
-  #panelsGrid > .panel[data-panel="live-news"].panel-wide:not(.panel-collapsed):not(.resized):not(.span-1):not(.span-2):not(.span-3):not(.span-4),
   #panelsGrid > .panel[data-panel="live-webcams"].panel-wide:not(.panel-collapsed):not(.resized):not(.span-1):not(.span-2):not(.span-3):not(.span-4) {
     grid-row: span 2;
     height: 100%;
+  }
+}
+
+/* The Live News player fills whatever height its panel has, at the natural
+   footprint and at any user-resized one; the video letterboxes inside the
+   player. A fixed 16:9 box left the rest of the panel empty. Mobile keeps the
+   16:9 box: there the panel is as tall as its content. */
+@media (min-width: 769px) {
+  .panel[data-panel="live-news"]:not(.panel-collapsed) > .panel-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel[data-panel="live-news"] .live-news-player {
+    flex: 1 1 auto;
+    min-height: 0;
+    aspect-ratio: auto;
   }
 }
 
@@ -4345,17 +4373,17 @@ body.live-news-fullscreen-active .panels-grid > *:not(.live-news-fullscreen) {
   inset: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-end;
-  gap: 7px;
-  padding: 14px;
+  /* Centred so the play control stays in view however short the tile is
+     (a phone gives the panel ~140px of content). */
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 38%),
     linear-gradient(135deg, rgba(220, 38, 38, 0.24), rgba(0, 0, 0, 0.88));
-}
-
-.webcam-preview-tile:hover .webcam-preview-play {
-  border-color: var(--text);
 }
 
 .webcam-preview-title {
@@ -4375,7 +4403,32 @@ body.live-news-fullscreen-active .panels-grid > *:not(.live-news-fullscreen) {
 }
 
 .webcam-preview-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
   margin-top: 4px;
+  padding: 8px 16px;
+  /* Solid, so the prompt reads as the action on the dark tile: white on
+     --red-strong clears AA. */
+  background: var(--red-strong);
+  border-color: var(--red-strong);
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+}
+
+/* Drawn, not a glyph: U+25B6 renders as an emoji on iOS. */
+.webcam-preview-play::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 8px solid currentColor;
+}
+
+.webcam-preview-tile:hover .webcam-preview-play,
+.webcam-preview-play:hover {
+  border-color: #fff;
 }
 
 .webcam-cell:hover .webcam-cell-label {
@@ -4980,6 +5033,15 @@ body.live-news-fullscreen-active .panels-grid > *:not(.live-news-fullscreen) {
 .toast-notification.visible {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* The phone tab bar (z 10003, 58px) sits over a toast at the desktop offset
+   and hides half of its message; lift the toast clear of the bar. */
+@media (max-width: 768px) {
+  .toast-notification {
+    bottom: calc(58px + 12px + env(safe-area-inset-bottom, 0px));
+    max-width: calc(100vw - 32px);
+  }
 }
 
 /* Story Modal */
@@ -5766,8 +5828,31 @@ a.item-title:hover {
   padding: 0;
 }
 
+.playback-notice {
+  margin: 0;
+  padding: 10px 12px 0;
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.playback-notice[hidden] {
+  display: none;
+}
+
 .playback-slider-container {
   padding: 12px;
+}
+
+.playback-slider:disabled,
+.playback-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.playback-btn:disabled:hover {
+  background: var(--panel-border);
+  color: var(--text);
 }
 
 .playback-slider {
@@ -6395,6 +6480,37 @@ body.playback-mode .status-dot {
   }
 }
 
+/* Dashboard focus outline on the SVG map (#10453). The DeckGL and globe maps
+   draw the same two styles with their own layers. CSS beats the paths'
+   presentation attributes; the fill is left alone so sanctions shading stays.
+   The map wrapper is CSS-scaled by the zoom, so the width is divided by it
+   (--marker-scale is 1 / zoom) to stay 2px and 1px on screen. */
+.map-base .country.country-focus-neighbour {
+  stroke: var(--green);
+  stroke-opacity: 0.5;
+  stroke-width: calc(1px * var(--marker-scale, 1));
+}
+
+.map-base .country.country-focus-chosen {
+  stroke: var(--green);
+  stroke-opacity: 1;
+  stroke-width: calc(2px * var(--marker-scale, 1));
+}
+
+/* The light map fill leaves --green at about 2.7:1, and a faint 1px neighbour
+   line reads as an ordinary border. Darken both strokes and dash the
+   neighbour so the two states differ by more than weight. */
+[data-theme="light"] .map-base .country.country-focus-chosen {
+  stroke: var(--green-text, var(--green));
+}
+
+[data-theme="light"] .map-base .country.country-focus-neighbour {
+  stroke: var(--green-text, var(--green));
+  stroke-opacity: 0.85;
+  stroke-width: calc(1.5px * var(--marker-scale, 1));
+  stroke-dasharray: calc(4px * var(--marker-scale, 1)) calc(2px * var(--marker-scale, 1));
+}
+
 /* Cable paths */
 .cable-path {
   fill: none;
@@ -6932,7 +7048,7 @@ body.playback-mode .status-dot {
   stroke: var(--red);
   stroke-width: 1;
   stroke-dasharray: 4, 2;
-  animation: pulse-conflict 2s ease-in-out infinite;
+  /* No fill pulse: an SVG fill animation runs on the main thread every frame. */
   transition: opacity 0.2s ease;
 }
 
@@ -7007,18 +7123,6 @@ body.playback-mode .status-dot {
     0 0 6px var(--bg),
     0 0 12px var(--bg),
     0 0 18px var(--red);
-}
-
-@keyframes pulse-conflict {
-
-  0%,
-  100% {
-    fill: rgba(255, 68, 68, 0.15);
-  }
-
-  50% {
-    fill: rgba(255, 68, 68, 0.3);
-  }
 }
 
 /* Base markers */
@@ -7658,15 +7762,15 @@ body.playback-mode .status-dot {
 }
 
 .popup-header.datacenter {
-  background: rgba(51, 34, 85, 0.08);
+  background: color-mix(in srgb, rgb(51, 34, 85) 8%, var(--bg));
 }
 
 .popup-header.datacenter.existing {
-  background: rgba(59, 130, 246, 0.06);
+  background: color-mix(in srgb, rgb(59, 130, 246) 6%, var(--bg));
 }
 
 .popup-header.datacenter.planned {
-  background: rgba(234, 179, 8, 0.06);
+  background: color-mix(in srgb, rgb(234, 179, 8) 6%, var(--bg));
 }
 
 /* Heatmap */
@@ -8387,6 +8491,20 @@ body.playback-mode .status-dot {
   opacity: 0.8;
 }
 
+/* A quote with no chart keeps the chart and span rows' height, so its price
+   lines up with the cards beside it. */
+.commodity-spark-empty {
+  min-height: calc(23px + 9.6px * var(--wm-panel-effective-scale, 1));
+}
+
+.commodity-span {
+  margin: -1px 0 2px;
+  font-size: calc(8px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.2;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
 /* 24/7 Positioning Panel */
 .pos-panel {
   padding: 10px 14px;
@@ -8963,6 +9081,11 @@ a.prediction-link:hover {
   color: var(--text-dim);
   font-size: calc(20px * var(--wm-panel-effective-scale, 1));
   cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  min-height: 32px;
+  flex-shrink: 0;
 }
 
 /* Clerk's mounted card brings its own surface; the wrapper only positions it and the close button. */
@@ -9529,8 +9652,9 @@ a.prediction-link:hover {
 }
 
 .panel-settings-item {
-  display: grid;
-  grid-template-rows: auto auto;
+  display: flex;
+  flex-direction: column;
+  align-self: start;
   min-width: 0;
 }
 
@@ -9554,6 +9678,7 @@ a.prediction-link:hover {
 
 .panel-font-scale-control {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -9686,7 +9811,7 @@ a.prediction-link:hover {
 
 .sources-toggle-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   max-height: 50vh;
   overflow-y: auto;
@@ -9694,6 +9819,7 @@ a.prediction-link:hover {
 }
 
 .source-toggle-item {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -9818,7 +9944,7 @@ a.prediction-link:hover {
 
 @media (max-width: 600px) {
   .sources-toggle-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -10080,6 +10206,56 @@ a.prediction-link:hover {
   line-height: 1.5;
   color: var(--text-secondary);
   margin-bottom: 10px;
+}
+
+.datacenter-details {
+  border-top: 1px solid var(--border);
+  margin: 10px 0;
+  padding-top: 8px;
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.datacenter-details summary {
+  cursor: pointer;
+  color: var(--green-text, var(--green));
+  padding: 6px 0;
+}
+
+.datacenter-details summary:focus-visible {
+  outline: 2px solid var(--green-text, var(--green));
+  outline-offset: 2px;
+}
+
+.datacenter-details h3 {
+  font-size: calc(13px * var(--wm-panel-effective-scale, 1));
+  color: var(--text);
+  margin: 10px 0;
+}
+
+.datacenter-details dl > div {
+  margin-bottom: 8px;
+}
+
+.datacenter-details dt {
+  color: var(--text-muted);
+}
+
+.datacenter-details dd {
+  margin: 0;
+  color: var(--text);
+}
+
+.datacenter-details p {
+  margin: 8px 0;
+  color: var(--text-secondary);
+}
+
+.datacenter-details a {
+  display: block;
+  margin: 8px 0;
+  color: var(--green-text, var(--green));
 }
 
 .popup-location {
@@ -13287,8 +13463,7 @@ button.popup-link {
 }
 
 .search-command-ident,
-.search-command-metrics,
-.search-index-state {
+.search-command-metrics {
   display: flex;
   align-items: center;
 }
@@ -13296,22 +13471,6 @@ button.popup-link {
 .search-command-ident { gap: 9px; }
 .search-command-metrics { gap: 18px; }
 .search-command-metrics strong { color: var(--text); font-weight: 700; }
-.search-index-state { gap: 6px; color: var(--search-accent); }
-.search-index-state i,
-.search-footer-ready i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 0 8px currentColor;
-  animation: search-index-pulse 2.4s ease-in-out infinite;
-}
-
-@keyframes search-index-pulse {
-  0%, 100% { opacity: 0.45; }
-  50% { opacity: 1; }
-}
-
 .search-command-mark {
   position: relative;
   width: 13px;
@@ -13495,6 +13654,7 @@ button.popup-link {
 .search-result-item.command-addable .search-result-icon { opacity: 0.72; }
 
 .search-launch-grid .search-result-item {
+  min-width: 0;
   min-height: 78px;
   padding: 14px 18px;
   border-left-color: transparent;
@@ -13543,7 +13703,6 @@ button.popup-link {
   font: 500 calc(9px * var(--wm-panel-effective-scale, 1))/1 var(--font-mono);
 }
 
-.search-footer-ready { display: flex; align-items: center; gap: 6px; margin-right: auto; color: var(--search-accent); letter-spacing: 0.08em; }
 .search-footer kbd { margin-right: 4px; padding: 2px 4px; color: var(--text-dim); background: var(--surface); border: 1px solid var(--border); border-radius: 2px; font: 600 calc(8px * var(--wm-panel-effective-scale, 1))/1 var(--font-mono); }
 
 /* Mobile bottom sheet command deck */
@@ -13569,11 +13728,11 @@ button.popup-link {
 .search-sheet-handle { flex: 0 0 auto; width: 44px; height: 3px; margin: 8px auto 6px; background: var(--text-muted); border-radius: 2px; opacity: 0.5; }
 .search-mobile-ident { min-height: 24px; padding: 0 14px; background: transparent; border: 0; font-size: calc(8px * var(--wm-panel-effective-scale, 1)); }
 .search-sheet-header { display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 6px 14px 10px; border-bottom: 1px solid var(--border); }
-.search-sheet-icon { width: 24px; height: 24px; }
+.search-sheet-icon { flex-shrink: 0; width: 24px; height: 24px; }
 .search-sheet-icon::before { top: 11px; left: -4px; width: 30px; }
 .search-sheet-icon::after { top: -4px; left: 11px; height: 30px; }
-.search-sheet-header .search-input { flex: 1; font-size: calc(15px * var(--wm-panel-effective-scale, 1)); }
-.search-sheet-cancel { padding: 6px 8px; color: var(--text-dim); background: transparent; border: 0; cursor: pointer; font: 400 calc(22px * var(--wm-panel-effective-scale, 1))/1 var(--font-mono); }
+.search-sheet-header .search-input { flex: 1; min-width: 0; font-size: calc(15px * var(--wm-panel-effective-scale, 1)); }
+.search-sheet-cancel { display: grid; place-items: center; flex: 0 0 44px; min-width: 44px; min-height: 44px; padding: 0; color: var(--text-dim); background: transparent; border: 0; cursor: pointer; font: 400 calc(22px * var(--wm-panel-effective-scale, 1))/1 var(--font-mono); }
 .search-sheet-cancel:hover { color: var(--search-accent); }
 .search-sheet-chips { display: flex; gap: 6px; padding: 8px 14px; overflow-x: auto; border-bottom: 1px solid var(--border-subtle); scrollbar-width: none; }
 .search-sheet-chips:empty { display: none; }
@@ -13591,14 +13750,12 @@ button.popup-link {
   .search-overlay.search-mobile .search-section-header { min-height: 32px; padding: 0 14px; font-size: calc(9px * var(--wm-panel-effective-scale, 1)); }
   .search-overlay.search-mobile .search-result-subtitle,
   .search-overlay.search-mobile .search-result-type { display: none; }
-  .search-overlay.search-mobile .search-launch-grid { grid-template-columns: 1fr; }
+  .search-overlay.search-mobile .search-launch-grid { grid-template-columns: minmax(0, 1fr); }
   .search-overlay.search-mobile .search-launch-grid .search-result-item { min-height: 60px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .search-modal { animation: none; }
-  .search-index-state i,
-  .search-footer-ready i { animation: none; }
   .search-overlay.search-mobile .search-sheet { transition-duration: 1ms; }
 }
 
@@ -14064,14 +14221,10 @@ button.popup-link {
   0%,
   100% {
     opacity: 1;
-    --vessel-color: var(--semantic-critical);
-    --vessel-text: var(--semantic-critical-text, var(--semantic-critical));
   }
 
   50% {
     opacity: 0.7;
-    --vessel-color: var(--semantic-high);
-    --vessel-text: var(--semantic-high-text, var(--semantic-high));
   }
 }
 
@@ -14307,6 +14460,41 @@ button.popup-link {
   padding: 4px 8px;
   color: var(--text-muted);
   font-style: italic;
+}
+
+.cluster-vessel-item,
+.popup-back {
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  border: 1px solid var(--accent);
+  min-height: 36px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cluster-vessel-item {
+  width: 100%;
+}
+
+.popup-back {
+  display: block;
+  background: var(--overlay-light);
+  color: var(--accent);
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin-bottom: 12px;
+}
+
+.cluster-vessel-item:hover,
+.popup-back:hover {
+  background: var(--overlay-medium);
+}
+
+.cluster-vessel-item:focus-visible,
+.popup-back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .popup-description.alert {
@@ -15338,9 +15526,15 @@ button.popup-link {
   justify-content: flex-start;
 }
 
-.mobile-menu-account .auth-signin-btn,
-.mobile-menu-account .auth-signup-link {
+.mobile-menu-account .auth-signin-btn {
   min-height: 44px;
+}
+
+.mobile-menu-account .auth-free-reason {
+  max-width: none;
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
 }
 
 .mobile-menu-item {
@@ -15551,8 +15745,8 @@ button.popup-link {
   }
 
   .header-right > :not(#authWidgetMount),
-  #authWidgetMount .auth-signup-link,
-  #authWidgetMount .auth-header-skeleton-signup {
+  #authWidgetMount .auth-free-reason,
+  #authWidgetMount .auth-header-skeleton-reason {
     display: none !important;
   }
 
@@ -15747,12 +15941,22 @@ button.popup-link {
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Full-viewport map on mobile (Google Maps-like experience) */
+  /* Today: a short map strip (32% of the viewport) so the first content panel is on the first screen
+     (#10457). The full-viewport map is the Map tab, which opens the section
+     fullscreen (.live-news-fullscreen restates its own height below). */
   .map-section {
-    height: calc(100vh - 48px) !important;
-    height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
-    min-height: 60vh !important;
+    height: 32vh !important;
+    height: calc(100dvh * 0.32) !important;
+    min-height: 220px !important;
     max-height: 100dvh !important;
+  }
+
+  /* The distance ruler reserves a 150px nav column and its panel needs ~180px
+     more; the strip has neither, so its Reset/Exit buttons fall outside the map
+     (narrow desktop windows use the Deck renderer that mounts it). It stays
+     available in the fullscreen Map view. */
+  .map-section:not(.live-news-fullscreen) .map-distance-control {
+    display: none;
   }
 
   /* Collapsed map on mobile — higher specificity overrides .map-section above */
@@ -16434,6 +16638,14 @@ button.popup-link {
 }
 
 /* Tech Readiness Panel */
+.readiness-coverage-summary {
+  color: var(--text-dim);
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.5;
+  margin-bottom: 6px;
+  padding-inline: 8px;
+}
+
 .tech-readiness-list {
   display: flex;
   flex-direction: column;
@@ -16480,10 +16692,16 @@ button.popup-link {
 
 .readiness-components {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 2px 8px;
   font-size: calc(10px * var(--wm-panel-effective-scale, 1));
   color: var(--text-dim);
   margin-top: 2px;
+}
+
+.readiness-coverage {
+  font-weight: 600;
+  color: var(--text);
 }
 
 .readiness-components span {
@@ -19165,6 +19383,90 @@ button.popup-link {
 }
 
 /* deck.gl Time Slider */
+.map-distance-control {
+  position: absolute;
+  /* Reserve the navigation column, including its optional clear-trails button. */
+  top: 150px;
+  right: 10px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+  max-height: calc(100% - 160px);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.map-distance-control .maplibregl-ctrl-scale {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--text);
+}
+
+.map-distance-toolbar,
+.map-distance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.map-distance-control button,
+.map-distance-control select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.map-distance-control button:focus-visible,
+.map-distance-control select:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.map-distance-toggle[aria-expanded="true"] {
+  border-color: var(--green);
+}
+
+.map-distance-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 280px;
+  max-width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow-wrap: anywhere;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.map-distance-panel[hidden] {
+  display: none;
+}
+
+.map-distance-status,
+.map-distance-actions {
+  flex-shrink: 0;
+}
+
+.map-distance-note {
+  overflow: auto;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.map-measuring .maplibregl-canvas {
+  cursor: crosshair !important;
+}
+
 .deckgl-time-slider {
   position: absolute;
   top: 10px;
@@ -19621,7 +19923,9 @@ button.popup-link {
   justify-content: center;
   gap: 12px;
   padding: 7px 36px 7px 16px;
-  background: linear-gradient(90deg, rgba(74, 222, 128, 0.06), rgba(74, 222, 128, 0.12), rgba(74, 222, 128, 0.06));
+  /* The tint is translucent; the themed surface under it keeps the text
+     readable in the light theme, where the page body stays dark. */
+  background: linear-gradient(90deg, rgba(74, 222, 128, 0.06), rgba(74, 222, 128, 0.12), rgba(74, 222, 128, 0.06)), var(--surface);
   border-bottom: 1px solid rgba(74, 222, 128, 0.15);
   font-family: var(--font-mono);
   font-size: calc(12px * var(--wm-panel-effective-scale, 1));
@@ -19706,12 +20010,27 @@ button.popup-link {
   .pro-banner {
     font-size: calc(11px * var(--wm-panel-effective-scale, 1));
     gap: 8px;
-    padding: 6px 32px 6px 10px;
+    padding: 5px 32px 5px 10px;
   }
 
   .pro-banner-text {
     flex: 1 1 0;
     min-width: 0;
+    /* Two lines (2 x 13.75px + 10px padding + 1px border) fit the 40px
+       reserved slot, so the headline is never cut off on a phone. */
+    white-space: normal;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  /* The CTA already says Pro, and the tagline cannot fit; keep the width
+     for the headline. */
+  .pro-banner-badge,
+  .pro-banner-tagline {
+    display: none;
   }
 }
 
@@ -20013,18 +20332,6 @@ button.popup-link {
 .maplibregl-ctrl-top-right,
 .maplibregl-ctrl-bottom-right {
   display: none;
-}
-
-/* Map author credit badge (inside layers panel) */
-.map-author-badge {
-  padding: 6px 10px;
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: #00e5ff;
-  border-top: 1px solid rgba(0, 229, 255, 0.2);
-  pointer-events: none;
 }
 
 /* Map tile attribution */
@@ -20799,6 +21106,217 @@ button.popup-link {
 
 /* ============ Unified Settings Modal ============ */
 
+.pwa-install-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  margin-block-end: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+  transition: background 150ms, border-color 150ms;
+}
+
+.pwa-install-entry:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.pwa-install-entry span {
+  flex: 1;
+}
+
+.pwa-install-entry svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.pwa-install-entry svg:last-child {
+  color: var(--text-dim);
+}
+
+.pwa-install-sheet {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(448px, calc(100vw - 32px));
+  box-sizing: border-box;
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  overscroll-behavior: contain;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-body);
+  box-shadow: 0 16px 64px var(--shadow-color);
+}
+
+.pwa-install-sheet[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.pwa-install-sheet::backdrop {
+  background: rgb(0 0 0 / 72%);
+}
+
+.pwa-install-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex: none;
+  padding: 24px 20px 20px 24px;
+}
+
+.pwa-install-brand {
+  margin-block-end: 8px;
+  color: var(--text-dim);
+  font-size: calc(10px * var(--wm-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.pwa-install-sheet h2 {
+  margin: 0;
+  font-size: calc(18px * var(--wm-font-scale, 1));
+  font-weight: 600;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.pwa-install-dismiss {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-block-start: -8px;
+  margin-inline-end: -8px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.pwa-install-dismiss:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.pwa-install-dismiss svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pwa-install-steps {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 0 24px;
+  list-style: none;
+}
+
+.pwa-install-steps li {
+  display: grid;
+  grid-template-columns: max(20px, 2ch) minmax(0, 1fr) 24px;
+  align-items: start;
+  gap: 12px;
+  padding-block: 16px;
+  border-block-start: 1px solid var(--border);
+  font-size: calc(13px * var(--wm-font-scale, 1));
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.pwa-install-step-number {
+  padding-block-start: 2px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--wm-font-scale, 1));
+  font-variant-numeric: tabular-nums;
+}
+
+.pwa-install-steps svg {
+  width: 24px;
+  height: 24px;
+  color: var(--text-secondary);
+}
+
+.pwa-install-footer {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  padding: 8px 24px 24px;
+}
+
+.pwa-install-done {
+  min-width: 120px;
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--bg);
+  font: inherit;
+  font-size: calc(12px * var(--wm-font-scale, 1));
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 150ms;
+}
+
+.pwa-install-done:hover {
+  opacity: 0.85;
+}
+
+.pwa-install-entry:focus-visible,
+.pwa-install-sheet button:focus-visible,
+[data-ios-install]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .pwa-install-sheet {
+    inset: auto 0 0;
+    margin: 0;
+    width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - 16px);
+    border-inline: 0;
+    border-block-end: 0;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .pwa-install-steps li {
+    font-size: calc(14px * var(--wm-font-scale, 1));
+  }
+
+  .pwa-install-footer {
+    padding-block-end: max(20px, env(safe-area-inset-bottom));
+  }
+
+  .pwa-install-done {
+    width: 100%;
+  }
+}
+
 .unified-settings-btn {
   display: inline-flex;
   align-items: center;
@@ -21031,7 +21549,7 @@ button.popup-link {
 
   .unified-settings-modal .panel-toggle-grid,
   .unified-settings-modal .sources-toggle-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -21462,9 +21980,9 @@ button.popup-link {
 }
 
 .fw-import-modal {
-  background: var(--panel-bg, #1a1d21);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
   width: 100%;
   max-width: 420px;
   max-height: 80vh;
@@ -21477,7 +21995,7 @@ button.popup-link {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border);
 }
 
 .fw-import-modal-title {
@@ -21506,7 +22024,7 @@ button.popup-link {
 .fw-import-tabs {
   display: flex;
   gap: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border);
   padding: 0 12px;
 }
 
@@ -21524,7 +22042,7 @@ button.popup-link {
 
 .fw-import-tab.active {
   color: var(--text);
-  border-bottom-color: #60a5fa;
+  border-bottom-color: var(--accent);
 }
 
 .fw-import-tab-panel {
@@ -21550,9 +22068,9 @@ button.popup-link {
   font-size: calc(12px * var(--wm-panel-effective-scale, 1));
   width: 100%;
   padding: 7px 10px;
-  border-radius: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: 2px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
   color: var(--text);
   box-sizing: border-box;
   outline: none;
@@ -21560,7 +22078,7 @@ button.popup-link {
 }
 
 .fw-import-input:focus {
-  border-color: rgba(96, 165, 250, 0.5);
+  border-color: var(--accent);
 }
 
 .fw-import-textarea {
@@ -21569,9 +22087,9 @@ button.popup-link {
   font-family: monospace;
   width: 100%;
   padding: 7px 10px;
-  border-radius: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: 2px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
   color: var(--text);
   box-sizing: border-box;
   resize: vertical;
@@ -21580,7 +22098,7 @@ button.popup-link {
 }
 
 .fw-import-textarea:focus {
-  border-color: rgba(96, 165, 250, 0.5);
+  border-color: var(--accent);
 }
 
 .fw-import-field {
@@ -21588,10 +22106,10 @@ button.popup-link {
 }
 
 .fw-import-preview {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-hover);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -24033,13 +24551,13 @@ body.map-width-resizing {
   display: none;
 }
 
-/* 900px mirrors SPLIT_LAYOUT_MIN_WIDTH (src/app/split-layout.ts) — one
-   threshold for web and desktop since #6417 (the Tauri window minimum width
-   keeps the desktop app above it, so this block covers both). The map track
+/* 1440px mirrors SPLIT_LAYOUT_MIN_WIDTH (src/app/split-layout.ts) — one
+   threshold for web and desktop. Below it, keep panels full-width so the
+   default map share cannot squeeze them into one column (#10458). The map track
    pins both pixel floors: 220px = MAP_COL_MIN_PX and 306px = PANELS_COL_MIN_PX
    + MAP_COL_DIVIDER_PX. tests/responsive-zone-listener.test.mjs pins the
    alignment. */
-@media (min-width: 900px) {
+@media (min-width: 1440px) {
   .main-content {
     display: grid;
     grid-template-columns: min(max(var(--map-col-width, 60%), 220px), calc(100% - 306px)) 6px 1fr;
@@ -25191,27 +25709,25 @@ body.map-width-resizing {
   align-items: center;
   position: relative;
   gap: 8px;
+  max-width: var(--header-auth-slot-width, 200px);
+  min-width: 0;
 }
 
-.auth-signup-link {
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text);
-  font-size: calc(13px * var(--wm-panel-effective-scale, 1));
+.auth-free-reason {
+  color: var(--text-muted);
+  flex: 1 1 auto;
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
   font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: border-color 0.15s, color 0.15s;
-}
-.auth-signup-link:hover {
-  border-color: var(--green);
-  color: var(--green-text, var(--green));
-}
-.auth-signup-link:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--green) 55%, transparent);
+  line-height: 1.15;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Two lines, not one: a single line in the ~120px left of the Sign In slot
+     cut the reason to "Free: sa…". The full text is also the title tooltip. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .auth-settings-btn {
@@ -25245,6 +25761,7 @@ body.map-width-resizing {
   /* Pinned dark, not var(--bg). In light theme var(--bg) is near-white and
      falls to ~3.13:1 on var(--green), failing WCAG AA for 13px text. */
   color: #0a0a0a;
+  flex: 0 0 auto;
   font-size: calc(13px * var(--wm-panel-effective-scale, 1));
   font-weight: 600;
   cursor: pointer;
@@ -27190,6 +27707,41 @@ body.map-width-resizing {
    straight to Dodo's hosted checkout, where Dodo (merchant of record) shows its
    terms and never ours. Both surfaces are built by src/utils/legal-links.ts. */
 
+/* #10461: site destinations + legal docs pin together so opening Settings
+   keeps both rows one tap away without scrolling a long tab. -20px cancels
+   .modal's own bottom padding so the stack sits flush to the edge. */
+.dashboard-chrome-links {
+  position: sticky;
+  bottom: -20px;
+  z-index: 1;
+  margin-top: 8px;
+  background: var(--surface);
+}
+
+/* Wrapped tabs and pinned links leave little room for controls on short
+   screens. Use the available height while keeping phone navigation clear. */
+@media (max-height: 650px) {
+  .unified-settings-modal {
+    max-height: calc(100dvh - 16px);
+    padding: 12px;
+  }
+
+  .unified-settings-modal .dashboard-chrome-links {
+    bottom: -12px;
+  }
+}
+
+@media (max-height: 650px) and (max-width: 768px) {
+  #unifiedSettingsModal {
+    bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .unified-settings-modal {
+    max-height: calc(100dvh - 74px - env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.dashboard-site-links-row,
 .legal-links-row {
   display: flex;
   flex-wrap: wrap;
@@ -27198,22 +27750,24 @@ body.map-width-resizing {
   padding: 10px 16px 12px;
   border-top: 1px solid var(--border-color, #30363d);
   font-size: calc(11px * var(--wm-panel-effective-scale, 1));
-  /* Sticky to the bottom of the scrolling modal: the Settings tab is long
-     enough that a row parked at the end of the scroll would be several
-     screens down, which is not "one click from the dashboard". -20px cancels
-     .modal's own bottom padding so it pins flush to the edge. */
-  position: sticky;
-  bottom: -20px;
-  z-index: 1;
-  margin-top: 8px;
   background: var(--surface);
 }
 
+.dashboard-site-links-row {
+  padding-bottom: 8px;
+}
+
+.legal-links-row {
+  padding-top: 8px;
+}
+
+.dashboard-site-links-item,
 .legal-links-item {
   color: var(--text-dim);
   text-decoration: none;
 }
 
+.dashboard-site-links-item:hover,
 .legal-links-item:hover {
   color: var(--text);
   text-decoration: underline;
@@ -27799,31 +28353,138 @@ body.map-width-resizing {
   line-height: 1.5;
 }
 
-.mcp-clients-empty-url {
+/* ---- AI Agents connect list (Settings → AI Agents) ---- */
+
+.mcp-agents-title,
+.mcp-agents-subtitle {
+  font-size: calc(14px * var(--wm-panel-effective-scale, 1));
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+
+.mcp-agents-subtitle {
+  font-size: calc(13px * var(--wm-panel-effective-scale, 1));
+  margin-top: 20px;
+}
+
+.mcp-agents-url,
+.mcp-agent-command {
   display: flex;
   align-items: center;
   gap: 8px;
-  justify-content: center;
-  margin-top: 4px;
-  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
-  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
-  color: var(--text);
+  padding: 6px 6px 6px 10px;
   background: var(--surface);
-  padding: 6px 10px;
-  border-radius: 4px;
-  user-select: all;
-  word-break: break-all;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 0;
 }
 
-.mcp-clients-copy-url-btn {
+.mcp-agents-url {
+  margin-bottom: 12px;
+}
+
+.mcp-agents-url-label {
   font-size: calc(11px * var(--wm-panel-effective-scale, 1));
-  padding: 4px 10px;
-  color: var(--accent);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   flex-shrink: 0;
 }
 
-.mcp-clients-copy-url-btn:hover {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+.mcp-agents-url code,
+.mcp-agent-command code {
+  flex: 1;
+  min-width: 0;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  color: var(--text);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.mcp-agents-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.mcp-agent {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mcp-agent + .mcp-agent {
+  border-top: 1px solid var(--border);
+}
+
+.mcp-agent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mcp-agent-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mcp-agent-name {
+  font-size: calc(13px * var(--wm-panel-effective-scale, 1));
+  font-weight: 600;
+  color: var(--text);
+}
+
+.mcp-agent-hint {
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.mcp-agent-controls {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.mcp-agent-action,
+.mcp-copy-btn {
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  padding: 6px 12px;
+  white-space: nowrap;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.mcp-agents-plan-note,
+.mcp-agents-docs {
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin: 12px 0 0;
+}
+
+.mcp-agents-plan-note a,
+.mcp-agents-docs a {
+  color: var(--accent);
+}
+
+@media (max-width: 520px) {
+  .mcp-agent-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mcp-agent-controls {
+    flex-wrap: wrap;
+  }
 }
 
 /* ---- Energy Crisis Panel ---- */
@@ -28484,9 +29145,50 @@ body.map-width-resizing {
    Panel Tabs — named, persistent dashboard workspaces
    ========================================================================== */
 
+.dashboard-navigation-row {
+  flex-shrink: 0;
+}
+
 .dashboard-tabs-mount {
   flex-shrink: 0;
   min-height: 36px;
+}
+
+.tablet-variant-mount {
+  display: none;
+}
+
+@media (min-width: 768px) and (max-width: 980px) {
+  .dashboard-navigation-row {
+    display: flex;
+    align-items: center;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dashboard-navigation-row .dashboard-tabs-mount {
+    min-width: 0;
+    max-width: 50%;
+    flex-shrink: 1;
+  }
+
+  .dashboard-navigation-row .dashboard-tabs-bar {
+    border-bottom: none;
+  }
+
+  .tablet-variant-mount {
+    display: block;
+    min-width: 0;
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .tablet-variant-mount .variant-switcher {
+    display: flex !important;
+    width: max-content;
+    margin: 0 6px;
+  }
 }
 
 .dashboard-tabs-bar {
@@ -28582,7 +29284,10 @@ body.map-width-resizing {
   outline: none;
 }
 
-.dashboard-tab-add {
+.dashboard-tab-add,
+.dashboard-tab-options,
+.dashboard-tab-team,
+.dashboard-tab-focus {
   background: transparent;
   border: 1px dashed var(--border);
   border-radius: 5px;
@@ -28596,9 +29301,29 @@ body.map-width-resizing {
   transition: color 0.15s, border-color 0.15s;
 }
 
-.dashboard-tab-add:hover {
+.dashboard-tab-add:hover,
+.dashboard-tab-options:hover,
+.dashboard-tab-options[aria-expanded="true"],
+.dashboard-tab-team:hover,
+.dashboard-tab-team[aria-expanded="true"],
+.dashboard-tab-focus:hover,
+.dashboard-tab-focus.active {
   color: var(--green-text, var(--green));
   border-color: var(--green);
+}
+
+.dashboard-tab-options {
+  margin-left: 2px;
+}
+
+/* A word, not a glyph: smaller type so it sits level with "+" and "▾". */
+.dashboard-tab-team,
+.dashboard-tab-focus {
+  margin-left: 2px;
+  padding: 5px 9px;
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  font-family: inherit;
+  letter-spacing: 0.04em;
 }
 
 /* Tab-cap locked notice. Body-anchored and fixed-positioned from the add
@@ -28626,6 +29351,679 @@ body.map-width-resizing {
   margin: 0;
 }
 
+/* Plain choice buttons for the new tab options popover. The gold CTA stays
+   reserved for the upgrade path. */
+.tab-cap-notice-action {
+  width: 100%;
+  padding: 6px 12px;
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-cap-notice-action:hover,
+.tab-cap-notice-action:focus-visible {
+  color: var(--green-text, var(--green));
+  border-color: var(--green);
+}
+
+.tab-cap-notice-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Team dashboards: a list of shared layouts above the share action. */
+.team-dashboards-notice {
+  width: 260px;
+  max-width: calc(100vw - 16px);
+  align-items: stretch;
+  text-align: left;
+}
+
+.team-dashboards-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.team-dashboards-item {
+  display: flex;
+  align-items: stretch;
+}
+
+.team-dashboards-item + .team-dashboards-item {
+  border-top: 1px solid var(--border);
+}
+
+.team-dashboards-open,
+.team-dashboards-stop {
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  cursor: pointer;
+}
+
+.team-dashboards-open {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-dashboards-item.active .team-dashboards-open {
+  color: var(--green-text, var(--green));
+}
+
+.team-dashboards-stop {
+  padding: 0 10px;
+  color: var(--text-dim);
+}
+
+.team-dashboards-open:hover,
+.team-dashboards-open:focus-visible {
+  color: var(--green-text, var(--green));
+  background: var(--surface-hover, rgba(255, 255, 255, 0.04));
+}
+
+.team-dashboards-stop:hover,
+.team-dashboards-stop:focus-visible {
+  color: var(--red, #ef4444);
+}
+
+.team-dashboards-stop:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── Dashboard focus (#10453) ──
+   The bar sits above the map and grid on a focused tab. It is always visible
+   there: a filtered dashboard must never pass for the whole world. Green ties
+   it to the active tab; an ended window turns the accent amber. */
+.dashboard-tab-focus.active {
+  border-style: solid;
+}
+
+.focus-bar {
+  --focus-accent: var(--green-text, var(--green));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid var(--green);
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  color: var(--text);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.focus-bar[hidden] {
+  display: none;
+}
+
+.focus-bar.ended {
+  --focus-accent: var(--yellow-text, var(--yellow));
+  border-left-color: var(--yellow);
+}
+
+.focus-bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  min-width: 0;
+}
+
+.focus-bar-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.focus-bar-icon {
+  color: var(--focus-accent);
+}
+
+.focus-bar-summary {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.focus-bar-neighbours-toggle {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--text-dim);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.focus-bar-neighbours-toggle:hover,
+.focus-bar-neighbours-toggle:focus-visible,
+.focus-bar-neighbours-toggle[aria-expanded="true"] {
+  color: var(--focus-accent);
+}
+
+.focus-bar-neighbours-off {
+  color: var(--text-dim);
+}
+
+.focus-bar-window {
+  color: var(--text-dim);
+}
+
+.focus-bar-window::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--text-dim);
+}
+
+.focus-bar-window.ended {
+  color: var(--focus-accent);
+  font-weight: 600;
+}
+
+.focus-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  /* Longer labels (German "Entwurf einer Bewertung") must wrap inside the
+     row on a narrow phone instead of pushing it wider than the screen. */
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.focus-bar-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.focus-bar-btn:hover,
+.focus-bar-btn:focus-visible {
+  color: var(--focus-accent);
+  border-color: var(--focus-accent);
+}
+
+.focus-bar-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0 2px 20px;
+  /* 12 chosen countries plus their neighbours outgrow a short phone, and the
+     bar sits outside the page's scroll area: scroll the list itself. */
+  max-height: min(45vh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.focus-bar-details[hidden] {
+  display: none;
+}
+
+.focus-bar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.focus-bar-group-label {
+  min-width: 80px;
+  color: var(--text-dim);
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.focus-bar-countries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.focus-bar-country {
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+}
+
+.focus-bar-country.chosen {
+  border: 1px solid var(--green);
+  color: var(--green-text, var(--green));
+}
+
+/* Neighbours are lighter: dashed and dim, so "in the country" and "next
+   door" read apart at a glance. */
+.focus-bar-country.neighbour {
+  border: 1px dashed var(--border-strong);
+  color: var(--text-dim);
+}
+
+.focus-bar-gate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-left: 20px;
+}
+
+.focus-bar-gate-desc {
+  color: var(--text-dim);
+  flex: 1 1 200px;
+}
+
+/* Panel header chip: the panel does not follow the tab's focus. */
+.panel-scope-chip {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 3px;
+  font-size: calc(9px * var(--wm-panel-effective-scale, 1));
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  white-space: nowrap;
+  line-height: 1.3;
+  cursor: help;
+}
+
+/* Strip above a filtered panel's list: what the focus shows, what it hides,
+   and the per-panel "Show all". Green edge ties it to the focus bar; it wraps
+   instead of scrolling so nothing is cut at phone width. */
+.panel-scope-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 14px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  border-left: 2px solid var(--green);
+  background: var(--surface);
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.4;
+  color: var(--text-dim);
+  min-width: 0;
+}
+
+.panel-scope-strip[hidden] {
+  display: none;
+}
+
+.panel-scope-strip[data-state="all"] {
+  border-left-color: var(--yellow);
+}
+
+/* The label takes its own line so the counts below never start with a
+   stray separator when they wrap. */
+.panel-scope-strip-label {
+  flex: 1 0 100%;
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.panel-scope-strip-count,
+.panel-scope-strip-note {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+  min-width: 0;
+}
+
+.panel-scope-strip-btn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--green-text, var(--green));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.panel-scope-strip-btn:hover {
+  color: var(--text);
+}
+
+.panel-scope-strip-btn:focus-visible {
+  outline: 1px solid var(--green);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Row markers. Chosen-country rows carry none; a neighbour is dashed like the
+   focus bar's neighbour chips; "No country" is dotted. */
+.panel-scope-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 4px;
+  padding: 0 5px;
+  border: 1px dotted var(--border-strong);
+  border-radius: 3px;
+  font-size: calc(9px * var(--wm-panel-effective-scale, 1));
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-dim);
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.panel-scope-tag-neighbour {
+  border-style: dashed;
+}
+
+/* Empty because of the focus. Neutral on purpose: a load failure is the red
+   radar error state and stale data is the header's "cached" badge. */
+.panel-scope-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 12px;
+  padding: 16px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 4px;
+  text-align: center;
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+  color: var(--text);
+}
+
+.panel-scope-empty-hint {
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  color: var(--text-dim);
+}
+
+/* Focus editor dialog. */
+.focus-editor-overlay {
+  background: var(--darken-heavy);
+  /* Above .mobile-tab-bar (10003), like .embed-modal-overlay: on a short
+     phone screen the bar otherwise covers Save and Cancel and takes their taps. */
+  z-index: 10020;
+}
+
+.focus-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  box-sizing: border-box;
+  border-radius: 8px;
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+}
+
+.focus-editor .modal-header {
+  margin-bottom: 0;
+}
+
+.focus-editor .modal-title {
+  margin: 0;
+}
+
+.focus-editor-intro,
+.focus-editor-hint {
+  margin: 0;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.focus-editor-hint {
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+}
+
+.focus-editor-field-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 4px;
+}
+
+.focus-editor-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.focus-editor-count {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-editor-count.full {
+  color: var(--yellow-text, var(--yellow));
+  font-weight: 600;
+}
+
+.focus-editor-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.focus-editor-chips[hidden] {
+  display: none;
+}
+
+.focus-editor-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 2px 1px 8px;
+  border: 1px solid var(--green);
+  border-radius: 12px;
+  color: var(--green-text, var(--green));
+}
+
+.focus-editor-chip-remove {
+  min-width: 24px;
+  min-height: 24px;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  font-size: calc(14px * var(--wm-panel-effective-scale, 1));
+  line-height: 1;
+  cursor: pointer;
+}
+
+.focus-editor-chip-remove:hover,
+.focus-editor-chip-remove:focus-visible {
+  background: var(--overlay-medium);
+}
+
+.focus-editor-search,
+.focus-editor-date input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 9px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font: inherit;
+}
+
+.focus-editor-search:focus-visible,
+.focus-editor-date input:focus-visible {
+  outline: 2px solid var(--green-text, var(--green));
+  outline-offset: 1px;
+  border-color: var(--green);
+}
+
+.focus-editor-search:disabled {
+  opacity: 0.5;
+}
+
+.focus-editor-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.focus-editor-results[hidden] {
+  display: none;
+}
+
+.focus-editor-result-item + .focus-editor-result-item {
+  border-top: 1px solid var(--border);
+}
+
+.focus-editor-result {
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.focus-editor-result:hover,
+.focus-editor-result:focus-visible {
+  color: var(--green-text, var(--green));
+  background: var(--surface-hover);
+}
+
+.focus-editor-limit {
+  margin: 0;
+  color: var(--yellow-text, var(--yellow));
+}
+
+.focus-editor-limit[hidden] {
+  display: none;
+}
+
+.focus-editor-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.focus-editor-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--green);
+}
+
+.focus-editor-dates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.focus-editor-date {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.focus-editor-error {
+  margin: 0;
+  color: var(--red-text, var(--red));
+  font-weight: 600;
+}
+
+.focus-editor-error[hidden] {
+  display: none;
+}
+
+.focus-editor-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.focus-editor-clear {
+  margin-right: auto;
+}
+
+.focus-editor-btn {
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.focus-editor-btn:hover,
+.focus-editor-btn:focus-visible {
+  border-color: var(--green);
+  color: var(--green-text, var(--green));
+}
+
+.focus-editor-btn.primary {
+  background: var(--green);
+  border-color: var(--green);
+  color: #062010;
+}
+
+.focus-editor-btn.primary:hover,
+.focus-editor-btn.primary:focus-visible {
+  filter: brightness(1.1);
+  color: #062010;
+}
+
+.focus-editor-clear:hover,
+.focus-editor-clear:focus-visible {
+  border-color: var(--red);
+  color: var(--red-text, var(--red));
+}
+
 /* ── Notification channel cards (relocated from settings-window.css in PR #4385 follow-up) ──
    Rendered by the in-dashboard UnifiedSettings modal (notifications-settings.ts), so these
    rules + the --settings-* tokens they use must live on the dashboard entry, not in the
@@ -28637,8 +30035,8 @@ body.map-width-resizing {
   --settings-surface-inset: var(--surface);
   --settings-border: var(--overlay-medium);
   --settings-border-strong: var(--overlay-heavy);
-  --settings-text: #e8eaed;
-  --settings-text-secondary: #9aa0a6;
+  --settings-text: var(--text);
+  --settings-text-secondary: var(--text-secondary);
   --settings-accent: var(--semantic-info);
   --settings-green: #34d399;
   --settings-yellow: #fbbf24;
@@ -28718,6 +30116,40 @@ body.map-width-resizing {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+}
+
+.us-notif-ch-row:has([data-ios-install]) .us-notif-ch-body {
+  flex-basis: calc(100% - 38px);
+}
+
+.us-notif-ch-row:has([data-ios-install]) .us-notif-ch-actions {
+  margin-inline-start: 38px;
+  flex-wrap: wrap;
+  flex-shrink: 1;
+}
+
+.us-notif-ch-row:has([data-ios-install]) .us-notif-ch-name {
+  color: var(--text);
+}
+
+.us-notif-ch-row:has([data-ios-install]) .us-notif-ch-sub {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.us-notif-ch-row:has([data-ios-install]) .us-notif-ch-sub-wrap {
+  margin-block-start: 6px;
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+}
+
+.us-notif-ch-row:has([data-ios-install]) .us-notif-ch-btn {
+  min-height: 44px;
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.us-notif-ch-row:has([data-ios-install]) .us-notif-ch-badge {
+  color: var(--green-text, var(--green));
 }
 
 .us-notif-ch-badge {
@@ -29090,7 +30522,6 @@ body.map-width-resizing {
 .markers-settled .cable-advisory-marker.fault,
 .markers-settled .protest-marker.high,
 .markers-settled .outage-marker.total,
-.markers-settled .conflict-zone,
 .markers-settled .iran-event-marker,
 .markers-settled .earthquake-marker,
 .markers-settled .nuclear-marker.active,
@@ -29537,3 +30968,180 @@ body.map-width-resizing {
 .food-prices-context { margin-top: 14px; }
 .food-prices-context summary { cursor: pointer; font-size: .9em; }
 .fao-monthly-context { border-top: 1px solid var(--border); }
+
+/* Passive network context stays within the existing popup scroll surface. */
+.cyber-network-info {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 10px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cyber-network-info summary {
+  cursor: pointer;
+  color: var(--text);
+  font-size: calc(12px * var(--wm-panel-effective-scale, 1));
+  margin-bottom: 10px;
+}
+
+.cyber-network-info .popup-stats {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cyber-copy {
+  margin-inline-start: 8px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cyber-copy-status {
+  display: block;
+  color: var(--text-secondary);
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+}
+
+.modal-close:focus-visible,
+.mission-preset-close:focus-visible,
+.search-sheet-cancel:focus-visible,
+.fw-import-modal-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .modal-close,
+  .mission-preset-close,
+  .fw-import-modal-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .source-toggle-item,
+  .panel-toggle-item { min-height: 44px; }
+  .unified-settings-region-pill { min-height: 44px; }
+  .unified-settings-region-bar { scrollbar-width: thin; }
+  .unified-settings-region-bar::-webkit-scrollbar { display: block; height: 6px; }
+}
+
+.panel-font-scale-details {
+  border: 1px solid var(--border);
+  border-top: 0;
+  color: var(--text-dim);
+  font-size: calc(11px * var(--wm-panel-effective-scale, 1));
+}
+.panel-font-scale-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 8px;
+  cursor: pointer;
+  list-style: none;
+}
+.panel-font-scale-details > summary::-webkit-details-marker { display: none; }
+.panel-font-scale-details > summary::after { content: '+'; }
+.panel-font-scale-details[open] > summary::after { content: '\2212'; }
+.panel-font-scale-details [data-panel-scale-summary] { margin-inline-start: auto; }
+.panel-font-scale-details:has(option:checked:not([value="global"])) > summary { color: var(--text); }
+.panel-font-scale-details .panel-font-scale-control {
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  font-size: inherit;
+  text-transform: none;
+}
+.panel-font-scale-control select { min-height: 32px; }
+.panel-font-scale-details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.settings-access-gate {
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: start;
+  max-width: 520px;
+  padding: 24px 0;
+  gap: 12px;
+  background: none;
+}
+.settings-access-gate h3 { margin: 0; font-size: calc(16px * var(--wm-panel-effective-scale, 1)); color: var(--text); }
+.settings-access-gate .panel-locked-icon { color: var(--text-dim); filter: none; }
+.settings-access-gate .panel-locked-desc { margin: 0; max-width: 58ch; font-size: calc(12px * var(--wm-panel-effective-scale, 1)); line-height: 1.6; }
+.settings-access-gate .panel-locked-cta { min-height: 44px; margin-top: 4px; }
+
+.search-command-topline { min-height: 30px; }
+.search-launch-grid .tip-item .search-result-title { white-space: normal; overflow-wrap: anywhere; }
+.search-launch-grid .tip-item { border-left: 0; }
+.search-sheet-header .search-input { padding: 8px 0; }
+@media (max-width: 768px) {
+  .unified-settings-modal .panel-toggle-grid { grid-template-columns: minmax(0, 1fr); }
+  .panel-font-scale-details > summary,
+  .panel-font-scale-control select { min-height: 44px; }
+  .search-overlay.search-mobile .search-scope-rail { scrollbar-width: thin; }
+  .search-overlay.search-mobile .search-scope { min-height: 44px; font-size: calc(10px * var(--wm-panel-effective-scale, 1)); }
+  .search-chip { min-height: 44px; font-size: calc(11px * var(--wm-panel-effective-scale, 1)); }
+  .fw-import-tab { min-height: 44px; }
+  .fw-import-input { min-height: 44px; }
+}
+
+/* Container-size defaults are managed by map-control-disclosure. */
+.map-control-disclosure {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-dim);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  cursor: pointer;
+  white-space: nowrap;
+}
+.map-control-disclosure::after { content: ' ▾'; }
+.map-control-disclosure[aria-expanded="false"]::after { content: ' ▸'; }
+.map-control-collapsed > :not(.toggle-header):not(.map-control-disclosure):not(.no2-activity-legend) {
+  display: none !important;
+}
+
+/* Dataset attribution stays visible while its active layer's scale is folded. */
+.map-control-collapsed > .no2-activity-legend > :not(.no2-activity-credit) {
+  display: none !important;
+}
+.map-control-collapsed .toggle-header { border-bottom: 0; padding: 0; }
+.map-control-collapsed .toggle-header > :not(.map-control-disclosure) { display: none; }
+.map-legend.map-control-collapsed { padding: 0; gap: 0; }
+.map-legend.map-control-compact:not(.map-control-collapsed) {
+  bottom: 58px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  box-sizing: border-box;
+  flex-wrap: wrap;
+}
+.map-control-panel > .legend-label-title { display: none; }
+.layer-toggles:not(.deckgl-layer-toggles) > .map-control-disclosure { flex-basis: 100%; }
+.layer-toggles.map-control-collapsed { width: auto; }
+
+@media (max-width: 768px) {
+  body:not(.live-news-fullscreen-active) .layer-toggles.map-control-panel:not(.deckgl-layer-toggles) {
+    display: flex !important;
+  }
+  body:not(.live-news-fullscreen-active) .map-legend.map-control-panel:not(.deckgl-legend) {
+    display: flex;
+  }
+  .layer-toggles.map-control-panel:not(.deckgl-layer-toggles):not(.map-control-collapsed) {
+    bottom: 58px;
+  }
+}
+
+/* Keep the existing 48px touch targets; mouse users can use a compact row. */
+@media (pointer: fine) {
+  :has(> .layer-toggles.map-control-compact) > .deckgl-time-slider {
+    padding: 4px 6px;
+  }
+  :has(> .layer-toggles.map-control-compact) > .deckgl-time-slider .time-btn {
+    min-width: 40px;
+    min-height: 28px;
+  }
+}
