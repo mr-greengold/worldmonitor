@@ -14,7 +14,7 @@ import {
   listDashboardPanelCatalog,
   DASHBOARD_PANEL_ID_PATTERN,
 } from '../src/services/webmcp-panel-catalog.ts';
-import { getInitialPanelSettingsForVariant } from '../src/config/panels.ts';
+import { VARIANT_DEFAULTS, getInitialPanelSettingsForVariant } from '../src/config/panels.ts';
 import {
   WEBMCP_HOMEPAGE_TOOL_NAMES,
   WEBMCP_SPA_TOOL_NAMES,
@@ -1423,7 +1423,7 @@ describe('webmcp.ts: current API contract', () => {
 
     const page = await tool.execute({ variant: 'full', limit: 4 });
     assert.equal(page.variant, 'full');
-    assert.equal(page.total, 113);
+    assert.equal(page.total, VARIANT_DEFAULTS.full.length);
     assert.equal(page.hasMore, true);
     assert.equal(typeof page.nextCursor, 'string');
     assert.equal(page.panels.length, 4);
@@ -2806,14 +2806,14 @@ describe('homepage WebMCP source registration', () => {
 
   it('returns native values and routes launch requests safely', async () => {
     const finance = runHomepage(collectingHomepageProvider);
-    const launch = finance.registered.find((tool) => tool.name === 'openDashboard');
+    const launch = finance.registered.find((tool) => tool.name === 'open_dashboard');
     const launchResult = await launch.execute({ monitor: 'finance' });
     assert.equal(launchResult, 'Opening the finance monitor: https://finance.worldmonitor.app/dashboard');
     assert.equal(finance.navigatedTo, 'https://finance.worldmonitor.app/dashboard');
 
     for (const bad of ['xyz', 'constructor', '__proto__', 'toString', 'valueOf']) {
       const fallback = runHomepage(collectingHomepageProvider);
-      await fallback.registered.find((tool) => tool.name === 'openDashboard').execute({ monitor: bad });
+      await fallback.registered.find((tool) => tool.name === 'open_dashboard').execute({ monitor: bad });
       assert.equal(fallback.navigatedTo, 'https://www.worldmonitor.app/dashboard');
     }
 

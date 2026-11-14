@@ -35,6 +35,7 @@ const CHECK_CONCURRENCY = Math.max(1, Math.min(4, availableParallelism()));
 // follows the data flow: the product config feeds the facts, which feed AI
 // search and the crawlable pages.
 export const STEPS = [
+  ['CII coverage baseline', [NODE, 'scripts/generate-cii-coverage-baseline.mjs']],
   ['browser news catalog', [...TSX, 'scripts/generate-browser-news-catalog.mjs']],
   ['product facts', [...TSX, 'scripts/generate-public-product-facts.mjs']],
   ['entitlement crosswalk', [NODE, 'scripts/generate-entitlement-crosswalk.mjs']],
@@ -52,6 +53,7 @@ export const STEPS = [
   ['live video channels', [...TSX, 'scripts/sync-live-video-refresh-channels.mjs']],
   ['TUI catalog', [...TSX, 'scripts/sync-tui-catalog.mjs']],
   ['sandbox fixtures', [NODE, 'scripts/generate-sandbox-fixtures.mjs']],
+  ['orbital watched sites', [...TSX, 'scripts/generate-orbital-watched-sites.mjs']],
   ['population density boundaries', [...TSX, 'scripts/generate-population-density-boundaries.mjs']],
   ['scorecard edge mirrors', [NODE, 'scripts/generate-scorecard-edge-mirrors.mjs']],
   ['Sentry Convex probe filters', [NODE, 'scripts/sync-sentry-convex-probe-filters.mjs'], '--write'],
