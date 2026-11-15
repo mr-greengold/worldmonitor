@@ -82,6 +82,7 @@ import type { ScenarioVisualState, ScenarioResult } from '@/config/scenario-temp
 import { getAuthState } from '@/services/auth-state';
 import { hasPremiumAccess } from '@/services/panel-gating';
 import { trackGateHit } from '@/services/analytics';
+import { ORBITAL_WATCH_ENABLED } from '@/config/orbital-watch-flag';
 
 export type { ScenarioVisualState, ScenarioResult };
 
@@ -194,17 +195,8 @@ interface TechEventMarker {
   daysUntil: number;
 }
 
-type FireMarker = { lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string };
+type FireMarker = { lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string; detected_at?: number; satellite?: string; source?: string };
 type CIIScore = { code: string; score: number; level: string };
-
-const EXCLUSIVE_CHOROPLETHS: Partial<Record<string, keyof MapLayers>> = {
-  resilienceScore: 'ciiChoropleth',
-  ciiChoropleth: 'resilienceScore',
-};
-
-function noLayers(layers: MapLayers): MapLayers {
-  return Object.fromEntries(Object.keys(layers).map((key) => [key, false])) as unknown as MapLayers;
-}
 
 /**
  * Unified map interface that delegates to either DeckGLMap or MapComponent
@@ -221,9 +213,9 @@ export class MapContainer {
   private svgMap: MapComponent | null = null;
   private globeMap: GlobeMap | null = null;
   private autoRotateHeld = false;
+  private zoomCap: number | null = null;
   private supplyChainPanel: import('@/components/SupplyChainPanel').SupplyChainPanel | null = null;
   private initialState: MapContainerState;
-  private suppressedLayers: MapLayers | null = null;
   private useDeckGL: boolean;
   private useGlobe: boolean;
   private readonly chrome: boolean;
@@ -887,6 +879,8 @@ export class MapContainer {
   }
 
   private rehydrateActiveMap(): void {
+    // A renderer built while a lookup holds the zoom comes up held too; one built with no cap needs nothing.
+    if (this.useDeckGL && this.zoomCap != null) this.deckGLMap?.setZoomCap(this.zoomCap);
     // 1. Re-wire callbacks (through own public methods for adapter safety)
     if (this.cachedOnStateChanged) this.onStateChanged(this.cachedOnStateChanged);
     if (this.cachedOnLayerChange) this.setOnLayerChange(this.cachedOnLayerChange);
@@ -969,8 +963,6 @@ export class MapContainer {
     if (this.orbitalTrack) this.applyOrbitalTrack();
     if (this.orbitalTarget) this.applyOrbitalTarget();
     for (const layer of this.hiddenLayerToggles) this.hideLayerToggle(layer);
-    // A renderer built while the layers are hidden starts from the real toggles.
-    if (this.suppressedLayers) this.drawLayers(noLayers(this.suppressedLayers));
   }
 
   private currentRendererSwitchResult(requested: 'globe' | 'flat'): MapRendererSwitchResult {
@@ -1159,6 +1151,15 @@ export class MapContainer {
     this.globeMap?.holdAutoRotate(held);
   }
 
+  /**
+   * Caps how far the flat map zooms in, or lifts the cap with null. Only the flat map fetches viewport-sized basemap tiles;
+   * the globe draws fixed textures and the SVG map one country topology, so neither needs a cap.
+   */
+  public capZoom(max: number | null): void {
+    this.zoomCap = max;
+    this.deckGLMap?.setZoomCap(max);
+  }
+
   /** Where (lat, lon) is drawn in client coordinates, or null when the renderer cannot say or it faces away. */
   public projectToClient(lat: number, lon: number): { x: number; y: number } | null {
     if (this.useGlobe) return this.globeMap?.projectToClient(lat, lon) ?? null;
@@ -1205,10 +1206,6 @@ export class MapContainer {
       sanitized = sanitizeLockedLayers(sanitized, false);
     }
     this.initialState = { ...this.initialState, layers: sanitized };
-    if (this.suppressedLayers) {
-      this.suppressedLayers = sanitized;
-      return;
-    }
     this.drawLayers(sanitized);
   }
 
@@ -1220,30 +1217,7 @@ export class MapContainer {
     if (this.useDeckGL) { this.deckGLMap?.setLayers(layers); } else { this.svgMap?.setLayers(layers); }
   }
 
-  /**
-   * Draws no data layer while `suppressed`, then draws the layers as they were.
-   * getState() keeps reporting the real layers, so the share URL and the saved
-   * toggles never see the hidden state.
-   */
-  public suppressDataLayers(suppressed: boolean): void {
-    if (suppressed === (this.suppressedLayers !== null)) return;
-    if (suppressed) {
-      const layers = this.getState().layers;
-      this.suppressedLayers = layers;
-      this.drawLayers(noLayers(layers));
-      return;
-    }
-    const layers = this.suppressedLayers!;
-    this.suppressedLayers = null;
-    this.drawLayers(layers);
-  }
-
   public getState(): MapContainerState {
-    const state = this.rendererState();
-    return this.suppressedLayers ? { ...state, layers: this.suppressedLayers } : state;
-  }
-
-  private rendererState(): MapContainerState {
     if (this.useGlobe) return this.globeMap?.getState() ?? this.initialState;
     if (this.useDeckGL) {
       const state = this.deckGLMap?.getState();
@@ -1735,14 +1709,6 @@ export class MapContainer {
   public setOnLayerChange(callback: (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void): void {
     this.cachedOnLayerChange = callback;
     const notify = (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic'): void => {
-      if (this.suppressedLayers) {
-        this.suppressedLayers = { ...this.suppressedLayers, [layer]: enabled };
-        this.initialState = { ...this.initialState, layers: { ...this.initialState.layers, [layer]: enabled } };
-        // The renderer drew the toggled layer; hide it again until the layers come back.
-        if (enabled) this.drawLayers(noLayers(this.suppressedLayers));
-        callback(layer, enabled, source);
-        return;
-      }
       if (layer === 'ais') this.renderUkmtoStatus(enabled);
       if (layer === 'aircraftEmergencies') this.emergencyLayer.setEnabled(!this.useGlobe && enabled);
       if (layer === 'flights') this.notamAirspaceLayer.setEnabled(this.useDeckGL && enabled);
@@ -1852,20 +1818,6 @@ export class MapContainer {
       ...this.initialState,
       layers: { ...this.initialState.layers, [layer]: true },
     };
-    if (this.suppressedLayers) {
-      // Saved now and drawn when the layers come back.
-      if (this.suppressedLayers[layer]) return;
-      const displaced = this.useDeckGL ? EXCLUSIVE_CHOROPLETHS[layer as string] : undefined;
-      if (displaced && this.suppressedLayers[displaced]) {
-        // deck.gl draws one choropleth at a time; turn the other off as its enableLayer would.
-        this.suppressedLayers = { ...this.suppressedLayers, [displaced]: false };
-        this.initialState = { ...this.initialState, layers: { ...this.initialState.layers, [displaced]: false } };
-        this.cachedOnLayerChange?.(displaced, false, 'programmatic');
-      }
-      this.suppressedLayers = { ...this.suppressedLayers, [layer]: true };
-      this.cachedOnLayerChange?.(layer, true, 'programmatic');
-      return;
-    }
     if (!this.hasActiveRenderer()) return;
     if (this.useGlobe) { this.globeMap?.enableLayer(layer); return; }
     if (this.useDeckGL) {
@@ -1990,7 +1942,9 @@ export class MapContainer {
   public onMapContextMenu(callback: (payload: { lat: number; lon: number; screenX: number; screenY: number; countryCode?: string; countryName?: string }) => void): void {
     this.cachedOnMapContextMenu = callback;
     if (this.useGlobe) { this.globeMap?.setOnMapContextMenu(callback); return; }
-    if (this.useDeckGL) { this.deckGLMap?.setOnMapContextMenu(callback); }
+    if (this.useDeckGL) { this.deckGLMap?.setOnMapContextMenu(callback); return; }
+    // The flat SVG map gains its menu with the point lookup, so it stays unchanged while the lookup is dark.
+    if (ORBITAL_WATCH_ENABLED) this.svgMap?.setOnMapContextMenu(callback);
   }
 
   public fitCountry(code: string): void {
