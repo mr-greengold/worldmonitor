@@ -398,6 +398,7 @@ const EXCLUDED_RPC_ROUTES = {
   "/api/trade/v1/get-tariff-trends": "Pro-only (401 for the anonymous widget session)",
   "/api/trade/v1/get-bilateral-tariff": "Pro-only (401 for the anonymous widget session)",
   "/api/trade/v1/get-us-import-duty": "Pro-only (401 for the anonymous widget session)",
+  "/api/trade/v1/get-monthly-sitc-trade": "Pro-only (401 for the anonymous widget session)",
   "/api/trade/v1/list-comtrade-flows": "Pro-only (401 for the anonymous widget session)",
   "/api/unrest/v1/list-unrest-events": "Same data as bootstrap key unrestEvents",
   "/api/v2/shipping/route-intelligence": "Pro-only (401 for the anonymous widget session)",
