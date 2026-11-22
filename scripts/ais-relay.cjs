@@ -5290,7 +5290,7 @@ Levels: critical, high, medium, low, info
 Categories: conflict, protest, disaster, diplomatic, economic, terrorism, cyber, health, environmental, military, crime, infrastructure, tech, general
 
 Guidelines for LEVEL assignment (geopolitical scope required for critical):
-- critical: Active military strikes with international implications, geopolitical mass-casualty events (10+ killed in conflict/terrorism/state action), ceasefire agreements/collapses, nuclear incidents, pandemic declarations, coups, strait/waterway closures
+- critical: Active military strikes with international implications, geopolitical mass-casualty events (10+ killed in conflict/terrorism/state action), ceasefire agreements/collapses, nuclear incidents, pandemic declarations, coups, strait/waterway closures that have taken effect
 - high: Armed conflict updates, major diplomatic actions, sanctions packages, significant natural disasters, blockades, terrorist attacks, domestic mass-casualty events (mass shootings, industrial disasters)
 - medium: Ongoing conflict analysis, economic impact reports, protest movements, regional policy changes, military exercises
 - low: Diplomatic meetings, trade discussions, humanitarian aid, election updates, peacekeeping deployments
@@ -5301,6 +5301,8 @@ Key distinction: "critical" requires GEOPOLITICAL scope — events that destabil
 - "23 killed in fireworks factory explosion in India" → industrial accident → high
 - "700 killed in Sudan drone strikes" → geopolitical mass-casualty in active civil war → critical
 - "Iran closes Strait of Hormuz" → global trade disruption → critical
+- "Iran sets its terms for reopening Hormuz" → terms or threats, not a closure or an attack → high
+- "Russia says its missiles destroyed a Ukrainian grain port" → an attack, reported by the attacker → critical
 - "Guardian view on ceasefire: need real peace" → editorial → info
 - "Trump's obsession with energy" → opinion/analysis → info
 - "Man killed his estranged wife" → domestic crime → info
@@ -5773,7 +5775,7 @@ async function seedClassifyForVariant(variant, seenTitles) {
   );
   // #10978: fresh items the digest's category cap kept off the dashboard can
   // still alert. The digest build writes them beside the served body.
-  const alertPool = staleReplay ? null : await upstashGet(`news:alert-pool:v1:${variant}`);
+  const alertPool = staleReplay ? null : await upstashGet(`news:alert-pool:v2:${variant}`);
   // The served digest drops operator-revoked URLs when it is read; the pool
   // comes straight from Redis, so check it here. An unreadable set skips it.
   let poolItems = [];
@@ -5783,7 +5785,9 @@ async function seedClassifyForVariant(variant, seenTitles) {
   // restart does not start over.
   // v2: the backlog is recorded under story keys (#10976). A v1 record holds
   // exact-title keys, which the lookup no longer produces.
-  const poolBacklogKey = `classify:alert-pool-warm:v2:${variant}`;
+  // v3: the pool became language-filtered under a new key (v2), so its first
+  // read refills with English headlines up to 6 h old. Record them again.
+  const poolBacklogKey = `classify:alert-pool-warm:v3:${variant}`;
   let poolBacklog = null;
   // Every backlog headline has aged out of the pool once its window has passed
   // since the record, so a later article with the same headline can alert.
@@ -5866,6 +5870,8 @@ async function seedClassifyForVariant(variant, seenTitles) {
     };
     // #10978: the first pool an edition reads is a backlog that never alerts.
     if (meta.fromPool && classifyNow < poolBacklogUntil && poolBacklog?.has(classifyKeyFor(title))) return;
+    // A feed in another language is labelled for the dashboard, never alerted.
+    if (meta.otherLanguage) return;
     // Relay gates: when RELAY_GATES_READY is set the relay enforces source tier and
     // recency checks that the client path previously handled.
     // Explicit tier-4 keys only — unlisted names (including platform source
