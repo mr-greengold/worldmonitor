@@ -7,6 +7,7 @@ import coverageText from './corroboration-text.cjs';
 import { defaultRedisPipeline } from './_upstash-pipeline.mjs';
 import { EMBED_MODEL } from './brief-dedup-consts.mjs';
 import { cosineSimilarity, embedBatch, normalizeForEmbedding } from './brief-embedding.mjs';
+import { extractTitleWords, jaccardSimilarity } from './brief-dedup-jaccard.mjs';
 
 const DAY = storyKeys.NEWS_STORY_DEDUP_TTL_SECONDS * 1000;
 const { countRecordedPublisherFamilies } = coverageText;
@@ -52,8 +53,10 @@ export async function refreshPublisherCounts(events, now = Date.now(), pipeline 
 // subscribers were already alerted to. If it is, the users who already had the
 // anchor are skipped; everyone else still gets the alert.
 //
-// Every failure (no key, embedding error, model error or timeout, unreadable
-// reply, Redis error) keeps the alert. The cost of a wrong "different" is one
+// When the embeddings fail, the earlier headlines that share the most words
+// with the new one go to the model instead (see rankByWords). Every other
+// failure (no key, model error or timeout, unreadable reply, Redis error)
+// keeps the alert. The cost of a wrong "different" is one
 // extra alert; a wrong "same" hides news, so the prompt says to answer
 // "different" when unsure, and a suppressed headline never becomes an anchor.
 
@@ -65,11 +68,19 @@ export async function refreshPublisherCounts(events, now = Date.now(), pipeline 
 // still a new development.
 export const REWRITE_WINDOW_MS = 48 * 3_600_000;
 const ANCHOR_LIMIT = 128;
-// Below this cosine score a pair is not put to the model. On seven days of
-// deliverable alerts (2026-11-11 to 11-18) the rewrites the model confirmed
-// scored 0.63 and up, and below 0.60 the nearest earlier alert was always
-// another story. Above it, scores alone do not separate the two; the model does.
+// The earlier alerts put to the model score at least this cosine. Above it,
+// scores alone do not separate rewrites from other stories; the model does.
 export const REWRITE_RETRIEVAL_MIN = 0.6;
+// When none does, those scoring at least this are shown instead. The Dymer
+// strike near Kyiv on 2026-11-22 reached every subscriber six times: each later
+// wording's nearest earlier alert scored 0.53 to 0.58, and later wordings of
+// the Zaporizhzhia toll, the Shenzhen summit and the Myanmar genocide ruling
+// scored 0.50 to 0.59.
+// The lower floor is kept to that case because a longer list of weaker
+// wordings makes the model readier to merge: at a flat 0.45 it hid Putin's
+// "painful response" threat and the EU-UK deal, both above 0.60
+// (docs/research/alert-event-identity/README.md).
+export const REWRITE_RETRIEVAL_FALLBACK_MIN = 0.45;
 // Three was too few: wordings of one story fill the top places. On 2026-11-21
 // "Bahrain says Iran struck industrial site as tankers hit in Hormuz" ranked
 // five tanker alerts above the Bahrain one it repeats, so the judge never saw
@@ -110,6 +121,23 @@ export const REWRITE_CHECK_DEADLINE_MS = 10_000;
 const defaultEmbed = titles => embedBatch(titles, { wallClockMs: EMBED_WALL_CLOCK_MS });
 const MAX_TITLE_CHARS = 300;
 
+// Retrieval when the embeddings fail. On 2026-11-23 OpenRouter refused every
+// call for hours and 42 alerts reached every subscriber unchecked; on 11-24 two
+// failures 50 minutes apart let both wordings of one Gaza killing through. Over
+// the 51 repeats the model confirmed from 2026-11-18 to 11-24, the eight
+// earlier headlines sharing the most words held the one it named in 49
+// (docs/research/alert-event-identity/README.md). Any shared word is enough to
+// be shown: the model, not the overlap, decides.
+function rankByWords(title, anchors) {
+  const own = extractTitleWords(title);
+  return anchors
+    .map(anchor => ({ ...anchor, score: jaccardSimilarity(own, extractTitleWords(anchor.title)) }))
+    .filter(anchor => anchor.score > 0)
+    .sort((a, b) => b.score - a.score || b.at - a.at);
+}
+
+const describeError = err => `${err?.name || 'Error'}: ${String(err?.message ?? '').slice(0, 160)}`;
+
 const anchorsKey = variant => `news:alert-anchors:v1:${variant}`;
 const recipientsKey = id => `news:alert-anchor-recipients:v1:${id}`;
 // The exact-headline identity the coverage history uses, as `<edition>:<sha256>`.
@@ -148,6 +176,7 @@ It is the same incident when the core event matches: the same kind of event, by 
 
 It is a new development when any part of the NEW headline reports one of these, even if the rest repeats an earlier headline:
 - a separate event: another attack or strike (also on the same place or by the same side), or events of a later day
+- the incident reaching another country: a strike, missile, drone or attack in, on or crossing into a country that no earlier headline about it named
 - confirmation that something the earlier headline only called possible, likely, suspected or unconfirmed did happen, or a denial or reversal of it
 - a consequential response: a counter-attack or retaliation, a leader's new threat or vow of retaliation (one already reported, or given only as background, is not new), a formal alliance step such as invoking a treaty article, sanctions, an evacuation, a new deployment of forces, a declared emergency
 - an outcome: a deal, an end of talks, a resignation, an arrest, the death of a named person
@@ -209,7 +238,7 @@ export async function findRewriteAnchor(event, {
   // The check fills its own copy; a late finish past the deadline cannot change
   // what was returned.
   const blank = () => ({
-    id: null, model: EMBED_MODEL, judgeModel: REWRITE_JUDGE_MODEL, candidates: 0, best: null, judged: false, verdict: null, anchor: null, anchorIds: null, error: null, ms: 0,
+    id: null, model: EMBED_MODEL, judgeModel: REWRITE_JUDGE_MODEL, candidates: 0, retrieval: null, embedError: null, best: null, judged: false, verdict: null, anchor: null, anchorIds: null, error: null, ms: 0,
   });
   const work = blank();
   let timer;
@@ -221,7 +250,9 @@ export async function findRewriteAnchor(event, {
   // so the check can finish with empty replies a tick before the timer wins.
   // Those replies are empty because of the deadline, and the log says so.
   if (finished?.error === 'judge returned nothing' && Date.now() >= deadlineAt) finished.error = 'deadline';
-  const decision = finished ?? { ...blank(), id: work.id, candidates: work.candidates, best: work.best, judged: work.judged, error: 'deadline' };
+  const decision = finished ?? {
+    ...blank(), id: work.id, candidates: work.candidates, retrieval: work.retrieval, embedError: work.embedError, best: work.best, judged: work.judged, error: 'deadline',
+  };
   decision.ms = Date.now() - startedAt;
   return decision;
 }
@@ -248,12 +279,24 @@ async function decide(event, decision, { now, pipeline, embed, judge, deadlineAt
     }
     decision.candidates = anchors.length;
     if (!anchors.length || !fitsPrompt(title)) return;
-    const vectors = await embed([title, ...anchors.map(a => a.title)].map(normalizeForEmbedding));
-    const ranked = anchors
-      .map((anchor, i) => ({ ...anchor, score: cosineSimilarity(vectors[0], vectors[i + 1]) }))
-      .sort((a, b) => b.score - a.score);
-    decision.best = { id: ranked[0].id, score: ranked[0].score };
-    const shortlist = ranked.filter(a => a.score >= REWRITE_RETRIEVAL_MIN && fitsPrompt(a.title)).slice(0, REWRITE_JUDGE_CANDIDATES);
+    let ranked;
+    try {
+      const vectors = await embed([title, ...anchors.map(a => a.title)].map(normalizeForEmbedding));
+      const scored = anchors
+        .map((anchor, i) => ({ ...anchor, score: cosineSimilarity(vectors[0], vectors[i + 1]) }))
+        .sort((a, b) => b.score - a.score);
+      decision.retrieval = 'embedding';
+      decision.best = { id: scored[0].id, score: scored[0].score };
+      ranked = scored.filter(anchor => anchor.score >= REWRITE_RETRIEVAL_MIN);
+      if (!ranked.length) ranked = scored.filter(anchor => anchor.score >= REWRITE_RETRIEVAL_FALLBACK_MIN);
+    } catch (err) {
+      // The scores are then word overlaps, not cosines.
+      decision.embedError = describeError(err);
+      decision.retrieval = 'words';
+      ranked = rankByWords(title, anchors);
+      if (ranked.length) decision.best = { id: ranked[0].id, score: ranked[0].score };
+    }
+    const shortlist = ranked.filter(a => fitsPrompt(a.title)).slice(0, REWRITE_JUDGE_CANDIDATES);
     if (!shortlist.length) return;
     decision.judged = true;
     // Asked twice at once; a skip needs both replies to call it a repeat. On a
