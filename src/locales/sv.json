@@ -2211,7 +2211,9 @@
     },
     "climateNews": {
       "infoTooltip": "<strong>Klimatnyheter</strong> Senaste miljö- och klimatuppdateringar från Carbon Brief, UNEP, NASA, The Guardian och andra pålitliga källor. Uppdateras var 30:e minut.",
-      "loadError": "Klimatnyheter är temporärt otillgängliga"
+      "loadError": "Klimatnyheter är temporärt otillgängliga",
+      "restoreOriginal": "Återställ originaltexten",
+      "translate": "Översätt"
     },
     "liquidityShifts": {
       "title": "Likviditetsförskjutningar",
@@ -2246,7 +2248,13 @@
       "headline": "Dagliga AI-briefer via mejl eller Slack",
       "tagline": "plus WM Analyst, varningsregler och MCP för Claude",
       "cta": "Uppgradera till Pro →",
-      "dismiss": "Stäng"
+      "dismiss": "Stäng",
+      "promoBadge": "Black Friday",
+      "promoHeadline": "{{savings}}% rabatt på Pro första året",
+      "promoTagline": "{{perMonth}} per månad istället för {{monthly}}, faktureras årligen. Avbryt när som helst. Slutar {{date}}.",
+      "promoHeadlineYearlyOnly": "{{percent}}% rabatt på Pro Yearly första året",
+      "promoTaglineYearlyOnly": "Avbryt när som helst. Upphör {{date}}.",
+      "promoCta": "Hämta erbjudandet"
     },
     "billingState": {
       "onHoldDesc": "Betalningen misslyckades. Uppdatera din betalningsmetod för att återställa premiumåtkomsten.",
@@ -5110,7 +5118,8 @@
     "current": "Källa kontrollerad",
     "reportedClaims": "Utgivarens rapporter. Påståenden kan fortfarande utredas.",
     "occurred": "Incident",
-    "reported": "Publicerad"
+    "reported": "Publicerad",
+    "listed": "Registrerad"
   },
   "panelVariants": {
     "finance": {

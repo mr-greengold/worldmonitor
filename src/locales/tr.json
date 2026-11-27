@@ -2629,7 +2629,9 @@
     },
     "climateNews": {
       "infoTooltip": "<strong>İklim Haberleri</strong> Carbon Brief, UNEP, NASA, The Guardian ve diğer güvenilir kaynaklardan en son çevre ve iklim istihbaratı. Her 30 dakikada güncellenir.",
-      "loadError": "İklim haberleri geçici olarak kullanılamıyor"
+      "loadError": "İklim haberleri geçici olarak kullanılamıyor",
+      "restoreOriginal": "Özgün metni geri yükle",
+      "translate": "Çevir"
     },
     "liquidityShifts": {
       "title": "Likidite Kaymalar",
@@ -2664,7 +2666,13 @@
       "headline": "E-posta veya Slack'te günlük AI raporları",
       "tagline": "artı WM Analyst, uyarı kuralları ve Claude için MCP",
       "cta": "Pro'ya Yükselt →",
-      "dismiss": "Kapat"
+      "dismiss": "Kapat",
+      "promoBadge": "Kara Cuma",
+      "promoHeadline": "Pro için ilk yılınızda {{savings}}% indirim",
+      "promoTagline": "Aylık {{monthly}} yerine {{perMonth}}, yıllık faturalandırılır. İstediğiniz zaman iptal edebilirsiniz. {{date}} tarihinde sona erer.",
+      "promoHeadlineYearlyOnly": "Pro Yıllık için ilk yılınızda {{percent}}% indirim",
+      "promoTaglineYearlyOnly": "İstediğiniz zaman iptal edin. {{date}}'de sona eriyor.",
+      "promoCta": "Teklifi al"
     },
     "billingState": {
       "onHoldDesc": "Ödeme başarısız oldu. Premium erişimi geri yüklemek için ödeme yönteminizi güncelleyin.",
@@ -5110,7 +5118,8 @@
     "current": "Kaynak kontrol edildi",
     "reportedClaims": "Yayıncı raporları. İddialar hâlâ araştırılıyor olabilir.",
     "occurred": "Olay",
-    "reported": "Yayımlandı"
+    "reported": "Yayımlandı",
+    "listed": "Kaydedildi"
   },
   "panelVariants": {
     "finance": {

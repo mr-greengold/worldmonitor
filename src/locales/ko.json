@@ -2617,7 +2617,9 @@
     },
     "climateNews": {
       "infoTooltip": "<strong>기후 뉴스</strong> Carbon Brief, UNEP, NASA, The Guardian 및 기타 신뢰할 수 있는 출처의 최신 환경 및 기후 정보입니다. 30분마다 업데이트됩니다.",
-      "loadError": "기후 뉴스를 일시적으로 사용할 수 없습니다"
+      "loadError": "기후 뉴스를 일시적으로 사용할 수 없습니다",
+      "restoreOriginal": "원문으로 되돌리기",
+      "translate": "번역"
     },
     "liquidityShifts": {
       "title": "유동성 변화",
@@ -2652,7 +2654,13 @@
       "headline": "매일 이메일 또는 Slack으로 받는 AI 브리핑",
       "tagline": "WM Analyst, 알림 규칙, Claude용 MCP 포함",
       "cta": "Pro로 업그레이드 →",
-      "dismiss": "닫기"
+      "dismiss": "닫기",
+      "promoBadge": "블랙 프라이데이",
+      "promoHeadline": "첫 해 Pro {{savings}}% 할인",
+      "promoTagline": "월 {{monthly}} 대신 월 {{perMonth}}, 연간 청구. 언제든지 취소할 수 있습니다. {{date}}에 종료됩니다.",
+      "promoHeadlineYearlyOnly": "첫 해 Pro 연간 {{percent}}% 할인",
+      "promoTaglineYearlyOnly": "언제든지 취소할 수 있습니다. {{date}}에 종료됩니다.",
+      "promoCta": "오퍼 받기"
     },
     "billingState": {
       "onHoldDesc": "결제에 실패했습니다. 프리미엄 이용 권한을 복원하려면 결제 수단을 업데이트하세요.",
@@ -5087,7 +5095,8 @@
     "current": "출처 확인",
     "reportedClaims": "발행자의 보고입니다. 주장은 아직 조사 중일 수 있습니다.",
     "occurred": "사건",
-    "reported": "게시"
+    "reported": "게시",
+    "listed": "등록"
   },
   "panelVariants": {
     "finance": {

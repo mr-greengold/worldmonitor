@@ -2532,7 +2532,9 @@
     },
     "climateNews": {
       "infoTooltip": "<strong>Habari za Hali ya Hewa</strong> Taarifa za hivi punde za mazingira na hali ya hewa kutoka Carbon Brief, UNEP, NASA, The Guardian, na vyanzo vingine vya mamlaka. Inasasishwa kila baada ya dakika 30.",
-      "loadError": "Habari za hali ya hewa hazipatikani kwa sasa"
+      "loadError": "Habari za hali ya hewa hazipatikani kwa sasa",
+      "restoreOriginal": "Rejesha maandishi ya awali",
+      "translate": "Tafsiri"
     },
     "chatAnalyst": {
       "infoTooltip": "<strong>Mchambuzi wa WM</strong> Mchambuzi wa AI aliye na muktadha wa moja kwa moja katika nyanja za jiografia, soko, kijeshi na kiuchumi. Inaendeshwa na Claude na data ya wakati halisi iliyoingizwa kutoka kwa milisho inayotumika ya WorldMonitor."
@@ -2736,7 +2738,13 @@
       "headline": "Muhtasari wa AI kila siku kwa barua pepe au Slack",
       "tagline": "pamoja na WM Analyst, sheria za arifa na MCP kwa Claude",
       "cta": "Jiunge na Pro →",
-      "dismiss": "Ondoa"
+      "dismiss": "Ondoa",
+      "promoBadge": "Ijumaa Nyeusi",
+      "promoHeadline": "{{savings}}% punguzo kwenye Pro kwa mwaka wako wa kwanza",
+      "promoTagline": "{{perMonth}} kwa mwezi badala ya {{monthly}}, kulipwa kila mwaka. Futa wakati wowote. Inaishia {{date}}.",
+      "promoHeadlineYearlyOnly": "{{percent}}% punguzo kwenye Pro Yearly kwa mwaka wako wa kwanza",
+      "promoTaglineYearlyOnly": "Futa wakati wowote. Inaishia {{date}}.",
+      "promoCta": "Pata ofa"
     },
     "checkoutFailureBanner": {
       "message": "Malipo hayakuweza kukamilika. Hakuna malipo yaliyofanywa.",
@@ -5110,7 +5118,8 @@
     "current": "Chanzo kimekaguliwa",
     "reportedClaims": "Ripoti za mchapishaji. Madai yanaweza kuwa bado yanachunguzwa.",
     "occurred": "Tukio",
-    "reported": "Imechapishwa"
+    "reported": "Imechapishwa",
+    "listed": "Imeorodheshwa"
   },
   "panelVariants": {
     "finance": {

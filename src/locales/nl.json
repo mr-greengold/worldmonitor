@@ -2211,7 +2211,9 @@
     },
     "climateNews": {
       "infoTooltip": "<strong>Klimaatnieuws</strong> Laatste milieu- en klimaatintelligentie van Carbon Brief, UNEP, NASA, The Guardian en andere betrouwbare bronnen. Elke 30 minuten bijgewerkt.",
-      "loadError": "Klimaatnieuws tijdelijk niet beschikbaar"
+      "loadError": "Klimaatnieuws tijdelijk niet beschikbaar",
+      "restoreOriginal": "Oorspronkelijke tekst herstellen",
+      "translate": "Vertalen"
     },
     "liquidityShifts": {
       "title": "Liquiditeitsshifts",
@@ -2246,7 +2248,13 @@
       "headline": "Dagelijkse AI-briefings per e-mail of Slack",
       "tagline": "plus WM Analyst, waarschuwingsregels en MCP voor Claude",
       "cta": "Upgrade naar Pro →",
-      "dismiss": "Verwijderen"
+      "dismiss": "Verwijderen",
+      "promoBadge": "Black Friday",
+      "promoHeadline": "{{savings}}% korting op Pro voor je eerste jaar",
+      "promoTagline": "{{perMonth}} per maand in plaats van {{monthly}}, jaarlijks gefactureerd. Opzeggen op elk moment. Eindigt {{date}}.",
+      "promoHeadlineYearlyOnly": "{{percent}}% korting op Pro Jaarlijks voor je eerste jaar",
+      "promoTaglineYearlyOnly": "Je kunt altijd annuleren. Eindigt {{date}}.",
+      "promoCta": "Pak de aanbieding"
     },
     "billingState": {
       "onHoldDesc": "Betaling mislukt. Werk je betaalmethode bij om premium toegang te herstellen.",
@@ -5110,7 +5118,8 @@
     "current": "Bron gecontroleerd",
     "reportedClaims": "Meldingen van de uitgever. Beweringen worden mogelijk nog onderzocht.",
     "occurred": "Incident",
-    "reported": "Gepubliceerd"
+    "reported": "Gepubliceerd",
+    "listed": "Vermeld"
   },
   "panelVariants": {
     "finance": {

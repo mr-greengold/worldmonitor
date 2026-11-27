@@ -788,8 +788,10 @@ const STANDALONE_KEYS = {
   regionalEnergyCreg:     'energy:regional:creg:v1',
   regionalEnergyUrsea:    'energy:regional:ursea:v1',
   regionalEnergyFuelwatch: 'energy:regional:fuelwatch:v1',
-  regionalEnergySearg:    'energy:regional:searg:v1',
   regionalEnergyOil111:   'energy:regional:oil111:v1',
+  regionalEnergyEms:     'energy:regional:ems:v1',
+  regionalEnergyNosbih:  'energy:regional:nosbih:v1',
+  regionalEnergyMepso:   'energy:regional:mepso:v1',
   resilienceIntervals:      'resilience:intervals:v12:US',
   sprPolicies:              'energy:spr-policies:v1',
   pipelinesGas:             'energy:pipelines:gas:v1',
@@ -840,6 +842,8 @@ const STANDALONE_KEYS = {
   // News digest warm cycle (scripts/lib/news-digest-warm.cjs): written only
   // when at least half the (edition, language) digests served news (#9766).
   newsDigestWarmRelayHeartbeat: 'relay:heartbeat:news-digest-warm',
+  // The relay's cross-wording matcher over the last hour (#11426).
+  newsCrossWordingMatcher: 'news:cross-wording-health:v1',
   // Bundle tick heartbeat written by `_bundle-runner.mjs` on every container
   // start, including skip-all ticks. Detects Railway cron-scheduler freeze
   // (#6691) that member seed-meta budgets (17.5d+) cannot see.
@@ -2681,6 +2685,24 @@ const SEED_META = {
   // than the 720min seed-meta threshold above. TTL is 18h on the writer.
   chokepointFlowsRelayHeartbeat: { key: 'relay:heartbeat:chokepoint-flows', maxStaleMin: 480 }, // 6h loop; 8h alarm
   climateNewsRelayHeartbeat:     { key: 'relay:heartbeat:climate-news',     maxStaleMin: 60 },  // 30m loop; 60m alarm
+  // Written by every 15-minute relay classify cycle (#11426), so 60 minutes is
+  // the classify threat summary's budget. The relay writes sourceState
+  // `degraded` when at least two of the last hour's cross-wording checks failed
+  // and they were more than half of the checks made (an OpenRouter 402 fails
+  // every one), naming the commonest failure in errorCode; an hour without
+  // candidates is `ok`. A relay without OPENROUTER_API_KEY writes `unavailable`.
+  // Its records are matcher cycles, not data any reader is served, so a
+  // degraded matcher is never contained; and once the meta is past
+  // maxStaleMin its sourceState describes a relay that stopped, so the probe
+  // reads STALE_SEED rather than a current failure or NOT_CONFIGURED.
+  newsCrossWordingMatcher: {
+    key: 'seed-meta:news:cross-wording-health',
+    maxStaleMin: 60,
+    recordsAreDiagnostics: true,
+    sourceStateExpires: true,
+    activationKey: 'seed-activated:news:cross-wording-health',
+    cutover: { mode: 'activation-marker', fromKey: null, issue: 11426, activationKey: 'seed-activated:news:cross-wording-health' },
+  },
   // 17m loop; 51m = 3 missed cycles. Soft until the first healthy cycle.
   newsDigestWarmRelayHeartbeat: {
     key: 'relay:heartbeat:news-digest-warm',
@@ -2767,10 +2789,14 @@ const SEED_META = {
     cutover: { mode: 'activation-marker', fromKey: null, issue: 10051, activationKey: 'seed-activated:energy:regional-ursea' } },
   regionalEnergyFuelwatch: { key: 'seed-meta:energy:regional-fuelwatch', maxStaleMin: 2160, firstPublicationMaxWaitMin: 1440, maxContentAgeMin: 5760, activationKey: 'seed-activated:energy:regional-fuelwatch',
     cutover: { mode: 'activation-marker', fromKey: null, issue: 10838, activationKey: 'seed-activated:energy:regional-fuelwatch' } },
-  regionalEnergySearg: { key: 'seed-meta:energy:regional-searg', maxStaleMin: 2160, firstPublicationMaxWaitMin: 1440, maxContentAgeMin: 20160, activationKey: 'seed-activated:energy:regional-searg',
-    cutover: { mode: 'activation-marker', fromKey: null, issue: 11154, activationKey: 'seed-activated:energy:regional-searg' } },
   regionalEnergyOil111: { key: 'seed-meta:energy:regional-oil111', maxStaleMin: 4320, firstPublicationMaxWaitMin: 1440, maxContentAgeMin: 30240, activationKey: 'seed-activated:energy:regional-oil111',
     cutover: { mode: 'activation-marker', fromKey: null, issue: 10113, activationKey: 'seed-activated:energy:regional-oil111' } },
+  regionalEnergyEms: { key: 'seed-meta:energy:regional-ems', maxStaleMin: 180, firstPublicationMaxWaitMin: 1440, maxContentAgeMin: 4320, activationKey: 'seed-activated:energy:regional-ems',
+    cutover: { mode: 'activation-marker', fromKey: null, issue: 10051, activationKey: 'seed-activated:energy:regional-ems' } },
+  regionalEnergyNosbih: { key: 'seed-meta:energy:regional-nosbih', maxStaleMin: 180, firstPublicationMaxWaitMin: 1440, maxContentAgeMin: 360, activationKey: 'seed-activated:energy:regional-nosbih',
+    cutover: { mode: 'activation-marker', fromKey: null, issue: 10051, activationKey: 'seed-activated:energy:regional-nosbih' } },
+  regionalEnergyMepso: { key: 'seed-meta:energy:regional-mepso', maxStaleMin: 1080, firstPublicationMaxWaitMin: 1440, maxContentAgeMin: 10080, activationKey: 'seed-activated:energy:regional-mepso',
+    cutover: { mode: 'activation-marker', fromKey: null, issue: 10051, activationKey: 'seed-activated:energy:regional-mepso' } },
   cryptoSectors:        { key: 'seed-meta:market:crypto-sectors',             maxStaleMin: 120 }, // relay loop every ~30min; 120min = 2h = 4x interval
   ddosAttacks:          { key: 'seed-meta:cf:radar:ddos',                    maxStaleMin: 60 }, // seed-internet-outages publishes the payload before advancing this clock; outages cron ~15min; 60 = 4x interval
   economicStress:       { key: 'seed-meta:economic:stress-index',            maxStaleMin: 180 }, // computed in seed-economy afterPublish; cron ~1h; 180min = 3x interval
@@ -2969,6 +2995,7 @@ const GOVERNMENT_RELEASE_INCIDENT_GRACE_MIN = 30 * 24 * 60;
 // "Loading...". Removed marketImplications below.
 const ON_DEMAND_KEYS = new Set([
   'gridDisruptionClock',
+  'newsCrossWordingMatcher',
   'comtradeBilateralHs4Ext',
   'foodPricesPihps', 'foodPricesPbs', 'foodPricesDa', 'foodPricesCbsl',
   'foodPricesSniim', 'foodPricesGiews', 'foodPricesOnagri',
@@ -3013,8 +3040,10 @@ const ON_DEMAND_KEYS = new Set([
   'regionalEnergyCreg',
   'regionalEnergyUrsea',
   'regionalEnergyFuelwatch',
-  'regionalEnergySearg',
   'regionalEnergyOil111',
+  'regionalEnergyEms',
+  'regionalEnergyNosbih',
+  'regionalEnergyMepso',
   // New ICESat-2 probe: absent before the first daily climate bundle run. firstPublicationMaxWaitMin
   // bounds the grace to one day; seed-activated:climate:reservoir-levels revokes it.
   'reservoirLevels',
@@ -3239,6 +3268,7 @@ const ON_DEMAND_KEYS = new Set([
 // normal EMPTY/STALE_SEED rules apply.
 const ACTIVATION_MARKERS = {
   gridDisruptionClock: SEED_META.gridDisruptionClock.activationKey,
+  newsCrossWordingMatcher: SEED_META.newsCrossWordingMatcher.activationKey,
   comtradeBilateralHs4Ext: SEED_META.comtradeBilateralHs4Ext.activationKey,
   regionalEnergyPgcb: SEED_META.regionalEnergyPgcb.activationKey,
   regionalEnergyPetrobangla: SEED_META.regionalEnergyPetrobangla.activationKey,
@@ -3264,8 +3294,10 @@ const ACTIVATION_MARKERS = {
   regionalEnergyCreg: SEED_META.regionalEnergyCreg.activationKey,
   regionalEnergyUrsea: SEED_META.regionalEnergyUrsea.activationKey,
   regionalEnergyFuelwatch: SEED_META.regionalEnergyFuelwatch.activationKey,
-  regionalEnergySearg: SEED_META.regionalEnergySearg.activationKey,
   regionalEnergyOil111: SEED_META.regionalEnergyOil111.activationKey,
+  regionalEnergyEms: SEED_META.regionalEnergyEms.activationKey,
+  regionalEnergyNosbih: SEED_META.regionalEnergyNosbih.activationKey,
+  regionalEnergyMepso: SEED_META.regionalEnergyMepso.activationKey,
   reservoirLevels: SEED_META.reservoirLevels.activationKey,
   orbitalCatalog: SEED_META.orbitalCatalog.activationKey,
   orbitalSites: SEED_META.orbitalSites.activationKey,
@@ -4252,7 +4284,8 @@ function readSeedMeta(seedCfg, keyMetaValues, keyMetaErrors, now) {
   // "the adapter was tried and is broken" (`stale`/`error`). Grading the two the
   // same makes an optional, deliberately-unconfigured source an eternal warn that
   // no amount of operator work can clear — so it is classified separately below.
-  const sourceUnavailable = meta?.sourceState === 'unavailable';
+  const sourceUnavailable = meta?.sourceState === 'unavailable'
+    && !(seedCfg.sourceStateExpires === true && seedStale === true);
   // A current, bounded upstream classification can prove that every admitted
   // transport path is externally blocked. Keep that state visible without
   // treating it as a broken producer that can be repaired by another retry.
@@ -4267,6 +4300,7 @@ function readSeedMeta(seedCfg, keyMetaValues, keyMetaErrors, now) {
     && (!Number.isFinite(inputFreshUntil) || inputFreshUntil <= now);
   const sourceDegraded = inputFreshnessExpired || (typeof meta?.sourceState === 'string'
     && meta.sourceState !== 'ok'
+    && !(seedCfg.sourceStateExpires === true && seedStale === true)
     && !sourceUnavailable
     && !sourceBlocked
     && sourceFailure?.pending !== true
@@ -4993,7 +5027,9 @@ function classifyKey(name, redisKey, opts, ctx) {
         && ctx.humanitarianRetention.records === metaCount))
       // These records include missing/stale input placeholders. A positive
       // count alone cannot prove that the reader serves a usable index.
-      && !seedCfg?.enforceInputFreshUntil,
+      && !seedCfg?.enforceInputFreshUntil
+      // These records count the producer's own checks; no reader is served them.
+      && !seedCfg?.recordsAreDiagnostics,
   });
   return entry;
 }

@@ -2617,7 +2617,9 @@
     },
     "climateNews": {
       "infoTooltip": "<strong>气候新闻</strong>来自Carbon Brief、UNEP、NASA、The Guardian等权威来源的最新环境和气候资讯。每30分钟更新一次。",
-      "loadError": "气候新闻暂时无法获取"
+      "loadError": "气候新闻暂时无法获取",
+      "restoreOriginal": "恢复原文",
+      "translate": "翻译"
     },
     "liquidityShifts": {
       "title": "流动性变化",
@@ -2652,7 +2654,13 @@
       "headline": "每日AI情报摘要，通过邮件或Slack接收",
       "tagline": "另含WM Analyst、告警规则和适用于Claude的MCP",
       "cta": "升级到Pro →",
-      "dismiss": "关闭"
+      "dismiss": "关闭",
+      "promoBadge": "黑色星期五",
+      "promoHeadline": "Pro 首年立省 {{savings}}%",
+      "promoTagline": "每月{{perMonth}}，而非{{monthly}}，按年计费。随时取消。优惠截止于{{date}}。",
+      "promoHeadlineYearlyOnly": "Pro 年度版首年立省 {{percent}}%",
+      "promoTaglineYearlyOnly": "随时取消。优惠截止 {{date}}。",
+      "promoCta": "获取优惠"
     },
     "billingState": {
       "onHoldDesc": "支付失败。请更新您的支付方式以恢复高级访问权限。",
@@ -5087,7 +5095,8 @@
     "current": "来源已检查",
     "reportedClaims": "发布方报告。相关说法可能仍在调查中。",
     "occurred": "事件",
-    "reported": "发布"
+    "reported": "发布",
+    "listed": "收录"
   },
   "panelVariants": {
     "finance": {

@@ -2641,7 +2641,9 @@
     },
     "climateNews": {
       "infoTooltip": "<strong>Notizie sul clima</strong> Ultime notizie su ambiente e clima da Carbon Brief, UNEP, NASA, The Guardian e altre fonti autorevoli. Aggiornato ogni 30 minuti.",
-      "loadError": "Notizie sul clima temporaneamente non disponibili"
+      "loadError": "Notizie sul clima temporaneamente non disponibili",
+      "restoreOriginal": "Ripristina il testo originale",
+      "translate": "Traduci"
     },
     "liquidityShifts": {
       "title": "Spostamenti di liquidità",
@@ -2676,7 +2678,13 @@
       "headline": "Briefing giornalieri IA via email o Slack",
       "tagline": "più WM Analyst, regole di alert e MCP per Claude",
       "cta": "Passa a Pro →",
-      "dismiss": "Scarta"
+      "dismiss": "Scarta",
+      "promoBadge": "Black Friday",
+      "promoHeadline": "{{savings}}% di sconto su Pro il primo anno",
+      "promoTagline": "{{perMonth}} al mese anziché {{monthly}}, fatturato annualmente. Puoi annullare in qualsiasi momento. Scade {{date}}.",
+      "promoHeadlineYearlyOnly": "{{percent}}% di sconto su Pro Annuale il primo anno",
+      "promoTaglineYearlyOnly": "Annulla in qualsiasi momento. Termina {{date}}.",
+      "promoCta": "Ottieni l'offerta"
     },
     "billingState": {
       "onHoldDesc": "Pagamento non riuscito. Aggiorna il metodo di pagamento per ripristinare l'accesso premium.",
@@ -5133,7 +5141,8 @@
     "current": "Fonte controllata",
     "reportedClaims": "Rapporti dell’editore. Le affermazioni potrebbero essere ancora oggetto di indagine.",
     "occurred": "Incidente",
-    "reported": "Pubblicato"
+    "reported": "Pubblicato",
+    "listed": "Registrato"
   },
   "panelVariants": {
     "finance": {

@@ -2659,7 +2659,9 @@
     },
     "climateNews": {
       "infoTooltip": "<strong>Climate News</strong> Latest environment and climate intelligence from Carbon Brief, UNEP, NASA, The Guardian, and other authoritative sources. Updated every 30 minutes.",
-      "loadError": "Climate news temporarily unavailable"
+      "loadError": "Climate news temporarily unavailable",
+      "restoreOriginal": "Restore original text",
+      "translate": "Translate"
     },
     "chatAnalyst": {
       "infoTooltip": "<strong>WM Analyst</strong> AI analyst with live context across geopolitical, market, military, and economic domains. Powered by Claude with real-time data injected from active WorldMonitor feeds."
@@ -2863,7 +2865,13 @@
       "headline": "Daily AI briefs by email or Slack",
       "tagline": "plus WM Analyst, alert rules and MCP for Claude",
       "cta": "Upgrade to Pro →",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "promoBadge": "Black Friday",
+      "promoHeadline": "{{savings}}% off Pro for your first year",
+      "promoTagline": "{{perMonth}} a month instead of {{monthly}}, billed yearly. Cancel anytime. Ends {{date}}.",
+      "promoHeadlineYearlyOnly": "{{percent}}% off Pro Yearly for your first year",
+      "promoTaglineYearlyOnly": "Cancel anytime. Ends {{date}}.",
+      "promoCta": "Get the offer"
     },
     "billingState": {
       "onHoldDesc": "Payment failed. Update your payment method to restore premium access.",
@@ -5640,7 +5648,8 @@
     "current": "Source checked",
     "reportedClaims": "Publisher reports. Claims may remain under investigation.",
     "occurred": "Incident",
-    "reported": "Published"
+    "reported": "Published",
+    "listed": "Listed"
   },
   "pwaInstall": {
     "title": "Install app",

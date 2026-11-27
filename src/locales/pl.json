@@ -2653,7 +2653,9 @@
     },
     "climateNews": {
       "infoTooltip": "<strong>Wiadomości klimatyczne</strong> Najnowsze informacje z zakresu środowiska i klimatu z Carbon Brief, UNEP, NASA, The Guardian i innych wiarygodnych źródeł. Aktualizowane co 30 minut.",
-      "loadError": "Wiadomości klimatyczne czasowo niedostępne"
+      "loadError": "Wiadomości klimatyczne czasowo niedostępne",
+      "restoreOriginal": "Przywróć oryginalny tekst",
+      "translate": "Przetłumacz"
     },
     "liquidityShifts": {
       "title": "Zmiany płynności",
@@ -2688,7 +2690,13 @@
       "headline": "Codzienne raporty AI e-mailem lub na Slacku",
       "tagline": "plus WM Analyst, reguły alertów i MCP dla Claude",
       "cta": "Przejdź na Pro →",
-      "dismiss": "Odrzuć"
+      "dismiss": "Odrzuć",
+      "promoBadge": "Black Friday",
+      "promoHeadline": "{{savings}}% taniej Pro przez pierwszy rok",
+      "promoTagline": "{{perMonth}} miesięcznie zamiast {{monthly}}, rozliczane rocznie. Możesz anulować w każdej chwili. Oferta kończy się {{date}}.",
+      "promoHeadlineYearlyOnly": "{{percent}}% taniej Pro Yearly przez pierwszy rok",
+      "promoTaglineYearlyOnly": "Anuluj w dowolnym momencie. Wygasa {{date}}.",
+      "promoCta": "Skorzystaj z oferty"
     },
     "billingState": {
       "onHoldDesc": "Płatność nie powiodła się. Zaktualizuj metodę płatności, aby przywrócić dostęp premium.",
@@ -5156,7 +5164,8 @@
     "current": "Źródło sprawdzone",
     "reportedClaims": "Raporty wydawcy. Twierdzenia mogą nadal być badane.",
     "occurred": "Incydent",
-    "reported": "Opublikowano"
+    "reported": "Opublikowano",
+    "listed": "Odnotowano"
   },
   "panelVariants": {
     "finance": {
