@@ -1,4 +1,4 @@
-import { countryBriefDirectViewSchema, countryRiskDirectViewSchema, normalizeCountryDirectRead } from '../../shared/country-brief-host';
+import { countryBriefDirectViewSchema, countryPickerViewSchema, countryRiskDirectViewSchema, normalizeCountryDirectRead } from '../../shared/country-brief-host';
 import { buildAttributionRider, mergeAttributionRider } from '../../shared/attribution-rider';
 import { readExistsFlags, readJsonFromUpstash, readRawJsonFromUpstash, redisPipeline } from '../_upstash-json.js';
 // @ts-expect-error — Edge-safe JS envelope mirror.
@@ -660,7 +660,10 @@ export async function dispatchToolsCall(
         { plans: MCP_CHECKOUT_PLANS },
       );
     }
-    const upgrade = await startUpgradeCheckout(deps.createCheckout, context.userId, plan, productId, id, corsHeaders, ctx);
+    const upgrade = await startUpgradeCheckout(deps.createCheckout, context.userId, plan, productId, id, corsHeaders, ctx, {
+      previewSwitch: deps.previewApiStarterSwitch,
+      callerPlanKey: planKey,
+    });
     if (upgrade instanceof Response) return upgrade;
     startUpgradeResult = upgrade;
   }
@@ -747,6 +750,9 @@ export async function dispatchToolsCall(
   const spokenLanguage = spokenLanguageOf(p.arguments?.spoken_language);
   const callArguments = Object.fromEntries(Object.entries(p.arguments ?? {}).filter(([key]) => key !== 'panel_request' && key !== 'response_mode' && key !== 'spoken_language'));
   let sourceArguments = callArguments;
+  // An open with no country shows the view's country picker: nothing is admitted or charged.
+  const countryPickerOpen = tool.name === 'open_country_brief' && suppliedPanel === undefined
+    && countryPickerViewSchema.safeParse(Object.fromEntries(Object.entries(callArguments).filter(([key]) => key !== 'jmespath'))).success;
   // Callers without a dedicated panel allowance (API allowances, operator keys)
   // cannot hold a forecast panel_request; they read original evidence at the
   // tool's own weight instead. Free accounts and keyless callers never reach here.
@@ -911,7 +917,7 @@ export async function dispatchToolsCall(
       panelUsage = panelRequest.usage;
       const readArgs = forecastPanelReadSchema.parse(Object.fromEntries(Object.entries(admissionArgs).filter(([key]) => key !== 'refresh' && key !== 'request_id')));
       panelRead = await authorizePanelRead(context, deps.redisPipeline, tool.name, readArgs, panelRequest.token);
-    } else if (dedicatedPanel && tool.name === 'open_country_brief') {
+    } else if (dedicatedPanel && tool.name === 'open_country_brief' && !countryPickerOpen) {
       panelRequest = await admitCountryPanel(context, budget, deps.redisPipeline, Object.fromEntries(Object.entries(callArguments).filter(([key]) => key !== 'jmespath')));
     } else if (dedicatedPanel && tool.name === 'open_news_dashboard') {
       if (suppliedPanel !== undefined) throw new PanelRequestError('Open or refresh the dashboard without a reader token.', 'invalid');
@@ -965,6 +971,7 @@ export async function dispatchToolsCall(
     && !isMetadataTool
     && !panelRequest
     && !panelRead
+    && !countryPickerOpen
   ) {
     if (freeAccountAllowance) {
       const reservation = await reserveFreeAccountAllowance(
@@ -1060,7 +1067,7 @@ export async function dispatchToolsCall(
         panelUsage = { used: reservation.newCount, limit, remaining: limit === null ? null : Math.max(0, limit - reservation.newCount), resetsAt: reset.toISOString(), unit: 'requests' };
       }
     }
-  } else if (context.kind === 'env_key' && tool._freeTier !== true && !isMetadataTool) {
+  } else if (context.kind === 'env_key' && tool._freeTier !== true && !isMetadataTool && !countryPickerOpen) {
     // Operator keys carry no account and used to skip the daily counter
     // entirely, so one leaked key had no ceiling. They now reserve on their own
     // per-key dedicated counter (one unit per call, as on Pro's) against a

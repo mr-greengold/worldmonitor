@@ -13,7 +13,13 @@
 
 import type { DodoProductId } from '@/config/products';
 import { enqueueSentryCall } from '@/bootstrap/sentry-defer';
-import { openBillingPortal, prereserveBillingPortalTab, requestProAnnualSwitch, requestProBusinessUpgrade } from './billing';
+import {
+  openBillingPortal,
+  prereserveBillingPortalTab,
+  requestApiStarterSwitch,
+  requestProAnnualSwitch,
+  requestProBusinessUpgrade,
+} from './billing';
 import { getCurrentClerkUser, getClerkToken, openSignIn } from './clerk';
 import { subscribeAuthState } from './auth-state';
 import { saveCheckoutAttempt, clearCheckoutAttempt } from './checkout-attempt';
@@ -465,12 +471,18 @@ export async function startProAnnualSwitch(
   onDismiss?: () => void,
 ): Promise<void> {
   // A failed chunk load (stale deploy, flaky network) still reaches the fallback.
-  const flowModule = await import('./pro-business-upgrade-dialog').catch(() => null);
-  if (!flowModule) {
+  const [flowModule, i18n] = await Promise.all([
+    import('./pro-business-upgrade-dialog').catch(() => null),
+    // Already loaded by the app; dynamic so node suites that load checkout skip i18next.
+    import('./i18n').catch(() => null),
+  ]);
+  if (!flowModule || !i18n) {
     fallback();
     return;
   }
   await flowModule.runProAnnualSwitchFlow({
+    translate: i18n.t,
+    locale: i18n.getLocale(),
     planKey,
     fallback,
     requestSwitch: requestProAnnualSwitch,
@@ -494,6 +506,42 @@ async function isProBusinessCheckoutTarget(productId: string): Promise<boolean> 
   } catch {
     return false;
   }
+}
+
+async function isApiStarterCheckoutTarget(productId: string): Promise<boolean> {
+  try {
+    const { DODO_PRODUCTS } = await import('@/config/products');
+    return productId === DODO_PRODUCTS.API_STARTER_MONTHLY || productId === DODO_PRODUCTS.API_STARTER_ANNUAL;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * In-place individual Pro → API Starter switch. Reached from Settings and,
+ * before any API Starter checkout, from startCheckout. Resolves
+ * 'not-switchable' when the account has no Pro the server would switch (or the
+ * flow cannot run), and the caller then goes on as before. The server keeps
+ * the cadence, so a Pro Yearly holder is quoted API Starter Annual whichever
+ * API Starter product was picked.
+ */
+export async function startApiStarterSwitch(
+  /** Settings returns focus to its switch button; the checkout path passes nothing. */
+  onDismiss?: () => void,
+): Promise<'shown' | 'not-switchable'> {
+  // A failed chunk load (stale deploy, flaky network) continues to checkout.
+  const flowModule = await import('./api-starter-switch-dialog').catch(() => null);
+  if (!flowModule) return 'not-switchable';
+  return flowModule.runApiStarterSwitchFlow({
+    requestSwitch: requestApiStarterSwitch,
+    currentUserId: () => getCurrentClerkUser()?.id,
+    openPortal: openPortalFromDialog,
+    afterSuccess: () => window.location.reload(),
+    showDialog: showCheckoutConfirmDialog,
+    errorKind: extractBillingErrorKind,
+    reportError: reportPlanChangeError,
+    ...(onDismiss ? { onDismiss } : {}),
+  });
 }
 
 /**
@@ -617,7 +665,32 @@ export async function startCheckout(
     return false;
   }
 
+  // An individual Pro holder moves to API Starter in place instead of buying
+  // a second subscription. Every other account continues to checkout. The
+  // guard is taken before the first await and held into the checkout below.
   _checkoutInFlight = true;
+  if (await isApiStarterCheckoutTarget(productId)) {
+    let switchOutcome: 'shown' | 'not-switchable' = 'not-switchable';
+    try {
+      switchOutcome = await startApiStarterSwitch();
+    } catch {
+      // Treated as not switchable: the checkout runs exactly as before.
+    }
+    if (switchOutcome === 'shown') {
+      _checkoutInFlight = false;
+      // The switch dialog answers this purchase. A stored intent for it would
+      // reopen the dialog on the next sign-in in this tab.
+      if (loadPendingCheckoutIntent()?.productId === productId) clearPendingCheckoutIntent();
+      return false;
+    }
+    // The quote can take seconds. A checkout started by one account must not
+    // continue under another one's token.
+    if (getCurrentClerkUser()?.id !== user.id) {
+      _checkoutInFlight = false;
+      return false;
+    }
+  }
+
   let redirecting = false;
   // Fall back to the stored referral when the caller doesn't pass one.
   // A dashboard-origin upgrade click has no ref in hand — it arrives
